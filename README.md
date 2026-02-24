@@ -2,13 +2,13 @@ Last Updated: Feb 23, 2026
 
 # Breathe -- Breath-Controlled Sailboat Survival Game
 
-A Unity-based alternative-control game where the player's breath physically drives in-game wind power. Blow toward a custom-built fan device to fill the sail and push a small sailboat through treacherous waters. Steer with a keyboard or controller. Survive as long as possible.
+A Unity-based alternative-control game where the player's breath physically drives in-game wind power. Blow toward a custom-built fan device to fill the sail and push a small sailboat through treacherous waters. Steer with a keyboard or controller. Survive as long as possible, or on a short timer in a strict stat tracking mode (for breathing pattern/capacity measurements). If built correctly, this could be concept could be applied as a medical measurement device for pediatric settings.
 
-**The physical metaphor: breath = wind = fan spin = sail power.**
+**The physical metaphor: breathing ==> fan spin ==> wind speed/sail power.**
 
 ## Why This Exists
 
-This project explores whether breath can serve as a compelling, responsive, and hygienic primary game input. The hardware is developer-built (a repurposed PC fan + microcontroller sensing rig), the game is designed specifically around that input, and the interaction cannot be replicated with a standard controller.
+This project explores whether breath can serve as a compelling and responsive primary game input. The hardware is developer-built (a repurposed PC fan + microcontroller sensing rig), the game is designed specifically around that input, and the interaction cannot be replicated with a standard controller.
 
 The long-term vision includes healthcare-adjacent applications -- breath measurement and engagement tools for clinical and pediatric settings -- but the current scope is a polished, playable Windows PC game that proves the concept works.
 
