@@ -1,6 +1,6 @@
-Last Updated: Feb 23, 2026
+Last Updated: Feb 26, 2026
 
-# Hardware Overview -- Breath Input Device
+# Hardware Overview — Breath Input Device
 
 ## IP and Usage Notice
 
@@ -20,13 +20,15 @@ Player breath -> physical rotation -> pulse detection -> microcontroller samplin
 
 ## Component Requirements (Vendor-Agnostic)
 
-| Category | Functional Requirement |
-|----------|----------------------|
-| **Air-reactive rotor** | Spins reliably and proportionally from directed breath at short range |
-| **Rotation sensing** | Produces repeatable, countable pulses per revolution at low RPM |
-| **Microcontroller** | Reads rotation pulses and streams serial telemetry over USB |
-| **Data link** | Stable USB serial connection to the host PC |
-| **Mounting** | Holds the rotor at a consistent orientation and comfortable distance from the player |
+**Air-reactive rotor** -- Spins reliably and proportionally from directed breath at short range
+
+**Rotation sensing** -- Produces repeatable, countable pulses per revolution at low RPM
+
+**Microcontroller** -- Reads rotation pulses and streams serial telemetry over USB
+
+**Data link** -- Stable USB serial connection to the host PC
+
+**Mounting** -- Holds the rotor at a consistent orientation and comfortable distance from the player
 
 ## Technical Targets
 
@@ -38,14 +40,25 @@ Player breath -> physical rotation -> pulse detection -> microcontroller samplin
 ## Hygiene and Safety
 
 - No direct mouth contact with any shared surface -- the player blows toward the device from a short distance
-- Multiple users can play back-to-back with zero cleanup between sessions
+- This is a significant hygiene advantage for multi-user scenarios such as demos and presentations
+- Residual airborne droplet contamination from directed breath at close range is acknowledged as an engineering consideration, with planned mitigations including a sealed electronics enclosure and cleanable forward-facing surfaces
 - Wiring is insulated and secured to prevent accidental disconnection during demos or playtesting
+
+## Data Capture
+
+The breath-only game design (no secondary controller inputs) means every signal the device receives is breathing data. The device captures:
+
+- Real-time breath intensity proportional to effort
+- Effort duration and patterns over time
+- Session-to-session trend data
+
+These measurements support both responsive gameplay and potential future healthcare-adjacent applications such as breathing exercise engagement and effort tracking.
 
 ## Integration
 
 - The game engine reads serial text telemetry from the device, then applies normalization and smoothing
 - Game logic consumes the signal through a source-agnostic interface, so the hardware path, microphone fallback, and simulated input path are all interchangeable without gameplay code changes
 
-## Implementation Details
+## Implementation Status
 
-Detailed procurement lists, wiring specifics, assembly procedures, firmware, and calibration workflows are maintained privately outside this public documentation set. Contact the repository owner for further information.
+Hardware integration is part of the ongoing prototype work. The game supports multiple input paths (custom device, microphone fallback, and simulated input for development) through a single abstraction so that gameplay logic is unchanged regardless of source. Detailed procurement lists, wiring specifics, assembly procedures, firmware, and calibration workflows are maintained privately. Contact the repository owner for further information.

@@ -1,4 +1,4 @@
-Last Updated: Feb 23, 2026
+Last Updated: Feb 26, 2026
 
 # Core Mechanic: Breath to Power Level
 
@@ -8,11 +8,13 @@ This repository is public for review and portfolio visibility only. All material
 
 ## Mechanic Objective
 
-Convert player breath intensity into a stable, real-time gameplay signal that controls in-game wind speed and sail power.
+Convert player breath intensity into a stable, real-time gameplay signal that controls in-game wind speed and sail power. Breath is the sole input for all gameplay -- no secondary controls.
 
 ## Design Philosophy
 
-The breath mechanic is the single most important system in the project. Everything else -- the sailboat, the obstacles, the scoring -- is built on top of a working, responsive breath-to-game pipeline. The mechanic must feel immediate, proportional, and satisfying before any other feature gets attention.
+The breath mechanic is the single most important system in the project. Everything else -- the sailboat, the AI opponents, the course, the scoring -- is built on top of a working, responsive breath-to-game pipeline. The mechanic must feel immediate, proportional, and satisfying before any other feature gets attention.
+
+The breath-only constraint is intentional: it keeps the player focused entirely on breathing, produces the cleanest possible breath-effort data, and makes the game accessible to anyone who can blow.
 
 ## System Architecture (Public Summary)
 
@@ -48,6 +50,10 @@ Game systems consume a common breath-input interface. The actual signal source -
 - Validate proportional intensity mapping (harder breath = stronger effect, consistently)
 - Verify stable baseline at rest with minimal noise
 - Confirm consistency across repeated sessions and multiple users
+
+## Implementation Status
+
+The architecture described above is the basis for the current prototype. The breath-to-power pipeline is in active development as part of the playable vertical slice. No implementation or code details are disclosed in this public document.
 
 ## Related Documents
 
