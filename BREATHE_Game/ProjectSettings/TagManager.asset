@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags: []
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - 
+  - 
+  - Player
+  - AI
+  - Zone
+  - Obstacle
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 841096687
+    locked: 0
+  - name: Water
+    uniqueID: 2183673617
+    locked: 0
+  - name: Zones
+    uniqueID: 3874906057
+    locked: 0
+  - name: Obstacles
+    uniqueID: 1593594135
+    locked: 0
+  - name: Boats
+    uniqueID: 2468167103
+    locked: 0
+  - name: Effects
+    uniqueID: 347088283
+    locked: 0
+  - name: UI
+    uniqueID: 2435967069
+    locked: 0
+  m_RenderingLayers:
+  - Default

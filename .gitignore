@@ -52,5 +52,13 @@ Desktop.ini
 *.pem
 *.p12
 
+# BREATHE_Game Unity project — explicit paths (belt-and-suspenders with bracket patterns above)
+BREATHE_Game/Library/
+BREATHE_Game/Logs/
+BREATHE_Game/Temp/
+BREATHE_Game/obj/
+BREATHE_Game/UserSettings/
+
 # Internal/private docs
 dev-docs/
+plain-docs/
