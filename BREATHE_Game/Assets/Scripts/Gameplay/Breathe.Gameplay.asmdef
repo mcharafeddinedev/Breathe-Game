@@ -1,0 +1,19 @@
+{
+    "name": "Breathe.Gameplay",
+    "rootNamespace": "Breathe.Gameplay",
+    "references": [
+        "Unity.InputSystem",
+        "Breathe.Input",
+        "Breathe.Data",
+        "Breathe.Utility"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
