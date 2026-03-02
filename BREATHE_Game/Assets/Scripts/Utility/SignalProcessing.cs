@@ -2,72 +2,38 @@ using UnityEngine;
 
 namespace Breathe.Utility
 {
-    /// <summary>
-    /// Static utility class providing common signal-processing operations
-    /// used throughout the breath-input pipeline.
-    /// </summary>
+    // Common signal processing helpers used by the breath input pipeline
     public static class SignalProcessing
     {
-        /// <summary>
-        /// Compute an exponential moving average (EMA).
-        /// </summary>
-        /// <param name="current">The current smoothed value.</param>
-        /// <param name="raw">The latest raw sample.</param>
-        /// <param name="alpha">
-        /// Smoothing factor in [0, 1]. Higher values retain more of the
-        /// current value (smoother but slower response).
-        /// </param>
-        /// <returns>The new smoothed value.</returns>
+        // Exponential moving average — higher alpha = smoother but slower response
         public static float ExponentialMovingAverage(float current, float raw, float alpha)
         {
             return current * alpha + raw * (1f - alpha);
         }
 
-        /// <summary>
-        /// Apply a dead-zone filter. Values below the threshold are clamped to zero.
-        /// </summary>
-        /// <param name="value">Input value (assumed non-negative).</param>
-        /// <param name="threshold">Dead-zone threshold.</param>
-        /// <returns>Zero if <paramref name="value"/> is below the threshold; otherwise <paramref name="value"/>.</returns>
+        // Cuts values below the threshold to zero (noise gate)
         public static float DeadZone(float value, float threshold)
         {
             return value < threshold ? 0f : value;
         }
 
-        /// <summary>
-        /// Linearly re-map a value from one range to another, clamped to the output range.
-        /// </summary>
-        /// <param name="value">Input value.</param>
-        /// <param name="inMin">Input range minimum.</param>
-        /// <param name="inMax">Input range maximum.</param>
-        /// <param name="outMin">Output range minimum.</param>
-        /// <param name="outMax">Output range maximum.</param>
-        /// <returns>The re-mapped and clamped value.</returns>
+        // Remaps a value from one range to another, clamped to output bounds
         public static float MapRange(float value, float inMin, float inMax, float outMin, float outMax)
         {
             if (Mathf.Approximately(inMax, inMin))
                 return outMin;
 
-            float t = (value - inMin) / (inMax - inMin);
-            t = Mathf.Clamp01(t);
+            float t = Mathf.Clamp01((value - inMin) / (inMax - inMin));
             return Mathf.Lerp(outMin, outMax, t);
         }
 
-        /// <summary>
-        /// Determine the discrete power level (0–5) for a given intensity value
-        /// based on an ascending array of five threshold boundaries.
-        /// </summary>
-        /// <param name="intensity">Continuous intensity value to classify.</param>
-        /// <param name="thresholds">
-        /// Exactly five ascending floats representing the boundaries between
-        /// levels 0→1, 1→2, 2→3, 3→4, and 4→5.
-        /// </param>
-        /// <returns>An integer in [0, 5].</returns>
+        // Returns a power level 0-5 based on where intensity falls in the threshold array.
+        // Thresholds should be 5 ascending floats (boundaries between each level).
         public static int GetPowerLevel(float intensity, float[] thresholds)
         {
             if (thresholds == null || thresholds.Length < 5)
             {
-                Debug.LogWarning("[SignalProcessing] GetPowerLevel requires exactly 5 thresholds.");
+                Debug.LogWarning("[SignalProcessing] GetPowerLevel needs exactly 5 thresholds.");
                 return 0;
             }
 
@@ -76,7 +42,6 @@ namespace Breathe.Utility
                 if (intensity >= thresholds[i])
                     return i + 1;
             }
-
             return 0;
         }
     }

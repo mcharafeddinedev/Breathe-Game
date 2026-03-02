@@ -2,74 +2,48 @@ using UnityEngine;
 
 namespace Breathe.Gameplay
 {
-    /// <summary>
-    /// Water trail / wake effect that appears behind boats when they reach max speed.
-    /// Spawns elongated trail sprites behind the boat that persist in world space,
-    /// fade out, and return to a pool. Complements <see cref="BoatSplashEffect"/> and
-    /// <see cref="BoatWindEffect"/> by adding a visible wake at high speed.
-    /// </summary>
+    // Water wake trail that appears behind boats at high speed.
+    // Thin streak sprites spawn behind the boat, stay in world space, and fade out.
+    // Only activates near max speed with hysteresis to avoid flickering.
     public class BoatWakeTrailEffect : MonoBehaviour
     {
-        [Header("Sprite")]
-        [SerializeField, Tooltip("Trail segment sprite. Leave empty for procedural placeholder.")]
+        [SerializeField, Tooltip("Trail sprite. Leave empty for procedural placeholder.")]
         private Sprite _trailSprite;
-
-        [Header("Pool")]
-        [SerializeField, Tooltip("Maximum simultaneous trail segments. More segments for thinner streaks.")]
-        private int _poolSize = 20;
+        [SerializeField] private int _poolSize = 20;
 
         [Header("Activation")]
-        [SerializeField, Tooltip("Speed at or above which the wake trail appears. Player max ~8, AI varies.")]
+        [SerializeField, Tooltip("Trail appears at or above this speed.")]
         private float _maxSpeedThreshold = 7f;
-
-        [SerializeField, Tooltip("Hysteresis: speed must drop below this to deactivate (avoids flicker).")]
+        [SerializeField, Tooltip("Must drop below this to deactivate (prevents flicker).")]
         private float _deactivateThreshold = 6.5f;
 
-        [Header("Behaviour")]
-        [SerializeField, Tooltip("How far behind the boat center trail segments spawn (world units).")]
-        private float _spawnOffsetBehind = 0.6f;
-
-        [SerializeField, Tooltip("Random lateral spread when spawning. Kept narrow for streak look.")]
-        private float _spawnSpreadX = 0.25f;
-
-        [SerializeField, Tooltip("Base interval between trail spawns. Synced with wind/splash cadence.")]
-        private float _spawnInterval = 0.1f;
-
-        [SerializeField, Tooltip("Lifetime of a trail segment before it fades out.")]
-        private float _segmentLifetime = 0.7f;
+        [Header("Spawn")]
+        [SerializeField] private float _spawnOffsetBehind = 0.6f;
+        [SerializeField] private float _spawnSpreadX = 0.25f;
+        [SerializeField] private float _spawnInterval = 0.1f;
+        [SerializeField] private float _segmentLifetime = 0.7f;
 
         [Header("Visual")]
-        [SerializeField, Tooltip("Trail streak width (X scale). Thin for streak look, matches wind effect.")]
-        private float _segmentWidth = 0.16f;
-
-        [SerializeField, Tooltip("Trail streak length (Y scale) - elongated along wake direction.")]
-        private float _segmentLength = 1.1f;
-
-        [SerializeField, Tooltip("Sorting order for trail sprites.")]
-        private int _sortingOrder = 3;
+        [SerializeField] private float _segmentWidth = 0.16f;
+        [SerializeField] private float _segmentLength = 1.1f;
+        [SerializeField] private int _sortingOrder = 3;
 
         private TrailSegment[] _pool;
         private Transform _poolParent;
         private float _spawnTimer;
         private float _speed;
         private bool _wasAtMaxSpeed;
+        private static Sprite _placeholderSprite;
 
         private struct TrailSegment
         {
             public GameObject Go;
             public SpriteRenderer Sr;
-            public float Age;
-            public float MaxAge;
+            public float Age, MaxAge;
             public bool Active;
         }
 
-        /// <summary>
-        /// Sets current boat speed. Called by the boat controller each frame.
-        /// </summary>
-        public void SetSpeed(float speed)
-        {
-            _speed = Mathf.Max(0f, speed);
-        }
+        public void SetSpeed(float speed) => _speed = Mathf.Max(0f, speed);
 
         private void Start()
         {
@@ -79,28 +53,22 @@ namespace Breathe.Gameplay
 
         private void Update()
         {
-            if (_speed >= _maxSpeedThreshold)
-                _wasAtMaxSpeed = true;
-            else if (_speed < _deactivateThreshold)
-                _wasAtMaxSpeed = false;
+            if (_speed >= _maxSpeedThreshold) _wasAtMaxSpeed = true;
+            else if (_speed < _deactivateThreshold) _wasAtMaxSpeed = false;
 
             bool shouldSpawn = _speed >= _maxSpeedThreshold ||
                 (_wasAtMaxSpeed && _speed >= _deactivateThreshold);
 
             if (shouldSpawn)
-                UpdateSpawning();
-
-            UpdateSegments();
-        }
-
-        private void UpdateSpawning()
-        {
-            _spawnTimer -= Time.deltaTime;
-            if (_spawnTimer <= 0f)
             {
-                SpawnSegment();
-                _spawnTimer = _spawnInterval;
+                _spawnTimer -= Time.deltaTime;
+                if (_spawnTimer <= 0f)
+                {
+                    SpawnSegment();
+                    _spawnTimer = _spawnInterval;
+                }
             }
+            UpdateSegments();
         }
 
         private void SpawnSegment()
@@ -110,16 +78,16 @@ namespace Breathe.Gameplay
 
             ref TrailSegment s = ref _pool[idx];
 
-            // Spawn behind the boat (boat faces transform.up, behind = -up)
             Vector3 behind = -transform.up;
             float xOffset = Random.Range(-_spawnSpreadX, _spawnSpreadX);
-            Vector3 spawnPos = transform.position + behind * _spawnOffsetBehind +
-                transform.right * xOffset;
+            Vector3 spawnPos = transform.position + behind * _spawnOffsetBehind + transform.right * xOffset;
 
+            // Detach from parent so segment stays in world space
             s.Go.transform.SetParent(null);
             s.Go.transform.position = spawnPos;
             s.Go.transform.rotation = transform.rotation;
-            s.Go.transform.localScale = new Vector3(_segmentWidth * Random.Range(0.95f, 1.05f),
+            s.Go.transform.localScale = new Vector3(
+                _segmentWidth * Random.Range(0.95f, 1.05f),
                 _segmentLength * Random.Range(0.95f, 1.05f), 1f);
 
             s.Age = 0f;
@@ -139,13 +107,11 @@ namespace Breathe.Gameplay
                 s.Age += Time.deltaTime;
                 float t = s.Age / s.MaxAge;
 
+                // Fade in, hold at 0.5 alpha, fade out
                 float alpha;
-                if (t < 0.15f)
-                    alpha = (t / 0.15f) * 0.5f;
-                else if (t > 0.5f)
-                    alpha = Mathf.Lerp(0.5f, 0f, (t - 0.5f) / 0.5f);
-                else
-                    alpha = 0.5f;
+                if (t < 0.15f) alpha = (t / 0.15f) * 0.5f;
+                else if (t > 0.5f) alpha = Mathf.Lerp(0.5f, 0f, (t - 0.5f) / 0.5f);
+                else alpha = 0.5f;
 
                 s.Sr.color = new Color(1f, 1f, 1f, alpha);
 
@@ -161,9 +127,7 @@ namespace Breathe.Gameplay
         private int FindInactive()
         {
             for (int i = 0; i < _pool.Length; i++)
-            {
                 if (!_pool[i].Active) return i;
-            }
             return -1;
         }
 
@@ -187,25 +151,17 @@ namespace Breathe.Gameplay
                 sr.color = new Color(1f, 1f, 1f, 0f);
                 sr.sortingOrder = _sortingOrder;
                 sr.material = new Material(Shader.Find("Sprites/Default"));
-
                 go.SetActive(false);
 
-                _pool[i] = new TrailSegment
-                {
-                    Go = go,
-                    Sr = sr,
-                    Active = false
-                };
+                _pool[i] = new TrailSegment { Go = go, Sr = sr, Active = false };
             }
         }
 
-        private static Sprite _placeholderSprite;
-
+        // Thin elongated ellipse — stands in until a real sprite is assigned
         private static void EnsurePlaceholderSprite()
         {
             if (_placeholderSprite != null) return;
 
-            // Thin streak: narrow width, elongated length (matches wind effect proportions)
             int w = 10, h = 48;
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
             float cx = w / 2f, cy = h / 2f;
@@ -213,23 +169,17 @@ namespace Breathe.Gameplay
             float ry = Mathf.Max(0.5f, h / 2f - 1f);
 
             for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
             {
-                for (int x = 0; x < w; x++)
+                float dx = (x - cx) / rx;
+                float dy = (y - cy) / ry;
+                float d = dx * dx + dy * dy;
+                if (d <= 1f)
                 {
-                    float dx = (x - cx) / rx;
-                    float dy = (y - cy) / ry;
-                    float d = dx * dx + dy * dy;
-
-                    if (d <= 1f)
-                    {
-                        float alpha = d > 0.3f ? Mathf.Lerp(1f, 0f, (d - 0.3f) / 0.7f) : 1f;
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha * 0.65f));
-                    }
-                    else
-                    {
-                        tex.SetPixel(x, y, Color.clear);
-                    }
+                    float alpha = d > 0.3f ? Mathf.Lerp(1f, 0f, (d - 0.3f) / 0.7f) : 1f;
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha * 0.65f));
                 }
+                else tex.SetPixel(x, y, Color.clear);
             }
 
             tex.Apply();

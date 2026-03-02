@@ -1,8 +1,6 @@
-// SerialPort requires .NET Framework API compatibility (not .NET Standard 2.1).
-// To enable fan hardware support:
-//   1. Edit > Project Settings > Player > Other Settings > Api Compatibility Level → .NET Framework
-//      (this defines NET_4_6 or NET_UNITY_4_8 automatically)
-//   OR add BREATHE_SERIAL to: Project Settings > Player > Scripting Define Symbols
+// SerialPort needs .NET Framework API compatibility (not .NET Standard 2.1).
+// To enable: Edit > Project Settings > Player > Api Compatibility Level > .NET Framework
+//   OR add BREATHE_SERIAL to Scripting Define Symbols
 #if NET_4_6 || NET_UNITY_4_8 || BREATHE_SERIAL
 #define SERIAL_AVAILABLE
 #endif
@@ -19,36 +17,21 @@ using Breathe.Utility;
 
 namespace Breathe.Input
 {
-    /// <summary>
-    /// Reads RPM telemetry from an Arduino-driven fan anemometer over a serial
-    /// (COM) port. A background thread handles blocking serial reads; the main
-    /// thread consumes the latest value each frame and applies the standard
-    /// smoothing / dead-zone / mapping pipeline.
-    ///
-    /// Requires .NET Framework API compatibility level or the System.IO.Ports
-    /// NuGet package. On platforms where serial is unavailable, this class
-    /// compiles as a no-op stub.
-    /// </summary>
+    // Reads RPM from an Arduino fan anemometer over serial.
+    // A background thread does the blocking reads; main thread just grabs
+    // the latest value each frame and runs it through the smoothing pipeline.
+    // Compiles as a no-op stub when serial isn't available.
     public sealed class FanBreathInput : MonoBehaviour, IBreathInput
     {
-        [Header("Configuration")]
-        [SerializeField, Tooltip("Shared breath-processing parameters.")]
-        private BreathConfig breathConfig;
+        [SerializeField] private BreathConfig breathConfig;
 
         [Header("Serial Port")]
-        [SerializeField, Tooltip("COM port the Arduino is connected to (e.g. COM3).")]
+        [SerializeField, Tooltip("COM port the Arduino is on (e.g. COM3).")]
         private string comPort = "COM3";
-
-        [SerializeField, Tooltip("Serial baud rate. Must match the Arduino sketch.")]
+        [SerializeField, Tooltip("Must match the Arduino sketch.")]
         private int baudRate = 9600;
-
-        [SerializeField, Tooltip("Timeout in milliseconds for serial read operations.")]
-        private int readTimeoutMs = 100;
-
-        [Header("Thread Control")]
-        [SerializeField, Tooltip("Maximum milliseconds to wait for the reader thread " +
-            "to terminate during Shutdown.")]
-        private int threadJoinTimeoutMs = 1000;
+        [SerializeField] private int readTimeoutMs = 100;
+        [SerializeField] private int threadJoinTimeoutMs = 1000;
 
 #if SERIAL_AVAILABLE
         private SerialPort _serialPort;
@@ -60,8 +43,6 @@ namespace Breathe.Input
         private float _smoothedIntensity;
         private int _previousLevel;
         private bool _active;
-
-        // ------------------------------------------------------------------ IBreathInput
 
         public float GetBreathIntensity() => _smoothedIntensity;
 
@@ -79,7 +60,6 @@ namespace Breathe.Input
 
 #if SERIAL_AVAILABLE
             _latestRpm = 0f;
-
             try
             {
                 _serialPort = new SerialPort(comPort, baudRate)
@@ -107,8 +87,7 @@ namespace Breathe.Input
                 _active = false;
             }
 #else
-            Debug.LogWarning("[BreathInput] Serial port not available on this platform. " +
-                "Set Api Compatibility Level to .NET Framework for fan hardware support.");
+            Debug.LogWarning("[BreathInput] Serial not available — need .NET Framework for fan hardware.");
             _active = false;
 #endif
         }
@@ -123,30 +102,21 @@ namespace Breathe.Input
             if (_readThread != null && _readThread.IsAlive)
             {
                 if (!_readThread.Join(threadJoinTimeoutMs))
-                    Debug.LogWarning("[BreathInput] Fan serial: reader thread did not terminate in time.");
+                    Debug.LogWarning("[BreathInput] Fan serial: reader thread didn't stop in time.");
                 _readThread = null;
             }
 
             if (_serialPort != null)
             {
-                try
-                {
-                    if (_serialPort.IsOpen) _serialPort.Close();
-                }
-                catch (IOException ex)
-                {
-                    Debug.LogWarning("[BreathInput] Fan serial: " + ex.Message);
-                }
+                try { if (_serialPort.IsOpen) _serialPort.Close(); }
+                catch (IOException ex) { Debug.LogWarning("[BreathInput] Fan serial: " + ex.Message); }
                 _serialPort.Dispose();
                 _serialPort = null;
             }
 #endif
-
             _smoothedIntensity = 0f;
             enabled = false;
         }
-
-        // ------------------------------------------------------------------ Unity lifecycle
 
         private void Update()
         {
@@ -158,28 +128,19 @@ namespace Breathe.Input
             float rpm = 0f;
 #endif
 
-            float rawIntensity = SignalProcessing.MapRange(
-                rpm, 0f, breathConfig.MaxExpectedRPM, 0f, 1f);
-
+            float rawIntensity = SignalProcessing.MapRange(rpm, 0f, breathConfig.MaxExpectedRPM, 0f, 1f);
             _smoothedIntensity = SignalProcessing.ExponentialMovingAverage(
                 _smoothedIntensity, rawIntensity, breathConfig.SmoothingFactor);
-
-            _smoothedIntensity = SignalProcessing.DeadZone(
-                _smoothedIntensity, breathConfig.DeadZoneThreshold);
-
+            _smoothedIntensity = SignalProcessing.DeadZone(_smoothedIntensity, breathConfig.DeadZoneThreshold);
             _smoothedIntensity = Mathf.Clamp01(_smoothedIntensity);
 
             CheckLevelCrossing();
         }
 
-        private void OnDestroy()
-        {
-            Shutdown();
-        }
-
-        // ------------------------------------------------------------------ Background thread
+        private void OnDestroy() => Shutdown();
 
 #if SERIAL_AVAILABLE
+        // Background thread — blocks on serial reads
         private void ReadSerialLoop()
         {
             while (_threadRunning)
@@ -188,39 +149,28 @@ namespace Breathe.Input
                 {
                     if (_serialPort == null || !_serialPort.IsOpen) break;
 
-                    string line = _serialPort.ReadLine();
-                    if (line == null) continue;
-
-                    line = line.Trim();
-                    if (line.StartsWith("RPM:", StringComparison.OrdinalIgnoreCase))
+                    string line = _serialPort.ReadLine()?.Trim();
+                    if (line != null && line.StartsWith("RPM:", StringComparison.OrdinalIgnoreCase))
                     {
-                        string rpmStr = line.Substring(4);
-                        if (float.TryParse(rpmStr, System.Globalization.NumberStyles.Float,
+                        if (float.TryParse(line.Substring(4),
+                                System.Globalization.NumberStyles.Float,
                                 System.Globalization.CultureInfo.InvariantCulture, out float rpm))
                         {
                             _latestRpm = Mathf.Max(0f, rpm);
                         }
                     }
                 }
-                catch (TimeoutException)
-                {
-                    // Expected when no data is available within the read timeout.
-                }
+                catch (TimeoutException) { } // normal — no data within timeout
                 catch (IOException ex)
                 {
                     Debug.LogWarning("[BreathInput] Fan serial: " + ex.Message);
                     _latestRpm = 0f;
                     break;
                 }
-                catch (InvalidOperationException)
-                {
-                    break;
-                }
+                catch (InvalidOperationException) { break; }
             }
         }
 #endif
-
-        // ------------------------------------------------------------------ Internal
 
         private void CheckLevelCrossing()
         {

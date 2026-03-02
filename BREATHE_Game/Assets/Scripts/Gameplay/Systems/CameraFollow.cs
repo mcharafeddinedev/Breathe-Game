@@ -2,31 +2,19 @@ using UnityEngine;
 
 namespace Breathe.Gameplay
 {
-    /// <summary>
-    /// Smooth 2D camera that follows a target transform using <see cref="Vector3.Lerp"/>
-    /// in LateUpdate. Maintains a fixed Z offset for orthographic rendering.
-    /// </summary>
+    // Smooth 2D camera follow. Lerps toward target each LateUpdate,
+    // keeps Z at -10 for orthographic rendering.
     public class CameraFollow : MonoBehaviour
     {
-        [Header("Target")]
-        [SerializeField, Tooltip("Transform to follow (typically the player boat).")]
-        private Transform _target;
-
-        [Header("Follow Settings")]
-        [SerializeField, Tooltip("Smoothing speed. Higher = snappier tracking.")]
-        private float _smoothSpeed = 5f;
-
-        [SerializeField, Tooltip("Offset from the target position. Z should be -10 for 2D.")]
-        private Vector3 _offset = new Vector3(0f, 0f, -10f);
+        [SerializeField] private Transform _target;
+        [SerializeField] private float _smoothSpeed = 5f;
+        [SerializeField] private Vector3 _offset = new Vector3(0f, 0f, -10f);
 
         private Vector3? _targetOffset;
         private float _offsetLerpSpeed;
         private bool _hasSnappedToTarget;
 
-        /// <summary>
-        /// Smoothly transitions the camera offset to <paramref name="newOffset"/>
-        /// over time at the given lerp <paramref name="speed"/>.
-        /// </summary>
+        // Smoothly shift the camera offset over time (used for post-race pan, etc.)
         public void TransitionOffset(Vector3 newOffset, float speed = 1f)
         {
             _targetOffset = newOffset;
@@ -37,7 +25,7 @@ namespace Breathe.Gameplay
         {
             if (_target == null) return;
 
-            // Snap to target on first frame so camera is centered from the start (respects course layout)
+            // Snap immediately on the first frame so the camera starts centered
             if (!_hasSnappedToTarget)
             {
                 _hasSnappedToTarget = true;
@@ -47,6 +35,7 @@ namespace Breathe.Gameplay
                 return;
             }
 
+            // Animate offset transitions if one is active
             if (_targetOffset.HasValue)
             {
                 _offset = Vector3.Lerp(_offset, _targetOffset.Value, _offsetLerpSpeed * Time.deltaTime);
@@ -60,9 +49,7 @@ namespace Breathe.Gameplay
             Vector3 desiredPosition = _target.position + _offset;
             desiredPosition.z = _offset.z;
 
-            Vector3 smoothed = Vector3.Lerp(transform.position, desiredPosition,
-                _smoothSpeed * Time.deltaTime);
-
+            Vector3 smoothed = Vector3.Lerp(transform.position, desiredPosition, _smoothSpeed * Time.deltaTime);
             smoothed.z = _offset.z;
             transform.position = smoothed;
         }

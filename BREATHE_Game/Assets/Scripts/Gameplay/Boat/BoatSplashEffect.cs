@@ -2,82 +2,48 @@ using UnityEngine;
 
 namespace Breathe.Gameplay
 {
-    /// <summary>
-    /// Sprite-based bow wave / wake effect. Spawns small splash puff sprites at the
-    /// bow of the boat that drift backward, fade out, and return to a pool.
-    /// Emission rate and sprite scale are proportional to <see cref="SetSpeed"/>.
-    ///
-    /// Placeholder sprite is a procedural white circle. Drop a Wind Waker-style
-    /// splash sprite into <see cref="_splashSprite"/> to replace it.
-    /// </summary>
+    // Bow splash effect — small puff sprites that spawn at the front and drift back.
+    // Faster speed = more frequent, larger splashes. Uses object pooling.
+    // Assign a real sprite to _splashSprite or it'll generate a placeholder circle.
     public class BoatSplashEffect : MonoBehaviour
     {
-        [Header("Sprite")]
-        [SerializeField, Tooltip("Splash puff sprite. Leave empty for procedural placeholder.")]
+        [SerializeField, Tooltip("Splash sprite. Leave empty for a procedural placeholder.")]
         private Sprite _splashSprite;
 
-        [Header("Pool")]
-        [SerializeField, Tooltip("Maximum simultaneous splash sprites.")]
-        private int _poolSize = 6;
+        [SerializeField] private int _poolSize = 6;
 
-        [Header("Behaviour")]
-        [SerializeField, Tooltip("Speed below this value produces no splashes.")]
+        [Header("Activation")]
+        [SerializeField, Tooltip("No splashes below this speed.")]
         private float _activationSpeed = 1.5f;
+        [SerializeField] private float _fullIntensitySpeed = 8f;
 
-        [SerializeField, Tooltip("Speed at which splash effect is at full intensity.")]
-        private float _fullIntensitySpeed = 8f;
+        [Header("Spawn")]
+        [SerializeField] private float _spawnOffsetY = 0.7f;
+        [SerializeField] private float _spawnSpreadX = 0.5f;
+        [SerializeField] private float _driftDistance = 1.8f;
+        [SerializeField] private float _driftSpeed = 2.5f;
+        [SerializeField] private float _spawnInterval = 0.25f;
+        [SerializeField] private float _lifetime = 0.6f;
 
-        [SerializeField, Tooltip("How far ahead of the boat center splashes spawn (local Y).")]
-        private float _spawnOffsetY = 0.7f;
-
-        [SerializeField, Tooltip("Random lateral spread when spawning splashes.")]
-        private float _spawnSpreadX = 0.5f;
-
-        [SerializeField, Tooltip("How far backward splashes drift before fading (local Y, negative = behind).")]
-        private float _driftDistance = 1.8f;
-
-        [SerializeField, Tooltip("Base drift speed of splashes.")]
-        private float _driftSpeed = 2.5f;
-
-        [SerializeField, Tooltip("Base interval between splash spawns at full speed.")]
-        private float _spawnInterval = 0.25f;
-
-        [SerializeField, Tooltip("Lifetime of a single splash puff before it recycles.")]
-        private float _lifetime = 0.6f;
-
-        [Header("Visual Scaling")]
-        [SerializeField, Tooltip("Splash sprite scale at minimum speed.")]
-        private float _minScale = 0.2f;
-
-        [SerializeField, Tooltip("Splash sprite scale at full speed.")]
-        private float _maxScale = 0.5f;
-
-        [SerializeField, Tooltip("Sorting order for splash sprites.")]
-        private int _sortingOrder = 4;
+        [Header("Scale")]
+        [SerializeField] private float _minScale = 0.2f;
+        [SerializeField] private float _maxScale = 0.5f;
+        [SerializeField] private int _sortingOrder = 4;
 
         private Splash[] _pool;
         private float _spawnTimer;
         private float _speed;
-
         private static Sprite _placeholderSprite;
 
         private struct Splash
         {
             public GameObject Go;
             public SpriteRenderer Sr;
-            public float Age;
-            public float MaxAge;
-            public float DriftMult;
+            public float Age, MaxAge, DriftMult;
             public bool Active;
         }
 
-        /// <summary>
-        /// Sets current boat speed. Called by the boat controller each frame.
-        /// </summary>
-        public void SetSpeed(float speed)
-        {
-            _speed = Mathf.Max(0f, speed);
-        }
+        public void SetSpeed(float speed) => _speed = Mathf.Max(0f, speed);
 
         private void Start()
         {
@@ -88,17 +54,14 @@ namespace Breathe.Gameplay
         private void Update()
         {
             float intensity = NormalizedIntensity();
-
             if (intensity > 0f)
                 UpdateSpawning(intensity);
-
             UpdateSplashes();
         }
 
         private void UpdateSpawning(float intensity)
         {
             float interval = Mathf.Lerp(_spawnInterval * 2.5f, _spawnInterval, intensity);
-
             _spawnTimer -= Time.deltaTime;
             if (_spawnTimer <= 0f)
             {
@@ -132,8 +95,7 @@ namespace Breathe.Gameplay
 
         private void UpdateSplashes()
         {
-            float intensity = NormalizedIntensity();
-            float maxAlpha = Mathf.Lerp(0.2f, 0.6f, intensity);
+            float maxAlpha = Mathf.Lerp(0.2f, 0.6f, NormalizedIntensity());
 
             for (int i = 0; i < _pool.Length; i++)
             {
@@ -143,26 +105,22 @@ namespace Breathe.Gameplay
                 s.Age += Time.deltaTime;
                 float t = s.Age / s.MaxAge;
 
-                float dy = -_driftSpeed * s.DriftMult * Time.deltaTime;
+                // Drift backward
                 Vector3 pos = s.Go.transform.localPosition;
-                pos.y += dy;
+                pos.y += -_driftSpeed * s.DriftMult * Time.deltaTime;
+                s.Go.transform.localPosition = pos;
 
-                float expandScale = 1f + t * 0.4f;
+                // Slowly expand
                 Vector3 baseScale = s.Go.transform.localScale;
                 s.Go.transform.localScale = new Vector3(
                     baseScale.x * (1f + Time.deltaTime * 0.8f),
-                    baseScale.y * (1f + Time.deltaTime * 0.8f),
-                    1f);
+                    baseScale.y * (1f + Time.deltaTime * 0.8f), 1f);
 
-                s.Go.transform.localPosition = pos;
-
+                // Fade in, hold, fade out
                 float alpha;
-                if (t < 0.15f)
-                    alpha = (t / 0.15f) * maxAlpha;
-                else if (t > 0.6f)
-                    alpha = Mathf.Lerp(maxAlpha, 0f, (t - 0.6f) / 0.4f);
-                else
-                    alpha = maxAlpha;
+                if (t < 0.15f) alpha = (t / 0.15f) * maxAlpha;
+                else if (t > 0.6f) alpha = Mathf.Lerp(maxAlpha, 0f, (t - 0.6f) / 0.4f);
+                else alpha = maxAlpha;
 
                 s.Sr.color = new Color(1f, 1f, 1f, alpha);
 
@@ -183,9 +141,7 @@ namespace Breathe.Gameplay
         private int FindInactive()
         {
             for (int i = 0; i < _pool.Length; i++)
-            {
                 if (!_pool[i].Active) return i;
-            }
             return -1;
         }
 
@@ -209,18 +165,13 @@ namespace Breathe.Gameplay
                 sr.color = new Color(1f, 1f, 1f, 0f);
                 sr.sortingOrder = _sortingOrder;
                 sr.material = new Material(Shader.Find("Sprites/Default"));
-
                 go.SetActive(false);
 
-                _pool[i] = new Splash
-                {
-                    Go = go,
-                    Sr = sr,
-                    Active = false
-                };
+                _pool[i] = new Splash { Go = go, Sr = sr, Active = false };
             }
         }
 
+        // Generates a soft white circle sprite if no real sprite is assigned
         private static void EnsurePlaceholderSprite()
         {
             if (_placeholderSprite != null) return;
@@ -231,23 +182,15 @@ namespace Breathe.Gameplay
             float radius = size / 2f - 1f;
 
             for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
             {
-                for (int x = 0; x < size; x++)
+                float d = Mathf.Sqrt((x - center) * (x - center) + (y - center) * (y - center)) / radius;
+                if (d <= 1f)
                 {
-                    float dx = x - center;
-                    float dy = y - center;
-                    float d = Mathf.Sqrt(dx * dx + dy * dy) / radius;
-
-                    if (d <= 1f)
-                    {
-                        float alpha = d > 0.5f ? Mathf.Lerp(1f, 0f, (d - 0.5f) / 0.5f) : 1f;
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-                    }
-                    else
-                    {
-                        tex.SetPixel(x, y, Color.clear);
-                    }
+                    float alpha = d > 0.5f ? Mathf.Lerp(1f, 0f, (d - 0.5f) / 0.5f) : 1f;
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
+                else tex.SetPixel(x, y, Color.clear);
             }
 
             tex.Apply();

@@ -2,69 +2,36 @@ using UnityEngine;
 
 namespace Breathe.Gameplay
 {
-    /// <summary>
-    /// Sprite-based wind gust visual effect that spawns behind a boat and drifts
-    /// forward past the sail. Driven by <see cref="WindSystem.WindPower"/> for the
-    /// player or a manual intensity setter for AI boats.
-    ///
-    /// Streaks are pooled to avoid runtime allocation. The number of active streaks,
-    /// their speed, opacity, and scale all scale continuously with wind power.
-    /// A "gust burst" fires extra streaks on the rising edge (idle to active transition).
-    ///
-    /// The placeholder sprite is a procedural white ellipse. Drop a Wind Waker-style
-    /// swoosh sprite into <see cref="_windStreakSprite"/> to replace it.
-    /// </summary>
+    // Wind streak effect — small sprites spawn behind the boat and drift forward past
+    // the sail. Intensity scales with wind power. Fires a burst of extra streaks when
+    // the wind first kicks in (idle-to-active transition).
+    // Assign _windStreakSprite in the inspector, or it falls back to a procedural ellipse.
     public class BoatWindEffect : MonoBehaviour
     {
-        [Header("Sprite")]
         [SerializeField, Tooltip("Wind streak sprite. Leave empty for procedural placeholder.")]
         private Sprite _windStreakSprite;
-
-        [Header("Pool")]
-        [SerializeField, Tooltip("Maximum simultaneous wind streaks.")]
-        private int _poolSize = 8;
+        [SerializeField] private int _poolSize = 8;
 
         [Header("Behaviour")]
-        [SerializeField, Tooltip("Wind power below this value produces no streaks.")]
+        [SerializeField, Tooltip("Wind power below this = no streaks.")]
         private float _activationThreshold = 0.15f;
-
-        [SerializeField, Tooltip("How far behind the boat streaks spawn (local Y, negative = behind).")]
-        private float _spawnOffsetY = -1.2f;
-
-        [SerializeField, Tooltip("Random lateral spread when spawning streaks.")]
-        private float _spawnSpreadX = 0.8f;
-
-        [SerializeField, Tooltip("How far forward streaks travel before fading out (local Y).")]
-        private float _travelDistance = 2.5f;
-
-        [SerializeField, Tooltip("Base drift speed of streaks at full wind power.")]
-        private float _driftSpeed = 4f;
-
-        [SerializeField, Tooltip("Base interval between streak spawns at full wind power.")]
-        private float _spawnInterval = 0.18f;
-
-        [SerializeField, Tooltip("Duration of the fade-in phase.")]
-        private float _fadeInDuration = 0.1f;
-
-        [SerializeField, Tooltip("Duration of the fade-out phase.")]
-        private float _fadeOutDuration = 0.2f;
+        [SerializeField] private float _spawnOffsetY = -1.2f;
+        [SerializeField] private float _spawnSpreadX = 0.8f;
+        [SerializeField] private float _travelDistance = 2.5f;
+        [SerializeField] private float _driftSpeed = 4f;
+        [SerializeField] private float _spawnInterval = 0.18f;
+        [SerializeField] private float _fadeInDuration = 0.1f;
+        [SerializeField] private float _fadeOutDuration = 0.2f;
 
         [Header("Gust Burst")]
-        [SerializeField, Tooltip("Extra streaks spawned on the rising edge (idle to active).")]
+        [SerializeField, Tooltip("Extra streaks on the rising edge (when wind first kicks in).")]
         private int _gustBurstCount = 3;
 
-        [Header("Visual Scaling")]
-        [SerializeField, Tooltip("Streak X scale at minimum wind.")]
-        private float _minStreakScaleX = 0.3f;
-
-        [SerializeField, Tooltip("Streak X scale at full wind.")]
-        private float _maxStreakScaleX = 0.7f;
-
-        [SerializeField, Tooltip("Streak Y scale (length). Stretched along drift direction.")]
-        private float _streakScaleY = 0.15f;
-
-        [SerializeField, Tooltip("Sorting order for streak sprites.")]
-        private int _sortingOrder = 5;
+        [Header("Scale")]
+        [SerializeField] private float _minStreakScaleX = 0.3f;
+        [SerializeField] private float _maxStreakScaleX = 0.7f;
+        [SerializeField] private float _streakScaleY = 0.15f;
+        [SerializeField] private int _sortingOrder = 5;
 
         private Streak[] _pool;
         private float _spawnTimer;
@@ -72,24 +39,17 @@ namespace Breathe.Gameplay
         private bool _wasActive;
         private WindSystem _windSystem;
         private bool _useExternalIntensity;
-
         private static Sprite _placeholderSprite;
 
         private struct Streak
         {
             public GameObject Go;
             public SpriteRenderer Sr;
-            public float LocalStartY;
-            public float Progress;
-            public float Lifetime;
-            public float SpeedMult;
+            public float LocalStartY, Progress, Lifetime, SpeedMult;
             public bool Active;
         }
 
-        /// <summary>
-        /// Sets wind intensity manually (used by AI boats).
-        /// When called, the component stops reading from WindSystem.
-        /// </summary>
+        // Manual intensity setter for AI boats — stops reading from WindSystem
         public void SetWindIntensity(float intensity)
         {
             _useExternalIntensity = true;
@@ -100,7 +60,6 @@ namespace Breathe.Gameplay
         {
             if (!_useExternalIntensity)
                 _windSystem = FindAnyObjectByType<WindSystem>();
-
             EnsurePlaceholderSprite();
             BuildPool();
         }
@@ -112,14 +71,13 @@ namespace Breathe.Gameplay
 
             bool isActive = _windIntensity >= _activationThreshold;
 
+            // Burst on rising edge
             if (isActive && !_wasActive)
                 SpawnGustBurst();
-
             _wasActive = isActive;
 
             if (isActive)
                 UpdateSpawning();
-
             UpdateStreaks();
         }
 
@@ -140,7 +98,6 @@ namespace Breathe.Gameplay
         {
             for (int i = 0; i < _gustBurstCount; i++)
                 SpawnStreak();
-
             _spawnTimer = _spawnInterval * 0.5f;
         }
 
@@ -157,8 +114,7 @@ namespace Breathe.Gameplay
             s.Go.transform.localPosition = new Vector3(xOffset, _spawnOffsetY + yJitter, 0f);
             s.Go.transform.localRotation = Quaternion.identity;
 
-            float scaleX = Mathf.Lerp(_minStreakScaleX, _maxStreakScaleX, power);
-            scaleX *= Random.Range(0.8f, 1.2f);
+            float scaleX = Mathf.Lerp(_minStreakScaleX, _maxStreakScaleX, power) * Random.Range(0.8f, 1.2f);
             s.Go.transform.localScale = new Vector3(scaleX, _streakScaleY * Random.Range(0.8f, 1.2f), 1f);
 
             s.LocalStartY = s.Go.transform.localPosition.y;
@@ -182,16 +138,14 @@ namespace Breathe.Gameplay
                 if (!s.Active) continue;
 
                 s.Lifetime += Time.deltaTime;
-                float dy = speed * s.SpeedMult * Time.deltaTime;
                 Vector3 pos = s.Go.transform.localPosition;
-                pos.y += dy;
+                pos.y += speed * s.SpeedMult * Time.deltaTime;
                 s.Go.transform.localPosition = pos;
 
                 float traveled = pos.y - s.LocalStartY;
                 s.Progress = Mathf.Clamp01(traveled / _travelDistance);
 
-                float fadeOutFrac = Mathf.Clamp01(
-                    (_fadeOutDuration * speed * s.SpeedMult) / _travelDistance);
+                float fadeOutFrac = Mathf.Clamp01((_fadeOutDuration * speed * s.SpeedMult) / _travelDistance);
                 float fadeOutStart = 1f - fadeOutFrac;
 
                 float alpha;
@@ -221,9 +175,7 @@ namespace Breathe.Gameplay
         private int FindInactiveStreak()
         {
             for (int i = 0; i < _pool.Length; i++)
-            {
                 if (!_pool[i].Active) return i;
-            }
             return -1;
         }
 
@@ -247,18 +199,13 @@ namespace Breathe.Gameplay
                 sr.color = new Color(1f, 1f, 1f, 0f);
                 sr.sortingOrder = _sortingOrder;
                 sr.material = new Material(Shader.Find("Sprites/Default"));
-
                 go.SetActive(false);
 
-                _pool[i] = new Streak
-                {
-                    Go = go,
-                    Sr = sr,
-                    Active = false
-                };
+                _pool[i] = new Streak { Go = go, Sr = sr, Active = false };
             }
         }
 
+        // Procedural ellipse — placeholder until a real swoosh sprite is assigned
         private static void EnsurePlaceholderSprite()
         {
             if (_placeholderSprite != null) return;
@@ -269,23 +216,17 @@ namespace Breathe.Gameplay
             float rx = w / 2f - 1f, ry = h / 2f - 1f;
 
             for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
             {
-                for (int x = 0; x < w; x++)
+                float dx = (x - cx) / rx;
+                float dy = (y - cy) / ry;
+                float d = dx * dx + dy * dy;
+                if (d <= 1f)
                 {
-                    float dx = (x - cx) / rx;
-                    float dy = (y - cy) / ry;
-                    float d = dx * dx + dy * dy;
-
-                    if (d <= 1f)
-                    {
-                        float alpha = d > 0.6f ? Mathf.Lerp(1f, 0f, (d - 0.6f) / 0.4f) : 1f;
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-                    }
-                    else
-                    {
-                        tex.SetPixel(x, y, Color.clear);
-                    }
+                    float alpha = d > 0.6f ? Mathf.Lerp(1f, 0f, (d - 0.6f) / 0.4f) : 1f;
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
                 }
+                else tex.SetPixel(x, y, Color.clear);
             }
 
             tex.Apply();
