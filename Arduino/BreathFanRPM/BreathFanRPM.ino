@@ -1,36 +1,40 @@
-// Breath Fan RPM Reader for Unity
-// Connect: Yellow (tach) -> D2, Black (GND) -> GND
-// Add 10k resistor between D2 and 5V (pull-up)
+// Breath Controller — DC Motor Generator Reader
+// Motor positive → A0, motor negative → GND
+// Breath spins propeller → motor generates voltage → Arduino reads it
+// Sends "RPM:<value>" over serial for FanBreathInput.cs in Unity
 
-volatile unsigned long pulseCount = 0;
+const int ANALOG_PIN = A0;
+const int SAMPLE_COUNT = 5;
+const float EMA_ALPHA = 0.3;
+const float DEAD_ZONE = 3.0;
+
+float smoothedValue = 0;
 unsigned long lastTime = 0;
-const int TACH_PIN = 2;
-
-void countPulse() {
-  pulseCount++;
-}
 
 void setup() {
   Serial.begin(9600);
-  pinMode(TACH_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(TACH_PIN), countPulse, FALLING);
+  analogReadResolution(10);
   lastTime = millis();
 }
 
 void loop() {
   unsigned long now = millis();
-  if (now - lastTime >= 100) { // Update 10x per second
-    noInterrupts();
-    unsigned long count = pulseCount;
-    pulseCount = 0;
-    interrupts();
-    
-    // Most fans: 2 pulses per revolution
-    float rpm = (count * 60.0 * 1000.0) / (2.0 * (now - lastTime));
-    
+  if (now - lastTime >= 100) {
+    float total = 0;
+    for (int i = 0; i < SAMPLE_COUNT; i++) {
+      total += analogRead(ANALOG_PIN);
+      delayMicroseconds(200);
+    }
+    float raw = total / SAMPLE_COUNT;
+
+    smoothedValue = (EMA_ALPHA * raw) + ((1.0 - EMA_ALPHA) * smoothedValue);
+
+    float output = smoothedValue;
+    if (output < DEAD_ZONE) output = 0;
+
     Serial.print("RPM:");
-    Serial.println((int)rpm);
-    
+    Serial.println((int)output);
+
     lastTime = now;
   }
 }
