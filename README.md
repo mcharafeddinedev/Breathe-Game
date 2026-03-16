@@ -1,8 +1,8 @@
-Last Updated: Feb 26, 2026 (v5 -- current state)
+Last Updated: Mar 15, 2026 (v7 -- prototype codebase complete)
 
 # Breathe -- Breath-Controlled Sailboat Race
 
-A Unity-based alternative-control game where the player's breath physically drives in-game wind power. Blow toward a custom-built fan device to fill the sail and push a small sailboat through treacherous waters. Steer with a keyboard or controller. Survive as long as possible, or on a short timer in a strict stat tracking mode (for breathing pattern/capacity measurements). If built correctly, this could be concept could be applied as a medical measurement device for pediatric settings.
+A Unity-based alternative-control game where the player's breath physically drives in-game wind power. Blow toward a custom-built fan device to fill the sail and push a small sailboat through treacherous waters. The boat auto-navigates the course — breath is the only input, acting as the accelerator. No steering, no buttons, no secondary controls. If built correctly, this concept could be applied as a medical measurement or approximation device for pediatric settings.
 
 **The physical metaphor: breathing ==> fan spin ==> wind speed/sail power.**
 
@@ -23,6 +23,7 @@ The breath-only design keeps the player focused entirely on breathing, makes the
 
 ## Documentation
 
+- [How it works — technical systems overview](docs/HOW_IT_WORKS.md)
 - [Project overview and milestones](docs/_project-overview/PROJECT_MASTER.md)
 - [Game pitch and design framing](docs/_pitch/_Breathe_Pitch.md)
 - [Core mechanic and architecture](docs/mechanic-and-architecture/CORE_MECHANIC_PLAN.md)

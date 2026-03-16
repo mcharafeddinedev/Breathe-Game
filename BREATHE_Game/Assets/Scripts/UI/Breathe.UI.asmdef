@@ -1,0 +1,21 @@
+{
+    "name": "Breathe.UI",
+    "rootNamespace": "Breathe.UI",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "Breathe.Input",
+        "Breathe.Gameplay",
+        "Breathe.Data",
+        "Breathe.Utility"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

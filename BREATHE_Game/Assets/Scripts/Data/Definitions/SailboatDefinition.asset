@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 017ec1bb18d8eb443bdf9f9d194e2f46, type: 3}
+  m_Name: SailboatDefinition
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
+  _minigameId: sailboat
+  _displayName: SAILBOAT
+  _description: Blow steadily to fill your sails and race across the finish line!
+  _thumbnail: {fileID: 0}
+  _breathPattern: Sustained Blow
+  _isUnlocked: 1
+  _tutorialTitle: HOW TO PLAY
+  _tutorialInstruction: "Blow steadily into the device to fill your sails and move
+    your boat forward!\n\nLonger, steady breaths are more effective than quick puffs."
+  _tutorialTip: Keep breathing to maintain your speed and cross the finish line first!

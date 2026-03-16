@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d08d038a283c596409330b818765154f, type: 3}
+  m_Name: DefaultCourseConfig
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.CourseConfig
+  _courseLength: 100
+  _finishLinePosition: 1
+  _baseSpeed: 3
+  _breathBonusMultiplier: 5
+  _softTimeCap: 60
+  _zoneDefinitions: []
+  _spawnEnvironmentalZones: 1
+  _zoneSpawnInterval: 18
+  _zoneSpawnChance: 0.6
+  _minZonesPerRace: 3
+  _minZoneSpacing: 15
+  _zoneSpawnRange: {x: 0.08, y: 0.92}
+  _zoneGracePeriodY: 10
+  _zoneConfig: {fileID: 0}
+  _crosswindLateralForce: 9.04
+  _obstaclePositions: []

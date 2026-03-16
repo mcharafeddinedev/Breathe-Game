@@ -1,4 +1,4 @@
-Last Updated: Feb 26, 2026 (v3 -- current state)
+Last Updated: Mar 15, 2026 (v5 -- prototype codebase complete)
 
 # Public Documentation
 
@@ -14,6 +14,7 @@ This repository is public for review and portfolio visibility only. All material
 
 ## Structure
 
+- `HOW_IT_WORKS.md` -- technical systems overview: how the game runs, what gets generated at runtime, how breath input flows through the software, AI behavior, environmental zones, scoring and breath analytics, hardware signal path, and design principles enforced by the code.
 - `_project-overview/`
   - `PROJECT_MASTER.md` -- project scope, milestone roadmap, scope guardrails, and no-fail design rationale.
 - `_pitch/`
@@ -25,4 +26,4 @@ This repository is public for review and portfolio visibility only. All material
 
 ## What's Not Here
 
-Implementation details, build instructions, procurement specifics, code snippets, competitive landscape research, clinical evidence analysis, minigame design details, and operational procedures are maintained privately. These public documents focus on what the project is and why it's built this way, not how to reproduce it.
+Implementation details, build instructions, procurement specifics, code snippets, competitive landscape research, clinical evidence analysis, minigame design details, and operational procedures are maintained privately. These public documents focus on what the project is and why it's built this way.

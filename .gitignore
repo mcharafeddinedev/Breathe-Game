@@ -58,6 +58,8 @@ BREATHE_Game/Logs/
 BREATHE_Game/Temp/
 BREATHE_Game/obj/
 BREATHE_Game/UserSettings/
+BREATHE_Game/Assets/_Recovery/
+BREATHE_Game/Assets/_Recovery.meta
 
 # Internal/private docs
 dev-docs/
