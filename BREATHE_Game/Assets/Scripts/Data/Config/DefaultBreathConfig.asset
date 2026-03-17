@@ -20,8 +20,8 @@ MonoBehaviour:
   - 0.3
   - 0.5
   - 0.7
-  _maxExpectedRPM: 1500
+  _maxExpectedRPM: 380
   _rampUpSpeed: 0.5
   _decaySpeed: 2
-  _calibrationBaseline: 0.02
-  _calibrationMax: 0.8
+  _calibrationBaseline: 0.01
+  _calibrationMax: 0.15

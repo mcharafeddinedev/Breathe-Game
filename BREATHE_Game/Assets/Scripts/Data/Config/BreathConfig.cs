@@ -18,19 +18,22 @@ namespace Breathe.Data
         [SerializeField, Tooltip("Five ascending thresholds that divide intensity into power levels 0-5.")]
         private float[] _powerLevelThresholds = { 0.05f, 0.15f, 0.30f, 0.50f, 0.70f };
 
-        [Header("Microphone")]
-        [SerializeField, Tooltip("Max expected mic amplitude — used to normalize raw input.")]
-        private float _maxExpectedRPM = 1500f;
+        [Header("Fan Hardware")]
+        [SerializeField, Tooltip("Max useful deviation above noise floor. After auto-calibration " +
+            "subtracts idle noise, this is how much clean deviation = full power. " +
+            "Lower = more sensitive. Check Fan diagnostic 'clean' values in logs.")]
+        private float _maxExpectedRPM = 380f;
 
         [Header("Simulated Input")]
         [SerializeField] private float _rampUpSpeed = 0.5f;
         [SerializeField] private float _decaySpeed = 2.0f;
 
-        [Header("Calibration")]
-        [SerializeField, Tooltip("Ambient noise floor baseline.")]
-        private float _calibrationBaseline = 0.02f;
-        [SerializeField, Tooltip("Strongest expected breath value.")]
-        private float _calibrationMax = 0.8f;
+        [Header("Microphone Calibration")]
+        [SerializeField, Tooltip("Ambient noise floor (RMS amplitude). Values below this are treated as silence.")]
+        private float _calibrationBaseline = 0.01f;
+        [SerializeField, Tooltip("Expected RMS amplitude of a strong breath into the mic. " +
+            "Typical breath is 0.05-0.20. Lower = more sensitive.")]
+        private float _calibrationMax = 0.15f;
 
         public float SmoothingFactor => _smoothingFactor;
         public float DeadZoneThreshold => _deadZoneThreshold;

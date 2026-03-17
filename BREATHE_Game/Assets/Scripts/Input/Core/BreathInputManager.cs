@@ -10,8 +10,8 @@ namespace Breathe.Input
         Fan
     }
 
-    // Singleton that manages which breath input source is active.
-    // Doesn't persist across scene loads — each scene gets its own.
+    /// Singleton that manages which single breath input source is active.
+    /// Only one source runs at a time — switching shuts down the old and initializes the new.
     public sealed class BreathInputManager : MonoBehaviour
     {
         [Header("Input Mode")]
@@ -27,27 +27,46 @@ namespace Breathe.Input
         [SerializeField] private BreathConfig breathConfig;
 
         private IBreathInput _activeInput;
+        private bool _wasBreathing;
+        private float _breathLogTimer;
+        private const float BreathLogInterval = 2f;
 
         public static BreathInputManager Instance { get; private set; }
 
         public IBreathInput ActiveInput => _activeInput;
         public InputMode CurrentMode => currentMode;
-        public string InputSourceName => currentMode.ToString();
         public BreathConfig BreathConfig => breathConfig;
+        public string InputSourceName => currentMode.ToString();
 
-        // Passthrough helpers so other scripts don't need to touch ActiveInput directly
         public float GetBreathIntensity() => _activeInput?.GetBreathIntensity() ?? 0f;
         public int GetBreathLevel() => _activeInput?.GetBreathLevel() ?? 0;
         public bool IsBreathing() => _activeInput?.IsBreathing() ?? false;
 
-        // Switch input sources at runtime
+        /// Switch to a new input source. Shuts down the previous one, initializes the new one,
+        /// and logs exactly what happened.
         public void SetInputMode(InputMode mode)
         {
-            _activeInput?.Shutdown();
+            InputMode previousMode = currentMode;
+
+            if (_activeInput != null)
+            {
+                _activeInput.Shutdown();
+                Debug.Log($"[BreathInputManager] {previousMode} input SHUT DOWN");
+            }
+
             currentMode = mode;
             _activeInput = ResolveInput(mode);
             _activeInput?.Initialize();
-            Debug.Log($"[BreathInputManager] Switched to {mode}");
+
+            string simStatus   = mode == InputMode.Simulated  ? "ACTIVE" : "off";
+            string micStatus   = mode == InputMode.Microphone ? "ACTIVE" : "off";
+            string fanStatus   = mode == InputMode.Fan        ? "ACTIVE" : "off";
+
+            Debug.Log($"[BreathInputManager] Input switched to {mode}\n" +
+                $"  Simulated: {simStatus}  |  Microphone: {micStatus}  |  Fan: {fanStatus}");
+
+            _wasBreathing = false;
+            _breathLogTimer = 0f;
         }
 
         private void Awake()
@@ -58,8 +77,34 @@ namespace Breathe.Input
                 return;
             }
             Instance = this;
+
             _activeInput = ResolveInput(currentMode);
             _activeInput?.Initialize();
+
+            Debug.Log($"[BreathInputManager] Initialized with {currentMode} input on startup");
+        }
+
+        private void Update()
+        {
+            if (_activeInput == null) return;
+
+            bool breathing = _activeInput.IsBreathing();
+            float intensity = _activeInput.GetBreathIntensity();
+
+            if (breathing && !_wasBreathing)
+                Debug.Log($"[BreathInput] Breath DETECTED on {currentMode} — intensity: {intensity:F3}");
+            else if (!breathing && _wasBreathing)
+                Debug.Log($"[BreathInput] Breath STOPPED on {currentMode}");
+
+            _wasBreathing = breathing;
+
+            _breathLogTimer += Time.deltaTime;
+            if (_breathLogTimer >= BreathLogInterval)
+            {
+                _breathLogTimer = 0f;
+                Debug.Log($"[BreathInput] Status — mode: {currentMode}, intensity: {intensity:F3}, " +
+                    $"level: {_activeInput.GetBreathLevel()}, breathing: {breathing}");
+            }
         }
 
         private void OnDestroy()

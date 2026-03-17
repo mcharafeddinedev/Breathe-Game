@@ -35,6 +35,9 @@ namespace Breathe.Input
         private float _calibrationBaseline = -1f;
         private float _calibrationMax = -1f;
 
+        private float _diagTimer;
+        private const float DiagIntervalSec = 2f;
+
         public float GetBreathIntensity() => _smoothedIntensity;
 
         public int GetBreathLevel()
@@ -48,12 +51,23 @@ namespace Breathe.Input
         {
             if (Microphone.devices.Length == 0)
             {
-                Debug.LogWarning("[BreathInput] No microphone devices found.");
+                Debug.LogError("[BreathInput] Microphone input FAILED — no microphone detected on this system. " +
+                    "Please connect a microphone and restart.");
+                _active = false;
                 return;
             }
 
             _deviceName = Microphone.devices[0];
             _micClip = Microphone.Start(null, true, 1, sampleRate);
+
+            if (_micClip == null)
+            {
+                Debug.LogError($"[BreathInput] Microphone input FAILED — could not start recording on default device \"{_deviceName}\". " +
+                    "The device may be in use by another application.");
+                _active = false;
+                return;
+            }
+
             _sampleBuffer = new float[sampleWindow];
             _spectrumBuffer = new float[spectrumSize];
             _smoothedAmplitude = 0f;
@@ -64,7 +78,9 @@ namespace Breathe.Input
             _active = true;
             enabled = true;
 
-            Debug.Log("[BreathInput] Mic initialized: " + _deviceName);
+            int deviceCount = Microphone.devices.Length;
+            Debug.Log($"[BreathInput] Microphone input ENABLED — using default device: \"{_deviceName}\" @ {sampleRate}Hz " +
+                $"({deviceCount} device{(deviceCount > 1 ? "s" : "")} available)");
         }
 
         public void Shutdown()
@@ -73,10 +89,14 @@ namespace Breathe.Input
             if (Microphone.IsRecording(null))
                 Microphone.End(null);
 
+            string deviceInfo = !string.IsNullOrEmpty(_deviceName) ? $" (\"{_deviceName}\")" : "";
             _micClip = null;
+            _deviceName = null;
             _smoothedAmplitude = 0f;
             _smoothedIntensity = 0f;
             enabled = false;
+
+            Debug.Log($"[BreathInput] Microphone input DISABLED — recording stopped{deviceInfo}");
         }
 
         // Calibration — record current amplitude as the floor or ceiling
@@ -109,6 +129,15 @@ namespace Breathe.Input
             _smoothedIntensity = SignalProcessing.MapRange(_smoothedAmplitude, baseline, max, 0f, 1f);
             _smoothedIntensity = SignalProcessing.DeadZone(_smoothedIntensity, breathConfig.DeadZoneThreshold);
             _smoothedIntensity = Mathf.Clamp01(_smoothedIntensity);
+
+            _diagTimer += Time.deltaTime;
+            if (_diagTimer >= DiagIntervalSec)
+            {
+                _diagTimer = 0f;
+                Debug.Log($"[BreathInput] Mic diagnostic — raw RMS: {_smoothedAmplitude:F4}, " +
+                    $"mapped intensity: {_smoothedIntensity:F3} " +
+                    $"(baseline: {baseline:F4}, max: {max:F4})");
+            }
 
             CheckLevelCrossing();
         }

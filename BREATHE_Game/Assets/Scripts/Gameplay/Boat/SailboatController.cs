@@ -45,6 +45,9 @@ namespace Breathe.Gameplay
         private float _environmentalSpeedMultiplier = 1f;
         private bool _inZoneSpinMode;
 
+        private float _speedLogTimer;
+        private const float SpeedLogInterval = 2f;
+
         public float CurrentSpeed { get; private set; }
         public bool FinishedCourse => _finishedCourse;
 
@@ -216,6 +219,16 @@ namespace Breathe.Gameplay
 
             if (_splashEffect != null) _splashEffect.SetSpeed(CurrentSpeed);
             if (_wakeTrailEffect != null) _wakeTrailEffect.SetSpeed(CurrentSpeed);
+
+            _speedLogTimer += Time.deltaTime;
+            if (_speedLogTimer >= SpeedLogInterval)
+            {
+                _speedLogTimer = 0f;
+                float breathRaw = BreathInputManager.Instance != null
+                    ? BreathInputManager.Instance.GetBreathIntensity() : 0f;
+                Debug.Log($"[Boat] Speed: {CurrentSpeed:F2}, wind power: {windPower:F3}, " +
+                    $"breath intensity: {breathRaw:F3}, zone mult: {_environmentalSpeedMultiplier:F2}");
+            }
         }
 
         private void CoastForward(float speed)

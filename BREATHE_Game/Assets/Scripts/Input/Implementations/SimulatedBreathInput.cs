@@ -33,6 +33,15 @@ namespace Breathe.Input
             _previousLevel = 0;
             _active = true;
             enabled = true;
+
+            bool hasKeyboard = Keyboard.current != null;
+            bool hasGamepad = Gamepad.current != null;
+            string devices = hasKeyboard && hasGamepad ? "Keyboard + Gamepad"
+                           : hasKeyboard ? "Keyboard"
+                           : hasGamepad ? "Gamepad"
+                           : "No input devices detected";
+
+            Debug.Log($"[BreathInput] Simulated breath input ENABLED — {devices} (hold Space or right trigger to breathe)");
         }
 
         public void Shutdown()
@@ -41,6 +50,8 @@ namespace Breathe.Input
             _keyboardIntensity = 0f;
             _smoothedIntensity = 0f;
             enabled = false;
+
+            Debug.Log("[BreathInput] Simulated breath input DISABLED");
         }
 
         private void Update()

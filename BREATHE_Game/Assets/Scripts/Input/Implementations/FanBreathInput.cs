@@ -38,11 +38,28 @@ namespace Breathe.Input
         private Thread _readThread;
         private volatile bool _threadRunning;
         private volatile float _latestRpm;
+        private volatile int _lastReadMs;
 #endif
 
         private float _smoothedIntensity;
         private int _previousLevel;
         private bool _active;
+        private float _diagTimer;
+        private const float DiagIntervalSec = 2f;
+        private const float StaleDataTimeout = 0.5f;
+
+        // Auto-baseline: record idle analog value + noise floor during startup,
+        // then treat deviation beyond the noise floor as the breath signal.
+        private bool _calibrated;
+        private float _calibrationTimer;
+        private float _calibrationSum;
+        private int _calibrationSamples;
+        private float _calibrationDevSum;
+        private float _restBaseline;
+        private float _noiseFloor;
+        private const float CalibrationDuration = 1.5f;
+        private const float NoiseMargin = 3.0f;
+        private const float MaxNoiseFloor = 60f;
 
         public float GetBreathIntensity() => _smoothedIntensity;
 
@@ -57,9 +74,40 @@ namespace Breathe.Input
         {
             _smoothedIntensity = 0f;
             _previousLevel = 0;
+            _calibrated = false;
+            _calibrationTimer = 0f;
+            _calibrationSum = 0f;
+            _calibrationSamples = 0;
+            _calibrationDevSum = 0f;
+            _restBaseline = 0f;
+            _noiseFloor = 0f;
 
 #if SERIAL_AVAILABLE
             _latestRpm = 0f;
+            _lastReadMs = System.Environment.TickCount;
+
+            string[] availablePorts = SerialPort.GetPortNames();
+            Debug.Log($"[BreathInput] Fan hardware — scanning serial ports... found: [{string.Join(", ", availablePorts)}]");
+
+            if (availablePorts.Length == 0)
+            {
+                Debug.LogError("[BreathInput] Custom hardware device NOT FOUND — no serial ports detected. " +
+                    "Please connect the fan anemometer via USB and restart.");
+                _active = false;
+                return;
+            }
+
+            bool portExists = System.Array.Exists(availablePorts,
+                p => string.Equals(p, comPort, StringComparison.OrdinalIgnoreCase));
+            if (!portExists)
+            {
+                Debug.LogError($"[BreathInput] Custom hardware device NOT FOUND — configured port {comPort} is not available. " +
+                    $"Available ports: [{string.Join(", ", availablePorts)}]. " +
+                    "Check your USB connection or update the COM port in the Inspector.");
+                _active = false;
+                return;
+            }
+
             try
             {
                 _serialPort = new SerialPort(comPort, baudRate)
@@ -79,15 +127,23 @@ namespace Breathe.Input
 
                 _active = true;
                 enabled = true;
-                Debug.Log($"[BreathInput] Fan serial opened on {comPort} @ {baudRate} baud");
+                Debug.Log($"[BreathInput] Fan hardware input ENABLED — connected on {comPort} @ {baudRate} baud");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Debug.LogError($"[BreathInput] Custom hardware device FAILED — {comPort} is in use by another application. " +
+                    "Close any other serial monitors (Arduino IDE, PuTTY, etc.) and try again.");
+                _active = false;
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[BreathInput] Fan serial: " + ex.Message);
+                Debug.LogError($"[BreathInput] Custom hardware device FAILED — could not open {comPort}: {ex.Message}");
                 _active = false;
             }
 #else
-            Debug.LogWarning("[BreathInput] Serial not available — need .NET Framework for fan hardware.");
+            Debug.LogError("[BreathInput] Custom hardware device NOT AVAILABLE — serial support requires .NET Framework " +
+                "API compatibility level or the BREATHE_SERIAL scripting define. " +
+                "Set in Edit > Project Settings > Player > Api Compatibility Level > .NET Framework.");
             _active = false;
 #endif
         }
@@ -102,17 +158,26 @@ namespace Breathe.Input
             if (_readThread != null && _readThread.IsAlive)
             {
                 if (!_readThread.Join(threadJoinTimeoutMs))
-                    Debug.LogWarning("[BreathInput] Fan serial: reader thread didn't stop in time.");
+                    Debug.LogWarning("[BreathInput] Fan hardware — reader thread didn't stop in time, may still be blocking.");
                 _readThread = null;
             }
 
             if (_serialPort != null)
             {
-                try { if (_serialPort.IsOpen) _serialPort.Close(); }
-                catch (IOException ex) { Debug.LogWarning("[BreathInput] Fan serial: " + ex.Message); }
+                bool wasOpen = _serialPort.IsOpen;
+                try { if (wasOpen) _serialPort.Close(); }
+                catch (IOException ex) { Debug.LogWarning($"[BreathInput] Fan hardware — error closing port: {ex.Message}"); }
                 _serialPort.Dispose();
                 _serialPort = null;
+
+                Debug.Log($"[BreathInput] Fan hardware input DISABLED — serial port {comPort} closed");
             }
+            else
+            {
+                Debug.Log("[BreathInput] Fan hardware input DISABLED");
+            }
+#else
+            Debug.Log("[BreathInput] Fan hardware input DISABLED");
 #endif
             _smoothedIntensity = 0f;
             enabled = false;
@@ -123,16 +188,72 @@ namespace Breathe.Input
             if (!_active || breathConfig == null) return;
 
 #if SERIAL_AVAILABLE
-            float rpm = _latestRpm;
+            float raw = _latestRpm;
+            float secsSinceRead = (System.Environment.TickCount - _lastReadMs) / 1000f;
+            bool dataStale = secsSinceRead > StaleDataTimeout;
+            if (dataStale)
+                raw = _restBaseline;
 #else
-            float rpm = 0f;
+            float raw = 0f;
+            bool dataStale = true;
 #endif
 
-            float rawIntensity = SignalProcessing.MapRange(rpm, 0f, breathConfig.MaxExpectedRPM, 0f, 1f);
+            // Phase 1: auto-calibrate — record mean + mean absolute deviation from idle readings
+            if (!_calibrated)
+            {
+                _calibrationTimer += Time.deltaTime;
+                if (raw > 0f)
+                {
+                    _calibrationSum += raw;
+                    _calibrationSamples++;
+
+                    if (_calibrationSamples > 1)
+                    {
+                        float runningMean = _calibrationSum / _calibrationSamples;
+                        _calibrationDevSum += Mathf.Abs(raw - runningMean);
+                    }
+                }
+
+                if (_calibrationTimer >= CalibrationDuration && _calibrationSamples > 1)
+                {
+                    _restBaseline = _calibrationSum / _calibrationSamples;
+                    float meanAbsDev = _calibrationDevSum / (_calibrationSamples - 1);
+                    _noiseFloor = Mathf.Min(meanAbsDev * NoiseMargin, MaxNoiseFloor);
+                    _calibrated = true;
+                    Debug.Log($"[BreathInput] Fan auto-calibration complete — rest baseline: {_restBaseline:F1}, " +
+                        $"mean noise: {meanAbsDev:F1}, noise floor: {_noiseFloor:F1} (capped at {MaxNoiseFloor:F0}), " +
+                        $"{_calibrationSamples} samples. Only deviations above {_noiseFloor:F1} count as breath.");
+                }
+                else
+                {
+                    _smoothedIntensity = 0f;
+                    return;
+                }
+            }
+
+            // Phase 2: subtract noise floor, map remaining deviation to 0-1
+            float deviation = Mathf.Abs(raw - _restBaseline);
+            float cleanDeviation = Mathf.Max(0f, deviation - _noiseFloor);
+            float maxUseful = breathConfig.MaxExpectedRPM;
+            float linearIntensity = Mathf.Clamp01(cleanDeviation / maxUseful);
+            const float ResponseCurve = 0.55f;
+            float rawIntensity = (linearIntensity > 0f) ? Mathf.Pow(linearIntensity, ResponseCurve) : 0f;
+
+            float fanSmoothing = breathConfig.SmoothingFactor * 0.7f;
             _smoothedIntensity = SignalProcessing.ExponentialMovingAverage(
-                _smoothedIntensity, rawIntensity, breathConfig.SmoothingFactor);
+                _smoothedIntensity, rawIntensity, fanSmoothing);
             _smoothedIntensity = SignalProcessing.DeadZone(_smoothedIntensity, breathConfig.DeadZoneThreshold);
             _smoothedIntensity = Mathf.Clamp01(_smoothedIntensity);
+
+            _diagTimer += Time.deltaTime;
+            if (_diagTimer >= DiagIntervalSec)
+            {
+                _diagTimer = 0f;
+                Debug.Log($"[BreathInput] Fan diagnostic — raw: {raw:F0}, baseline: {_restBaseline:F1}, " +
+                    $"deviation: {deviation:F1}, noise floor: {_noiseFloor:F1}, " +
+                    $"clean: {cleanDeviation:F1}, mapped: {rawIntensity:F3}, " +
+                    $"smoothed: {_smoothedIntensity:F3} (max useful: {maxUseful:F0})");
+            }
 
             CheckLevelCrossing();
         }
@@ -140,9 +261,11 @@ namespace Breathe.Input
         private void OnDestroy() => Shutdown();
 
 #if SERIAL_AVAILABLE
-        // Background thread — blocks on serial reads
         private void ReadSerialLoop()
         {
+            int consecutiveErrors = 0;
+            const int maxConsecutiveErrors = 20;
+
             while (_threadRunning)
             {
                 try
@@ -157,17 +280,31 @@ namespace Breathe.Input
                                 System.Globalization.CultureInfo.InvariantCulture, out float rpm))
                         {
                             _latestRpm = Mathf.Max(0f, rpm);
+                            _lastReadMs = System.Environment.TickCount;
+                            consecutiveErrors = 0;
                         }
                     }
                 }
-                catch (TimeoutException) { } // normal — no data within timeout
-                catch (IOException ex)
+                catch (TimeoutException)
                 {
-                    Debug.LogWarning("[BreathInput] Fan serial: " + ex.Message);
-                    _latestRpm = 0f;
+                    // Normal — no data within timeout window, just loop again
+                }
+                catch (IOException)
+                {
+                    consecutiveErrors++;
+                    if (consecutiveErrors >= maxConsecutiveErrors)
+                    {
+                        Debug.LogWarning($"[BreathInput] Fan serial: {maxConsecutiveErrors} consecutive IO errors — " +
+                            "connection may be lost. Check USB/pin connection.");
+                        consecutiveErrors = 0;
+                    }
+                    Thread.Sleep(50);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Port was closed externally
                     break;
                 }
-                catch (InvalidOperationException) { break; }
             }
         }
 #endif
