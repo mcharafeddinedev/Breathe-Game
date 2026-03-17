@@ -47,19 +47,15 @@ namespace Breathe.Input
         private float _diagTimer;
         private const float DiagIntervalSec = 2f;
         private const float StaleDataTimeout = 0.5f;
+        private const float SpikeRejectMultiplier = 5f;
 
-        // Auto-baseline: record idle analog value + noise floor during startup,
-        // then treat deviation beyond the noise floor as the breath signal.
+        private float _baseline;
         private bool _calibrated;
-        private float _calibrationTimer;
-        private float _calibrationSum;
-        private int _calibrationSamples;
-        private float _calibrationDevSum;
-        private float _restBaseline;
-        private float _noiseFloor;
-        private const float CalibrationDuration = 1.5f;
-        private const float NoiseMargin = 3.0f;
-        private const float MaxNoiseFloor = 60f;
+        private float _startupTimer;
+        private float _calSum;
+        private int _calSamples;
+        private const float SettleDuration = 2f;
+        private const float CalibrationEnd = 3f;
 
         public float GetBreathIntensity() => _smoothedIntensity;
 
@@ -74,13 +70,11 @@ namespace Breathe.Input
         {
             _smoothedIntensity = 0f;
             _previousLevel = 0;
+            _baseline = 0f;
             _calibrated = false;
-            _calibrationTimer = 0f;
-            _calibrationSum = 0f;
-            _calibrationSamples = 0;
-            _calibrationDevSum = 0f;
-            _restBaseline = 0f;
-            _noiseFloor = 0f;
+            _startupTimer = 0f;
+            _calSum = 0f;
+            _calSamples = 0;
 
 #if SERIAL_AVAILABLE
             _latestRpm = 0f;
@@ -190,69 +184,61 @@ namespace Breathe.Input
 #if SERIAL_AVAILABLE
             float raw = _latestRpm;
             float secsSinceRead = (System.Environment.TickCount - _lastReadMs) / 1000f;
-            bool dataStale = secsSinceRead > StaleDataTimeout;
-            if (dataStale)
-                raw = _restBaseline;
+            if (secsSinceRead > StaleDataTimeout)
+                raw = _baseline;
 #else
             float raw = 0f;
-            bool dataStale = true;
 #endif
 
-            // Phase 1: auto-calibrate — record mean + mean absolute deviation from idle readings
             if (!_calibrated)
             {
-                _calibrationTimer += Time.deltaTime;
-                if (raw > 0f)
+                _startupTimer += Time.deltaTime;
+                if (_startupTimer > SettleDuration)
                 {
-                    _calibrationSum += raw;
-                    _calibrationSamples++;
-
-                    if (_calibrationSamples > 1)
-                    {
-                        float runningMean = _calibrationSum / _calibrationSamples;
-                        _calibrationDevSum += Mathf.Abs(raw - runningMean);
-                    }
+                    _calSum += raw;
+                    _calSamples++;
                 }
-
-                if (_calibrationTimer >= CalibrationDuration && _calibrationSamples > 1)
+                if (_startupTimer >= CalibrationEnd && _calSamples > 0)
                 {
-                    _restBaseline = _calibrationSum / _calibrationSamples;
-                    float meanAbsDev = _calibrationDevSum / (_calibrationSamples - 1);
-                    _noiseFloor = Mathf.Min(meanAbsDev * NoiseMargin, MaxNoiseFloor);
+                    _baseline = _calSum / _calSamples;
                     _calibrated = true;
-                    Debug.Log($"[BreathInput] Fan auto-calibration complete — rest baseline: {_restBaseline:F1}, " +
-                        $"mean noise: {meanAbsDev:F1}, noise floor: {_noiseFloor:F1} (capped at {MaxNoiseFloor:F0}), " +
-                        $"{_calibrationSamples} samples. Only deviations above {_noiseFloor:F1} count as breath.");
+                    Debug.Log($"[BreathInput] Fan calibrated — rest baseline: {_baseline:F0} " +
+                        $"({_calSamples} samples over {CalibrationEnd - SettleDuration:F0}s)");
                 }
-                else
-                {
-                    _smoothedIntensity = 0f;
-                    return;
-                }
+                _smoothedIntensity = 0f;
+                return;
             }
 
-            // Phase 2: subtract noise floor, map remaining deviation to 0-1
-            float deviation = Mathf.Abs(raw - _restBaseline);
-            float cleanDeviation = Mathf.Max(0f, deviation - _noiseFloor);
-            float maxUseful = breathConfig.MaxExpectedRPM;
-            float linearIntensity = Mathf.Clamp01(cleanDeviation / maxUseful);
-            const float ResponseCurve = 0.55f;
-            float rawIntensity = (linearIntensity > 0f) ? Mathf.Pow(linearIntensity, ResponseCurve) : 0f;
+            float deviation = Mathf.Abs(raw - _baseline);
 
-            float fanSmoothing = breathConfig.SmoothingFactor * 0.7f;
-            _smoothedIntensity = SignalProcessing.ExponentialMovingAverage(
-                _smoothedIntensity, rawIntensity, fanSmoothing);
-            _smoothedIntensity = SignalProcessing.DeadZone(_smoothedIntensity, breathConfig.DeadZoneThreshold);
+            float spikeThreshold = breathConfig.MaxExpectedRPM * SpikeRejectMultiplier;
+            bool spiked = deviation > spikeThreshold;
+
+            if (!spiked)
+            {
+                float rawIntensity = Mathf.Clamp01(deviation / breathConfig.MaxExpectedRPM);
+
+                _smoothedIntensity = SignalProcessing.ExponentialMovingAverage(
+                    _smoothedIntensity, rawIntensity, breathConfig.SmoothingFactor);
+            }
+            else
+            {
+                _smoothedIntensity = SignalProcessing.ExponentialMovingAverage(
+                    _smoothedIntensity, 0f, breathConfig.SmoothingFactor);
+            }
+
+            _smoothedIntensity = SignalProcessing.DeadZone(
+                _smoothedIntensity, breathConfig.DeadZoneThreshold);
             _smoothedIntensity = Mathf.Clamp01(_smoothedIntensity);
 
             _diagTimer += Time.deltaTime;
             if (_diagTimer >= DiagIntervalSec)
             {
                 _diagTimer = 0f;
-                Debug.Log($"[BreathInput] Fan diagnostic — raw: {raw:F0}, baseline: {_restBaseline:F1}, " +
-                    $"deviation: {deviation:F1}, noise floor: {_noiseFloor:F1}, " +
-                    $"clean: {cleanDeviation:F1}, mapped: {rawIntensity:F3}, " +
-                    $"smoothed: {_smoothedIntensity:F3} (max useful: {maxUseful:F0})");
+                string tag = spiked ? " [SPIKE REJECTED]" : "";
+                Debug.Log($"[BreathInput] Fan diagnostic — raw: {raw:F0}, baseline: {_baseline:F0}, " +
+                    $"deviation: {deviation:F0}, smoothed: {_smoothedIntensity:F3} " +
+                    $"(max: {breathConfig.MaxExpectedRPM:F0}){tag}");
             }
 
             CheckLevelCrossing();

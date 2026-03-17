@@ -19,10 +19,10 @@ namespace Breathe.Data
         private float[] _powerLevelThresholds = { 0.05f, 0.15f, 0.30f, 0.50f, 0.70f };
 
         [Header("Fan Hardware")]
-        [SerializeField, Tooltip("Max useful deviation above noise floor. After auto-calibration " +
-            "subtracts idle noise, this is how much clean deviation = full power. " +
+        [SerializeField, Tooltip("Max useful deviation from Arduino (which now sends 0 at rest). " +
+            "This is how much deviation = full power before the response curve. " +
             "Lower = more sensitive. Check Fan diagnostic 'clean' values in logs.")]
-        private float _maxExpectedRPM = 380f;
+        private float _maxExpectedRPM = 250f;
 
         [Header("Simulated Input")]
         [SerializeField] private float _rampUpSpeed = 0.5f;
