@@ -1,4 +1,4 @@
-Last Updated: Feb 26, 2026
+Last Updated: Mar 29, 2026
 
 # Hardware Overview — Breath Input Device
 
@@ -8,7 +8,7 @@ This repository is public for review and portfolio visibility only. All material
 
 ## Purpose
 
-This document describes the high-level hardware design for the project's custom breath-sensing input device. It covers functional requirements and integration expectations without disclosing procurement specifics or assembly procedures.
+This document describes the high-level hardware design for the project's custom breath-sensing input device. This will cover functional requirements and integration expectations without disclosing procurement specifics or assembly procedures.
 
 ## What the Device Does
 
@@ -52,7 +52,7 @@ The breath-only game design (no secondary controller inputs) means every signal 
 - Effort duration and patterns over time
 - Session-to-session trend data
 
-These measurements support both responsive gameplay and potential future healthcare-adjacent applications such as breathing exercise engagement and effort tracking.
+These measurements drive responsive gameplay and allow the game to show the player their own effort and progress over time.
 
 ## Integration
 
@@ -61,4 +61,4 @@ These measurements support both responsive gameplay and potential future healthc
 
 ## Implementation Status
 
-Hardware integration is part of the ongoing prototype work. The game supports multiple input paths (custom device, microphone fallback, and simulated input for development) through a single abstraction so that gameplay logic is unchanged regardless of source. Detailed procurement lists, wiring specifics, assembly procedures, firmware, and calibration workflows are maintained privately. Contact the repository owner for further information.
+The custom hardware is built and integrated. The game supports multiple input paths (custom device, microphone fallback, and simulated input for development) through a single abstraction so gameplay logic is unchanged regardless of source. Procurement lists, wiring specifics, assembly procedures, firmware, and calibration workflows are maintained privately.

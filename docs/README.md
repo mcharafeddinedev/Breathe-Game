@@ -1,12 +1,8 @@
-Last Updated: Mar 15, 2026 (v5 -- prototype codebase complete)
+Last Updated: Mar 29, 2026
 
-# Public Documentation
+# Documentation
 
-This folder contains the public-facing documentation for the Breathe project — a breath-controlled sailboat race built in Unity with custom alternative-control hardware. All gameplay uses breath as the sole input. No one ever loses.
-
-**Current state:** The project is in **prototype development**. A playable vertical slice is being built: breath input driving a sailboat race with AI companions and a positive, no-fail finish. No implementation details or internal timelines are disclosed here.
-
-These documents describe the project's concept, architecture intent, milestones, and hardware requirements at a level appropriate for portfolio review, academic evaluation, and general interest.
+Documentation for Breathe — a breath-controlled minigame collection built in Unity with custom alternative-control hardware.
 
 ## IP and Usage Notice
 
@@ -14,16 +10,14 @@ This repository is public for review and portfolio visibility only. All material
 
 ## Structure
 
-- `HOW_IT_WORKS.md` -- technical systems overview: how the game runs, what gets generated at runtime, how breath input flows through the software, AI behavior, environmental zones, scoring and breath analytics, hardware signal path, and design principles enforced by the code.
-- `_project-overview/`
-  - `PROJECT_MASTER.md` -- project scope, milestone roadmap, scope guardrails, and no-fail design rationale.
-- `_pitch/`
-  - `_Breathe_Pitch.md` -- public pitch narrative, design goals, breath-only rationale, no-fail design, minigame collection vision, and product direction.
-- `mechanic-and-architecture/`
-  - `CORE_MECHANIC_PLAN.md` -- breath-to-gameplay architecture, input abstraction, and quality targets.
-- `hardware/`
-  - `HARDWARE_OVERVIEW.md` -- vendor-agnostic hardware requirements, hygiene design, data capture capabilities, and integration targets.
+- `HOW_IT_WORKS.md` — Technical systems overview: architecture, input pipeline, procedural generation, AI, scoring, design principles.
+- `PROJECT_PLAN.md` — Project scope, milestone roadmap, scope guardrails.
+- `PITCH.md` — Design goals, breath-only rationale, no-fail philosophy, product direction.
+- `CORE_MECHANIC_PLAN.md` — Breath-to-gameplay pipeline architecture and quality targets.
+- `HARDWARE.md` — Custom input device requirements, signal path, integration.
+- `PRODUCTION_LOG.md` — Development narrative from the production phase.
+- `PROTOTYPE_LOG.md` — Development narrative from the prototype phase.
 
 ## What's Not Here
 
-Implementation details, build instructions, procurement specifics, code snippets, competitive landscape research, clinical evidence analysis, minigame design details, and operational procedures are maintained privately. These public documents focus on what the project is and why it's built this way.
+Build instructions, procurement specifics, and detailed minigame design docs are maintained privately. These docs focus on what the project is and why it's built this way.

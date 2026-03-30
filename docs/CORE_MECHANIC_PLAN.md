@@ -1,4 +1,4 @@
-Last Updated: Feb 26, 2026
+Last Updated: Mar 29, 2026
 
 # Core Mechanic: Breath to Power Level
 
@@ -8,15 +8,15 @@ This repository is public for review and portfolio visibility only. All material
 
 ## Mechanic Objective
 
-Convert player breath intensity into a stable, real-time gameplay signal that controls in-game wind speed and sail power. Breath is the sole input for all gameplay -- no secondary controls.
+Convert a player's breath power/intensity into a stable, real-time gameplay signal (breath power) that drives all minigame mechanics. Breath is the sole input for all gameplay -- no secondary controls. In the sailboat, breath power becomes wind that fills a sail. In other minigames it drives different actions, but the underlying power variable is always the same normalized 0-to-1 signal.
 
 ## Design Philosophy
 
-The breath mechanic is the single most important system in the project. Everything else -- the sailboat, the AI opponents, the course, the scoring -- is built on top of a working, responsive breath-to-game pipeline. The mechanic must feel immediate, proportional, and satisfying before any other feature gets attention.
+The breath mechanic is the foundational system in the project. Everything else — the sailboat, the AI opponents, the course, the scoring, the rest of the minigames — sits on top of a working, responsive breath-to-game pipeline. The mechanic should be immediate, responsive, proportional, and satisfying before other features gets attention.
 
-The breath-only constraint is intentional: it keeps the player focused entirely on breathing, produces the cleanest possible breath-effort data, and makes the game accessible to anyone who can blow.
+The breath-only constraint is intentional: it keeps the player focused entirely on breathing and makes the game accessible to anyone who can blow.
 
-## System Architecture (Public Summary)
+## System Architecture
 
 The breath pipeline is structured in layers:
 
@@ -36,7 +36,7 @@ Game systems consume a common breath-input interface. The actual signal source -
 - **Responsiveness:** Low-latency control feel suitable for real-time interactive gameplay
 - **Proportionality:** Predictable, intuitive mapping between physical effort and in-game effect
 - **Stability:** Consistent behavior at rest (no drift) and under sustained repeated use
-- **Discrete levels:** The continuous signal is also binned into discrete power levels for threshold-based game events and potential measurement applications
+- **Discrete levels:** The continuous signal is also binned into discrete power levels for threshold-based game events
 
 ## Risk Areas
 
@@ -53,10 +53,10 @@ Game systems consume a common breath-input interface. The actual signal source -
 
 ## Implementation Status
 
-The architecture described above is the basis for the current prototype. The breath-to-power pipeline is in active development as part of the playable vertical slice. No implementation or code details are disclosed in this public document.
+The architecture described above is fully implemented and validated. The breath-to-power pipeline (`BreathPowerSystem.cs`) is live in the sailboat prototype level and serves as the universal power variable for all minigames. Hardware compensation for fan spin-down latency is built into the analytics layer.
 
 ## Related Documents
 
-- Project overview: [PROJECT_MASTER.md](../_project-overview/PROJECT_MASTER.md)
-- Pitch framing: [_Breathe_Pitch.md](../_pitch/_Breathe_Pitch.md)
-- Hardware summary: [HARDWARE_OVERVIEW.md](../hardware/HARDWARE_OVERVIEW.md)
+- Project overview: [PROJECT_PLAN.md](PROJECT_PLAN.md)
+- Pitch framing: [PITCH.md](PITCH.md)
+- Hardware summary: [HARDWARE.md](HARDWARE.md)
