@@ -29,6 +29,7 @@ namespace Breathe.Gameplay
         {
             if (_instance != null && _instance != this) { Destroy(gameObject); return; }
             _instance = this;
+            DontDestroyOnLoad(gameObject);
             if (_availableMinigames.Length > 0 && _selectedDefinition == null)
                 _selectedDefinition = _availableMinigames[0];
         }

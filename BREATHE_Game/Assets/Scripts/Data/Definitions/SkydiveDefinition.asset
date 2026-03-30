@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 017ec1bb18d8eb443bdf9f9d194e2f46, type: 3}
+  m_Name: SkydiveDefinition
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
+  _minigameId: skydive
+  _displayName: SKYDIVE
+  _description: Guide  skydivers  onto  targets  by  controlling  the  wind!
+  _thumbnail: {fileID: 0}
+  _breathPattern: Modulated  Control
+  _isUnlocked: 0
+  _cardColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  _sceneName: SKYDIVE
+  _countdownGoText: DIVE!
+  _postCountdownBuffer: 0
+  _tutorialTitle: HOW TO PLAY
+  _tutorialInstruction: "A crosswind pushes each skydiver sideways as they fall.
+    Blow to push them the opposite direction!\n\nControl your breath intensity to
+    guide the skydiver onto the target pad. Light breath nudges gently \u2014 hard
+    breath pushes fast."
+  _tutorialTip: Watch the wind direction arrow and match your effort to steer!

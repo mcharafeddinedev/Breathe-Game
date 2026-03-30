@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 017ec1bb18d8eb443bdf9f9d194e2f46, type: 3}
+  m_Name: BubblesDefinition
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
+  _minigameId: bubbles
+  _displayName: BUBBLES
+  _description: Blow  rhythmic  bubble  chains  and  chase  streaks!
+  _thumbnail: {fileID: 0}
+  _breathPattern: Rhythmic  Pulsing
+  _isUnlocked: 1
+  _cardColor: {r: 1, g: 0.5, b: 0.7, a: 1}
+  _sceneName: BUBBLES
+  _countdownGoText: BUBBLES!
+  _postCountdownBuffer: 0
+  _tutorialTitle: HOW TO PLAY
+  _tutorialInstruction: "Blow short, rhythmic puffs to create bubbles! Each puff
+    makes one bubble that floats upward.\n\nKeep a steady rhythm to build your streak
+    \u2014 evenly-paced puffs score more points. Hold a long blow to create a giant
+    bubble!"
+  _tutorialTip: Watch the bubble wand pulse for the ideal rhythm!

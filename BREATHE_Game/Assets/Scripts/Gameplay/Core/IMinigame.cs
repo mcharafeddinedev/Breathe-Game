@@ -1,28 +1,33 @@
+using System.Collections.Generic;
 using Breathe.Data;
 
 namespace Breathe.Gameplay
 {
     // Contract every minigame controller implements.
-    // GameStateManager, MinigameManager, and the celebration screen drive any
-    // minigame through this interface without knowing its specifics.
+    // GameStateManager, MinigameManager, the result overlay, and the debug overlay
+    // drive any minigame through this interface without knowing its specifics.
     public interface IMinigame
     {
         string MinigameId { get; }
         bool IsComplete { get; }
 
-        // Called when countdown finishes — reset state, start timers, enable input
         void OnMinigameStart();
-
-        // Called when minigame ends (natural finish or quit) — freeze gameplay, finalize stats
         void OnMinigameEnd();
 
-        // Label/value pairs for the celebration screen
+        // Tiered label/value pairs for the data-driven result screen
         MinigameStat[] GetEndStats();
 
-        // e.g. "GREAT SAILING!" or "BALLOON MASTER!"
+        // Dynamic celebration heading (e.g. "AMAZING SAILING!", "BALLOON MASTER!")
         string GetCelebrationTitle();
 
         // Personal-best message (or empty string if none)
         string GetPersonalBestMessage();
+
+        // Static header bar text for the result screen (e.g. "RACE COMPLETE", "TIME'S UP!")
+        string GetResultTitle();
+
+        // Game-specific key-value pairs rendered in the debug overlay's custom section.
+        // Return null or empty to show only the shared base section.
+        Dictionary<string, string> GetDebugInfo();
     }
 }
