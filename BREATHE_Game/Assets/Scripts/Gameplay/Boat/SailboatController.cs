@@ -10,7 +10,8 @@ namespace Breathe.Gameplay
     public class SailboatController : MonoBehaviour, IBoatEnvironmentalTarget
     {
         [Header("References")]
-        [SerializeField] private WindSystem _windSystem;
+        [UnityEngine.Serialization.FormerlySerializedAs("_windSystem")]
+        [SerializeField] private BreathPowerSystem _breathPowerSystem;
         [SerializeField] private CourseConfig _courseConfig;
 
         [Header("Waypoints")]
@@ -87,19 +88,17 @@ namespace Breathe.Gameplay
         void IBoatEnvironmentalTarget.SetEnvironmentalSpeedMultiplier(float mult)
         {
             _environmentalSpeedMultiplier = mult;
-            if (_windSystem != null) _windSystem.SetEnvironmentalMultiplier(mult);
         }
 
         void IBoatEnvironmentalTarget.ClearEnvironmentalSpeedMultiplier()
         {
             _environmentalSpeedMultiplier = 1f;
             _inZoneSpinMode = false;
-            if (_windSystem != null) _windSystem.SetEnvironmentalMultiplier(1f);
-            _courseRecoveryTimer = 3.2f; // gradual drift back to the course path
+            _courseRecoveryTimer = 3.2f;
         }
 
         void IBoatEnvironmentalTarget.SetInZoneSpinMode(bool enable) => _inZoneSpinMode = enable;
-        WindSystem IBoatEnvironmentalTarget.GetWindSystem() => _windSystem;
+        BreathPowerSystem IBoatEnvironmentalTarget.GetBreathPowerSystem() => _breathPowerSystem;
 
         // Called by CourseManager to inject procedurally generated waypoints
         public void SetWaypoints(Transform[] waypoints)
@@ -196,7 +195,7 @@ namespace Breathe.Gameplay
         {
             if (_waypoints == null || _waypoints.Length == 0 || _courseConfig == null) return;
 
-            float windPower = _windSystem != null ? _windSystem.WindPower : 0f;
+            float windPower = _breathPowerSystem != null ? _breathPowerSystem.BreathPower : 0f;
 
             // No movement during countdown — boats sit still until the race starts.
             // Once finished, keep coasting so the boat sails through the finish line.

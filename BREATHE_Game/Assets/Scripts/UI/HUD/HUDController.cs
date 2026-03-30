@@ -41,15 +41,15 @@ namespace Breathe.UI
 
         [SerializeField] private float countdownScale = 1.5f;
 
-        private WindSystem _windSystem;
+        private BreathPowerSystem _breathPowerSystem;
         private RaceProgressTracker _raceProgressTracker;
         private Coroutine _activePopup;
         private Coroutine _activeCountdown;
 
         private void Start()
         {
-            if (_windSystem == null)
-                _windSystem = FindAnyObjectByType<WindSystem>();
+            if (_breathPowerSystem == null)
+                _breathPowerSystem = FindAnyObjectByType<BreathPowerSystem>();
 
             if (_raceProgressTracker == null)
                 _raceProgressTracker = FindAnyObjectByType<RaceProgressTracker>();
@@ -60,8 +60,8 @@ namespace Breathe.UI
             if (countdownText != null)
                 countdownText.gameObject.SetActive(false);
 
-            ObstacleZone.OnZonePopup += HandleZonePopup;
-            Debug.Log("[HUDController] Subscribed to ObstacleZone.OnZonePopup");
+            ZoneEvents.OnZonePopup += HandleZonePopup;
+            Debug.Log("[HUDController] Subscribed to ZoneEvents.OnZonePopup");
 
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnCountdownTick += HandleCountdownTick;
@@ -69,7 +69,7 @@ namespace Breathe.UI
 
         private void OnDestroy()
         {
-            ObstacleZone.OnZonePopup -= HandleZonePopup;
+            ZoneEvents.OnZonePopup -= HandleZonePopup;
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnCountdownTick -= HandleCountdownTick;
         }
@@ -89,8 +89,8 @@ namespace Breathe.UI
 
         private void UpdateWindMeter()
         {
-            if (windMeterFill == null || _windSystem == null) return;
-            windMeterFill.fillAmount = Mathf.Clamp01(_windSystem.WindPower);
+            if (windMeterFill == null || _breathPowerSystem == null) return;
+            windMeterFill.fillAmount = Mathf.Clamp01(_breathPowerSystem.BreathPower);
         }
 
         private void UpdateBoatPositions()

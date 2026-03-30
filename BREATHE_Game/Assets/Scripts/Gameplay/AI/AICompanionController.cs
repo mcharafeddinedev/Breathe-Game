@@ -160,7 +160,7 @@ namespace Breathe.Gameplay
         }
 
         void IBoatEnvironmentalTarget.SetInZoneSpinMode(bool enable) => _inZoneSpinMode = enable;
-        WindSystem IBoatEnvironmentalTarget.GetWindSystem() => null;
+        BreathPowerSystem IBoatEnvironmentalTarget.GetBreathPowerSystem() => null;
 
         // Call when restarting a race
         public static void ResetCompetitiveWinState()

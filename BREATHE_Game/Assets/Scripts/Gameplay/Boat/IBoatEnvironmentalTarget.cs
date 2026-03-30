@@ -17,6 +17,6 @@ namespace Breathe.Gameplay
         void SetEnvironmentalSpeedMultiplier(float mult);
         void ClearEnvironmentalSpeedMultiplier();
         void SetInZoneSpinMode(bool enable); // cyclone spin — don't force face-up
-        WindSystem GetWindSystem();          // only player has one, AI returns null
+        BreathPowerSystem GetBreathPowerSystem(); // only player has one, AI returns null
     }
 }

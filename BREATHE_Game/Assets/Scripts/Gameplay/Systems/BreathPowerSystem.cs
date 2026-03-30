@@ -3,9 +3,10 @@ using Breathe.Input;
 
 namespace Breathe.Gameplay
 {
-    // Turns breath input into a smoothed wind power value (0-1).
-    // Sails and the wind meter always show raw breath effort — zones only affect speed.
-    public class WindSystem : MonoBehaviour
+    // Turns breath input into a smoothed power value (0-1).
+    // This is the universal breath-to-game-power pipeline shared by all minigames.
+    // Each minigame reads BreathPower and maps it to game-specific behavior.
+    public class BreathPowerSystem : MonoBehaviour
     {
         [SerializeField, Tooltip("EMA alpha — higher = smoother but laggier.")]
         private float _smoothingFactor = 0.4f;
@@ -13,18 +14,14 @@ namespace Breathe.Gameplay
         [SerializeField, Tooltip("Response curve exponent. <1 means light breath still feels strong.")]
         private float _responseCurveExponent = 0.55f;
 
-        [SerializeField, Tooltip("Log a message when wind power crosses these thresholds.")]
+        [SerializeField, Tooltip("Log a message when breath power crosses these thresholds.")]
         private float[] _logThresholds = { 0.2f, 0.4f, 0.6f, 0.8f };
 
-        private float _smoothedWindPower;
+        private float _smoothedBreathPower;
         private int _previousThresholdIndex = -1;
 
-        public float WindPower { get; private set; }
-        public float CurrentWindPower => WindPower;
-
-        // No-op now. Zones modify speed directly in SailboatController,
-        // so sail visuals still reflect real breath effort even in doldrums.
-        public void SetEnvironmentalMultiplier(float mult) { }
+        public float BreathPower { get; private set; }
+        public float CurrentBreathPower => BreathPower;
 
         private void Update()
         {
@@ -34,13 +31,11 @@ namespace Breathe.Gameplay
 
             float effective = Mathf.Clamp01(rawBreath);
 
-            // EMA smoothing — frame-rate independent via Pow
-            _smoothedWindPower = Mathf.Lerp(_smoothedWindPower, effective,
+            _smoothedBreathPower = Mathf.Lerp(_smoothedBreathPower, effective,
                 1f - Mathf.Pow(_smoothingFactor, Time.deltaTime * 60f));
 
-            // Response curve — makes low breath feel more impactful
-            float curved = Mathf.Pow(Mathf.Clamp01(_smoothedWindPower), _responseCurveExponent);
-            WindPower = Mathf.Clamp01(curved);
+            float curved = Mathf.Pow(Mathf.Clamp01(_smoothedBreathPower), _responseCurveExponent);
+            BreathPower = Mathf.Clamp01(curved);
 
             LogThresholdCrossings();
         }
@@ -52,7 +47,7 @@ namespace Breathe.Gameplay
             int currentIndex = -1;
             for (int i = _logThresholds.Length - 1; i >= 0; i--)
             {
-                if (WindPower >= _logThresholds[i])
+                if (BreathPower >= _logThresholds[i])
                 {
                     currentIndex = i;
                     break;
@@ -62,7 +57,7 @@ namespace Breathe.Gameplay
             if (currentIndex != _previousThresholdIndex)
             {
                 _previousThresholdIndex = currentIndex;
-                Debug.Log($"[Wind] Power: {WindPower:F2} (band {currentIndex + 1}/{_logThresholds.Length})");
+                Debug.Log($"[BreathPower] Power: {BreathPower:F2} (band {currentIndex + 1}/{_logThresholds.Length})");
             }
         }
     }

@@ -131,7 +131,7 @@ namespace Breathe.Gameplay
             // Only show popup for the player boat, not AI — one popup at a time.
             if (boat.IsPlayer && _showPopupOnEnter && !string.IsNullOrEmpty(_params.popupText))
             {
-                ObstacleZone.RaiseZonePopup(_params.popupText);
+                ZoneEvents.RaiseZonePopup(_params.popupText);
                 OnZonePopup?.Invoke(_zoneType, _params.popupText);
             }
 

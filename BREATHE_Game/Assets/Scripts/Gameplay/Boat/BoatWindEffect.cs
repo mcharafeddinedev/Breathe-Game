@@ -37,7 +37,7 @@ namespace Breathe.Gameplay
         private float _spawnTimer;
         private float _windIntensity;
         private bool _wasActive;
-        private WindSystem _windSystem;
+        private BreathPowerSystem _breathPowerSystem;
         private bool _useExternalIntensity;
         private static Sprite _placeholderSprite;
 
@@ -49,7 +49,7 @@ namespace Breathe.Gameplay
             public bool Active;
         }
 
-        // Manual intensity setter for AI boats — stops reading from WindSystem
+        // Manual intensity setter for AI boats — stops reading from BreathPowerSystem
         public void SetWindIntensity(float intensity)
         {
             _useExternalIntensity = true;
@@ -59,15 +59,15 @@ namespace Breathe.Gameplay
         private void Start()
         {
             if (!_useExternalIntensity)
-                _windSystem = FindAnyObjectByType<WindSystem>();
+                _breathPowerSystem = FindAnyObjectByType<BreathPowerSystem>();
             EnsurePlaceholderSprite();
             BuildPool();
         }
 
         private void Update()
         {
-            if (!_useExternalIntensity && _windSystem != null)
-                _windIntensity = _windSystem.WindPower;
+            if (!_useExternalIntensity && _breathPowerSystem != null)
+                _windIntensity = _breathPowerSystem.BreathPower;
 
             bool isActive = _windIntensity >= _activationThreshold;
 
