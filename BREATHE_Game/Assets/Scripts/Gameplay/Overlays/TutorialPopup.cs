@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Breathe.Data;
 using Breathe.Input;
+using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
@@ -12,9 +13,9 @@ namespace Breathe.Gameplay
     public class TutorialPopup : MonoBehaviour
     {
         [Header("Fallback Content (used if no MinigameDefinition)")]
-        [SerializeField] private string _fallbackTitle = "HOW TO PLAY";
-        [SerializeField, TextArea(2, 4)] private string _fallbackInstruction = "Blow steadily into the device to control the game!";
-        [SerializeField, TextArea(1, 2)] private string _fallbackTip = "Longer, steady breaths work best.";
+        [SerializeField] private string _fallbackTitle = "HOW  TO  PLAY";
+        [SerializeField, TextArea(2, 4)] private string _fallbackInstruction = "BLOW  STEADILY  INTO  THE  DEVICE  TO  CONTROL  THE  GAME";
+        [SerializeField, TextArea(1, 2)] private string _fallbackTip = "LONGER  STEADY  BREATHS  WORK  BEST";
 
         [Header("Animation")]
         [SerializeField] private float _fadeInDuration = 0.3f;
@@ -40,6 +41,8 @@ namespace Breathe.Gameplay
         private GUIStyle _tipStyle;
         private GUIStyle _buttonStyle;
         private GUIStyle _buttonHoverStyle;
+        private GUIStyle _buttonTextStyle;
+        private GUIStyle _buttonTextHoverStyle;
         private GUIStyle _inputHeaderStyle;
         private GUIStyle _checkboxLabelStyle;
         private GUIStyle _checkboxBoxStyle;
@@ -88,6 +91,22 @@ namespace Breathe.Gameplay
         {
             var mgr = MinigameManager.Instance;
             MinigameDefinition def = mgr != null ? mgr.SelectedDefinition : null;
+
+            // If no definition was selected (e.g. scene launched directly), try to
+            // match by current scene name so the asset data is still used.
+            if (def == null && mgr != null)
+            {
+                string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                foreach (var candidate in mgr.AvailableMinigames)
+                {
+                    if (candidate != null && candidate.SceneName == scene)
+                    {
+                        def = candidate;
+                        mgr.SelectMinigame(def);
+                        break;
+                    }
+                }
+            }
 
             if (def != null)
             {
@@ -155,77 +174,101 @@ namespace Breathe.Gameplay
 
             GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "", _overlayBg);
 
-            float pw = Mathf.Min(Screen.width * 0.75f, 650f);
-            float ph = 380f;
+            float pw = Mathf.Min(Screen.width * 0.85f, 780f);
+            float ph = Mathf.Min(Screen.height * 0.90f, 650f);
             float px = (Screen.width - pw) * 0.5f;
             float py = (Screen.height - ph) * 0.5f;
 
             GUI.Box(new Rect(px, py, pw, ph), "", _panelBg);
 
             float pad = 35f;
-            float cy = py + pad;
+            float contentW = pw - pad * 2f;
 
-            GUI.Label(new Rect(px, cy, pw, 45f), _title, _titleStyle);
-            cy += 60f;
+            float titleH = 65f;
+            float btnHeight = 55f;
+            float btnWidth = 220f;
+            float inputH = 75f;
+            float margin = 30f;
 
-            float instrHeight = _instructionStyle.CalcHeight(new GUIContent(_instruction), pw - pad * 2f) + 8f;
-            instrHeight = Mathf.Min(instrHeight, 140f);
-            GUI.Label(new Rect(px + pad, cy, pw - pad * 2f, instrHeight), _instruction, _instructionStyle);
-            cy += instrHeight + 20f;
+            // Title — top of panel
+            float titleY = py + margin;
+            GameFont.OutlinedLabel(new Rect(px, titleY, pw, titleH), _title, _titleStyle);
 
-            if (!string.IsNullOrEmpty(_tip))
-            {
-                float tipHeight = _tipStyle.CalcHeight(new GUIContent(_tip), pw - pad * 2f);
-                tipHeight = Mathf.Min(tipHeight, 60f);
-                GUI.Label(new Rect(px + pad, cy, pw - pad * 2f, tipHeight), _tip, _tipStyle);
-                cy += tipHeight + 25f;
-            }
-            else
-            {
-                cy += 25f;
-            }
-
-            float btnWidth = 180f;
-            float btnHeight = 50f;
+            // Continue button — pinned to bottom
+            float btnY = py + ph - btnHeight - margin;
             float btnX = px + (pw - btnWidth) * 0.5f;
-            float btnY = py + ph - btnHeight - pad;
             _buttonRect = new Rect(btnX, btnY, btnWidth, btnHeight);
+
+            // Calculate instruction and tip heights
+            float instrHeight = _instructionStyle.CalcHeight(new GUIContent(_instruction), contentW) + 8f;
+            instrHeight = Mathf.Min(instrHeight, 180f);
+
+            bool hasTip = !string.IsNullOrEmpty(_tip);
+            float tipHeight = 0f;
+            if (hasTip)
+            {
+                tipHeight = _tipStyle.CalcHeight(new GUIContent(_tip), contentW);
+                tipHeight = Mathf.Min(tipHeight, 80f);
+            }
+
+            // Zone between title bottom and button top
+            float zoneTop = titleY + titleH;
+            float zoneBottom = btnY;
+            float zoneH = zoneBottom - zoneTop;
+
+            // 4 sections fill the zone evenly: instruction, tip, input options, (gaps between all)
+            float totalContent = instrHeight + tipHeight + inputH;
+            float totalGap = zoneH - totalContent;
+            float gap = totalGap / (hasTip ? 4f : 3f);
+
+            float instrY = zoneTop + gap;
+            GameFont.OutlinedLabel(new Rect(px + pad, instrY, contentW, instrHeight), _instruction, _instructionStyle);
+
+            float tipY = instrY + instrHeight + gap;
+            if (hasTip)
+            {
+                GameFont.OutlinedLabel(new Rect(px + pad, tipY, contentW, tipHeight), _tip, _tipStyle);
+                tipY += tipHeight + gap;
+            }
+
+            DrawInputOptions(px, tipY, pw);
 
             Vector2 mousePos = Event.current.mousePosition;
             _buttonHovered = _buttonRect.Contains(mousePos) && _phase == Phase.Visible;
 
             GUIStyle btnStyle = _buttonHovered ? _buttonHoverStyle : _buttonStyle;
+            GUIStyle btnTextStyle = _buttonHovered ? _buttonTextHoverStyle : _buttonTextStyle;
 
-            if (GUI.Button(_buttonRect, "CONTINUE", btnStyle))
+            GUI.Box(_buttonRect, "", btnStyle);
+            GameFont.OutlinedLabel(_buttonRect, "CONTINUE", btnTextStyle);
+            if (Event.current.type == EventType.MouseDown && _buttonRect.Contains(Event.current.mousePosition))
             {
                 OnContinueClicked();
+                Event.current.Use();
             }
-
-            DrawInputOptions(px, py + ph, pw);
 
             GUI.color = prevColor;
         }
 
-        // ─── Input Options Row (below the main panel) — radio buttons ────
-        private void DrawInputOptions(float panelX, float belowPanelY, float panelWidth)
+        private void DrawInputOptions(float panelX, float topY, float panelWidth)
         {
-            float sectionTop = belowPanelY + 18f;
+            GameFont.OutlinedLabel(new Rect(panelX, topY, panelWidth, 36f), "INPUT  OPTIONS", _inputHeaderStyle);
+            float sectionTop = topY + 42f;
 
-            GUI.Label(new Rect(panelX, sectionTop, panelWidth, 28f), "INPUT OPTIONS", _inputHeaderStyle);
-            sectionTop += 32f;
+            float radioSize = 28f;
+            float spacing = 8f;
+            float gapBetweenItems = 50f;
+            string[] labels = { "SIMULATED", "MICROPHONE", "FAN" };
 
-            float radioSize = 22f;
-            string[] labels = { "Simulated", "Microphone", "Fan" };
-
-            float totalWidth = 0f;
+            // Pre-calculate total width for proper centering
             float[] labelWidths = new float[labels.Length];
+            float totalWidth = 0f;
             for (int i = 0; i < labels.Length; i++)
             {
                 labelWidths[i] = _checkboxLabelStyle.CalcSize(new GUIContent(labels[i])).x;
-                totalWidth += radioSize + 6f + labelWidths[i];
+                totalWidth += radioSize + spacing + labelWidths[i];
+                if (i < labels.Length - 1) totalWidth += gapBetweenItems;
             }
-            float gapBetweenItems = 50f;
-            totalWidth += gapBetweenItems * (labels.Length - 1);
 
             float cx = panelX + (panelWidth - totalWidth) * 0.5f;
 
@@ -235,12 +278,12 @@ namespace Breathe.Gameplay
                 GUIStyle boxStyle = isSelected ? _checkboxBoxCheckedStyle : _checkboxBoxStyle;
                 string marker = isSelected ? "\u2022" : "";
 
-                Rect boxRect = new Rect(cx, sectionTop + 1f, radioSize, radioSize);
+                Rect boxRect = new Rect(cx, sectionTop, radioSize, radioSize);
                 if (GUI.Button(boxRect, marker, boxStyle))
                     SelectInput(i);
 
-                Rect labelRect = new Rect(cx + radioSize + 6f, sectionTop, labelWidths[i], 26f);
-                GUI.Label(labelRect, labels[i], _checkboxLabelStyle);
+                Rect labelRect = new Rect(cx + radioSize + spacing, sectionTop - 2f, labelWidths[i], 34f);
+                GameFont.OutlinedLabel(labelRect, labels[i], _checkboxLabelStyle);
 
                 if (Event.current.type == EventType.MouseDown && labelRect.Contains(Event.current.mousePosition))
                 {
@@ -248,7 +291,7 @@ namespace Breathe.Gameplay
                     Event.current.Use();
                 }
 
-                cx += radioSize + 6f + labelWidths[i] + gapBetweenItems;
+                cx += radioSize + spacing + labelWidths[i] + gapBetweenItems;
             }
         }
 
@@ -276,34 +319,37 @@ namespace Breathe.Gameplay
 
             _titleStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 36,
+                fontSize = 50,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _titleStyle.normal.textColor = new Color(0.4f, 0.85f, 1f);
+            FlattenStyle(_titleStyle);
 
             _instructionStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 22,
+                fontSize = 30,
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.UpperCenter,
                 wordWrap = true,
                 padding = new RectOffset(10, 10, 0, 0)
             };
             _instructionStyle.normal.textColor = Color.white;
+            FlattenStyle(_instructionStyle);
 
             _tipStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 17,
+                fontSize = 28,
                 fontStyle = FontStyle.Italic,
                 alignment = TextAnchor.UpperCenter,
                 wordWrap = true
             };
             _tipStyle.normal.textColor = new Color(0.65f, 0.85f, 0.65f);
+            FlattenStyle(_tipStyle);
 
             _buttonStyle = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 22,
+                fontSize = 30,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(20, 20, 10, 10)
@@ -317,26 +363,43 @@ namespace Breathe.Gameplay
 
             _buttonHoverStyle = new GUIStyle(_buttonStyle);
             _buttonHoverStyle.normal.background = MakeTex(new Color(0.2f, 0.6f, 1f, 1f));
-            _buttonHoverStyle.fontSize = 23;
+            _buttonHoverStyle.fontSize = 32;
+
+            _buttonTextStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = _buttonStyle.fontSize,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            _buttonTextStyle.normal.textColor = Color.white;
+            FlattenStyle(_buttonTextStyle);
+
+            _buttonTextHoverStyle = new GUIStyle(_buttonTextStyle)
+            {
+                fontSize = _buttonHoverStyle.fontSize
+            };
+            FlattenStyle(_buttonTextHoverStyle);
 
             _inputHeaderStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 16,
+                fontSize = 32,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _inputHeaderStyle.normal.textColor = new Color(0.7f, 0.85f, 1f);
+            FlattenStyle(_inputHeaderStyle);
 
             _checkboxLabelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 17,
+                fontSize = 26,
                 alignment = TextAnchor.MiddleLeft
             };
             _checkboxLabelStyle.normal.textColor = new Color(0.9f, 0.95f, 1f);
+            FlattenStyle(_checkboxLabelStyle);
 
             _checkboxBoxStyle = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 16,
+                fontSize = 19,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(0, 0, 0, 2)
@@ -351,6 +414,30 @@ namespace Breathe.Gameplay
             _checkboxBoxCheckedStyle.normal.textColor = Color.white;
             _checkboxBoxCheckedStyle.hover.background = MakeTex(new Color(0.2f, 0.55f, 0.95f, 1f));
             _checkboxBoxCheckedStyle.active.background = MakeTex(new Color(0.1f, 0.4f, 0.8f, 1f));
+
+            Font f = GameFont.Get();
+            if (f != null)
+            {
+                GUIStyle[] all = {
+                    _titleStyle, _instructionStyle, _tipStyle, _buttonStyle,
+                    _buttonHoverStyle, _buttonTextStyle, _buttonTextHoverStyle,
+                    _inputHeaderStyle, _checkboxLabelStyle,
+                    _checkboxBoxStyle, _checkboxBoxCheckedStyle
+                };
+                foreach (var s in all)
+                    if (s != null) s.font = f;
+            }
+        }
+
+        private static void FlattenStyle(GUIStyle s)
+        {
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
+            s.onNormal = s.normal;
+            s.onHover = s.normal;
+            s.onActive = s.normal;
+            s.onFocused = s.normal;
         }
 
         private static Texture2D MakeTex(Color c)

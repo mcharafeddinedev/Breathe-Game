@@ -1,25 +1,20 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using Breathe.Data;
 using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
-    // Race-result overlay rendered via OnGUI with bouncy pop-in / pop-out animation.
-    // Shows placement, time, breath analytics, personal bests, and an encouraging quote.
+    // Data-driven result overlay rendered via OnGUI with bouncy pop-in/pop-out.
+    // Reads all display data from the active IMinigame — zero game-specific knowledge.
+    // Stats are laid out by StatTier: Hero (large), Primary (medium 3-col), Secondary (small 3-col).
+    // Header bar color is themed from MinigameDefinition.CardColor.
     public class RaceResultOverlay : MonoBehaviour
     {
-        [Header("References")]
-        [SerializeField] private CourseManager _courseManager;
-        [SerializeField] private SailboatController _playerBoat;
-        [SerializeField] private AICompanionController[] _aiBoats;
-        [SerializeField] private CourseMarkers _courseMarkers;
-        [SerializeField] private BreathAnalytics _breathAnalytics;
-        [SerializeField] private ScoreManager _scoreManager;
-
         [Header("Timing")]
-        [SerializeField, Tooltip("Seconds boats coast before the popup appears. 0 = immediate.")]
-        private float _coastDelay = 4.5f;
+        [SerializeField, Tooltip("Delay before the overlay appears after the game ends. 0 = immediate pop-in.")]
+        private float _showDelay = 0f;
 
         [Header("Pop Animation")]
         [SerializeField] private float _popInDuration = 0.4f;
@@ -28,135 +23,140 @@ namespace Breathe.Gameplay
         private float _popOvershoot = 1.70158f;
         [SerializeField] private float _postPopDelay = 0.7f;
 
-        private enum Phase { Inactive, Coasting, PoppingIn, Shown, PoppingOut, PostDelay }
+        // Fires when the overlay begins appearing (after show delay).
+        // Scene objects (e.g., CourseMarkers) can subscribe to trigger fade-outs.
+        public static event Action OnResultOverlayShowing;
+
+        private enum Phase { Inactive, Waiting, PoppingIn, Shown, PoppingOut, PostDelay }
         private Phase _phase = Phase.Inactive;
         private float _timer;
         private float _scale;
         private float _alpha;
         private Action _pendingNav;
 
-        // Frozen race stats (captured once at finish)
-        private float _finishTime;
-        private int _playerPlacement;
-        private int _totalRacers;
-        private float _frozenKnots;
-        private float _frozenMph;
-        private string _courseLayoutName;
-
-        // Frozen breath stats
-        private float _totalBreathTime;
-        private float _longestBlow;
-        private float _peakIntensity;
-        private float _activityRatio;
-        private string _breathPattern;
-        private int _sustainedCount;
-        private int _burstCount;
-        private float _avgSustainedDuration;
-
-        // Personal best flags
-        private bool _isPBCourseTime;
-        private bool _isPBBreathTime;
-        private bool _isPBLongestBlow;
-        private bool _isPBPeakIntensity;
-
+        // Frozen data from IMinigame (captured once on celebration entry)
+        private string _resultTitle;
+        private string _celebrationTitle;
+        private string _personalBestMessage;
         private string _encouragingQuote;
+        private Color _accentColor;
+
+        private List<MinigameStat> _heroStats = new();
+        private List<MinigameStat> _primaryStats = new();
+        private List<MinigameStat> _secondaryStats = new();
 
         // Styles (lazy-init)
         private bool _stylesReady;
-        private GUIStyle _panelBg;
-        private GUIStyle _headerBar;
-        private GUIStyle _titleStyle;
-        private GUIStyle _pbBadge;
-        private GUIStyle _pbBadgeSmall;
-        private GUIStyle _btnPrimary;
-        private GUIStyle _btnSecondary;
-        private GUIStyle _divider;
-        private GUIStyle _quoteStyle;
-        private GUIStyle _heroStatValue;
-        private GUIStyle _heroTimeStyle;
-        private GUIStyle _primaryStatValue;
-        private GUIStyle _primaryStatLabel;
-        private GUIStyle _secondaryLabel;
-        private GUIStyle _secondaryValue;
-        private GUIStyle _feedbackStyle;
+        private GUIStyle _panelBg, _headerBar, _divider;
+        private GUIStyle _titleStyle, _heroStatValue, _heroSubStyle;
+        private GUIStyle _primaryStatValue, _primaryStatLabel;
+        private GUIStyle _secondaryValue, _secondaryLabel;
+        private GUIStyle _feedbackStyle, _quoteStyle;
+        private GUIStyle _pbBadge, _pbBadgeSmall;
+        private GUIStyle _btnPrimary, _btnSecondary;
+
+        private bool _subscribed;
 
         private void Start()
         {
-            if (_breathAnalytics == null)
-                _breathAnalytics = FindAnyObjectByType<BreathAnalytics>();
-            if (_scoreManager == null)
-                _scoreManager = ScoreManager.Instance;
+            EnsureSubscribed();
         }
 
         private void OnEnable()
         {
-            if (_courseManager != null)
-                _courseManager.OnPlayerFinished += HandleFinish;
+            EnsureSubscribed();
         }
 
         private void OnDisable()
         {
-            if (_courseManager != null)
-                _courseManager.OnPlayerFinished -= HandleFinish;
+            if (_subscribed && GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.OnStateChanged -= HandleStateChange;
+                _subscribed = false;
+            }
         }
 
-        private void HandleFinish(float raceTime)
+        private void EnsureSubscribed()
         {
-            _finishTime = raceTime;
-            _playerPlacement = CalculatePlacement();
-            _totalRacers = 1 + (_aiBoats != null ? _aiBoats.Length : 0);
+            if (_subscribed) return;
+            if (GameStateManager.Instance == null) return;
+            GameStateManager.Instance.OnStateChanged += HandleStateChange;
+            _subscribed = true;
+        }
 
-            float rawSpeed = _playerBoat != null ? _playerBoat.CurrentSpeed : 0f;
-            _frozenKnots = WindSpeedConverter.ToKnots(rawSpeed);
-            _frozenMph = WindSpeedConverter.ToMph(rawSpeed);
-
-            _courseLayoutName = _courseMarkers != null ? _courseMarkers.ActiveLayoutName : "Unknown";
-
-            if (_breathAnalytics != null)
-            {
-                _breathAnalytics.StopTracking();
-                _activityRatio = _breathAnalytics.ActivityRatio;
-                _breathPattern = _breathAnalytics.BreathPatternLabel;
-                _sustainedCount = _breathAnalytics.SustainedSegmentCount;
-                _burstCount = _breathAnalytics.BurstCount;
-                _avgSustainedDuration = _breathAnalytics.AverageSustainedDuration;
-            }
-
-            if (_scoreManager != null)
-            {
-                _totalBreathTime = _scoreManager.TotalBreathTime;
-                _longestBlow = _scoreManager.LongestSustainedBlow;
-                _peakIntensity = _scoreManager.PeakBreathIntensity;
-
-                _isPBCourseTime = _scoreManager.IsNewPersonalBest("CourseTime");
-                _isPBBreathTime = _scoreManager.IsNewPersonalBest("BreathTime");
-                _isPBLongestBlow = _scoreManager.IsNewPersonalBest("LongestBlow");
-                _isPBPeakIntensity = _scoreManager.IsNewPersonalBest("PeakIntensity");
-
-                _scoreManager.SavePersonalBests();
-            }
-
-            bool anyPB = _isPBCourseTime || _isPBBreathTime || _isPBLongestBlow || _isPBPeakIntensity;
-            _encouragingQuote = EncouragingQuotes.GetBreathGameQuote(_playerPlacement, anyPB, _activityRatio);
-
-            _phase = Phase.Coasting;
+        private void HandleStateChange(GameState state)
+        {
+            if (state != GameState.Celebration) return;
+            Debug.Log("[ResultOverlay] Celebration state detected — capturing stats.");
+            CaptureMinigameData();
+            _phase = Phase.Waiting;
             _timer = 0f;
+        }
+
+        private void CaptureMinigameData()
+        {
+            var mgr = MinigameManager.Instance;
+            IMinigame minigame = mgr != null ? mgr.ActiveMinigame : null;
+            MinigameDefinition def = mgr != null ? mgr.SelectedDefinition : null;
+
+            _resultTitle = minigame?.GetResultTitle() ?? "COMPLETE";
+            _celebrationTitle = minigame?.GetCelebrationTitle() ?? "WELL  DONE!";
+            _personalBestMessage = minigame?.GetPersonalBestMessage() ?? "";
+            _accentColor = def != null ? def.CardColor : new Color(0.12f, 0.45f, 0.75f, 1f);
+
+            _heroStats.Clear();
+            _primaryStats.Clear();
+            _secondaryStats.Clear();
+
+            MinigameStat[] stats = minigame?.GetEndStats();
+            if (stats != null)
+            {
+                bool anyPB = false;
+                float activityRatio = 0f;
+
+                foreach (var s in stats)
+                {
+                    if (s.IsPersonalBest) anyPB = true;
+                    if (s.Label == "Activity")
+                    {
+                        activityRatio = s.Value switch
+                        {
+                            "Excellent" => 0.8f,
+                            "Good" => 0.6f,
+                            "Fair" => 0.4f,
+                            _ => 0.2f
+                        };
+                    }
+
+                    switch (s.Tier)
+                    {
+                        case StatTier.Hero: _heroStats.Add(s); break;
+                        case StatTier.Primary: _primaryStats.Add(s); break;
+                        default: _secondaryStats.Add(s); break;
+                    }
+                }
+
+                _encouragingQuote = EncouragingQuotes.GetMinigameQuote(anyPB, activityRatio);
+            }
+            else
+            {
+                _encouragingQuote = EncouragingQuotes.GetRandomQuote();
+            }
         }
 
         private void Update()
         {
             switch (_phase)
             {
-                case Phase.Inactive:
-                    return;
+                case Phase.Inactive: return;
 
-                case Phase.Coasting:
+                case Phase.Waiting:
                     _timer += Time.deltaTime;
-                    if (_timer >= _coastDelay)
+                    if (_timer >= _showDelay)
                     {
                         _phase = Phase.PoppingIn;
                         _timer = 0f;
-                        _courseMarkers?.BeginFadeOut();
+                        OnResultOverlayShowing?.Invoke();
                     }
                     break;
 
@@ -203,31 +203,16 @@ namespace Breathe.Gameplay
             _timer = 0f;
         }
 
-        private int CalculatePlacement()
-        {
-            if (_aiBoats == null || _aiBoats.Length == 0) return 1;
-
-            int ahead = 0;
-            float playerY = _playerBoat != null ? _playerBoat.transform.position.y : 0f;
-            foreach (var ai in _aiBoats)
-            {
-                if (ai != null && ai.transform.position.y > playerY)
-                    ahead++;
-            }
-            return ahead + 1;
-        }
-
         private void OnGUI()
         {
-            if (_phase < Phase.PoppingIn) return;
-            if (_phase == Phase.PostDelay) return;
+            if (_phase < Phase.PoppingIn || _phase == Phase.PostDelay) return;
 
             BuildStyles();
 
+            if (_scale < 0.001f) return;
+
             Color prevColor = GUI.color;
             Matrix4x4 prevMatrix = GUI.matrix;
-
-            if (_scale < 0.001f) return;
 
             Vector3 pivot = new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f);
             GUI.matrix = Matrix4x4.Translate(pivot)
@@ -243,8 +228,8 @@ namespace Breathe.Gameplay
 
         private void DrawPanel()
         {
-            float pw = Mathf.Min(Screen.width * 0.7f, 540f);
-            float ph = Mathf.Min(Screen.height * 0.88f, 650f);
+            float pw = Mathf.Min(Screen.width * 0.85f, 720f);
+            float ph = Mathf.Min(Screen.height * 0.94f, 820f);
             float px = (Screen.width - pw) * 0.5f;
             float py = (Screen.height - ph) * 0.5f;
             float pad = 28f;
@@ -252,165 +237,185 @@ namespace Breathe.Gameplay
 
             GUI.Box(new Rect(px, py, pw, ph), "", _panelBg);
 
-            float hdrH = 46f;
-            GUI.Box(new Rect(px, py, pw, hdrH), "", _headerBar);
-            GUI.Label(new Rect(px, py + 8f, pw, 30f), "RACE COMPLETE", _titleStyle);
+            // Header bar (themed by minigame accent color)
+            float hdrH = 50f;
+            var headerStyle = BoxStyle(_accentColor);
+            GUI.Box(new Rect(px, py, pw, hdrH), "", headerStyle);
+            GameFont.OutlinedLabel(new Rect(px, py + 10f, pw, 34f),
+                _resultTitle.ToUpper().Replace(" ", "  "), _titleStyle);
 
-            float cy = py + hdrH + 24f;
+            // Buttons pinned at bottom
+            float bh = 55f;
+            float bw = 210f;
+            float btnGap = 24f;
+            float btnMargin = 28f;
+            float btnY = py + ph - bh - btnMargin;
+            float bx = px + (pw - bw * 2f - btnGap) * 0.5f;
 
-            // Placement hero
-            string placeText = _playerPlacement switch
+            float zoneTop = py + hdrH;
+            float zoneBottom = btnY - 12f;
+            float zoneH = zoneBottom - zoneTop;
+
+            // Compute layout heights based on content
+            float heroH = _heroStats.Count > 0 ? 55f : 0f;
+            float heroSubH = _heroStats.Count > 1 ? 40f : 0f;
+            float celebH = 40f;
+            float quoteH = 30f;
+            float primaryH = _primaryStats.Count > 0 ? 60f : 0f;
+            float feedbackH = !string.IsNullOrEmpty(_personalBestMessage) ? 50f : 0f;
+            int secondaryRows = Mathf.CeilToInt(_secondaryStats.Count / 3f);
+            float secondaryH = secondaryRows * 48f;
+
+            float totalH = heroH + heroSubH + celebH + quoteH + primaryH + feedbackH + secondaryH;
+            float gap = Mathf.Max(8f, (zoneH - totalH) / 8f);
+
+            float cy = zoneTop + gap;
+
+            // Hero stats (displayed very large)
+            if (_heroStats.Count > 0)
             {
-                1 => "1ST PLACE",
-                2 => "2ND PLACE",
-                3 => "3RD PLACE",
-                _ => $"{_playerPlacement}TH PLACE"
-            };
-            Color placeColor = _playerPlacement switch
-            {
-                1 => new Color(1f, 0.84f, 0f),
-                2 => new Color(0.78f, 0.78f, 0.85f),
-                3 => new Color(0.85f, 0.55f, 0.25f),
-                _ => new Color(0.7f, 0.7f, 0.75f)
-            };
+                var hero = _heroStats[0];
+                Color heroColor = hero.IsPersonalBest
+                    ? new Color(1f, 0.84f, 0f)
+                    : Color.white;
+                var heroStyle = new GUIStyle(_heroStatValue) { normal = { textColor = heroColor } };
+                string heroText = hero.Value.ToUpper().Replace(" ", "  ");
+                GameFont.OutlinedLabel(new Rect(px, cy, pw, heroH), heroText, heroStyle);
 
-            var placementStyle = new GUIStyle(_heroStatValue) { normal = { textColor = placeColor } };
-            GUI.Label(new Rect(px, cy, pw, 44f), placeText, placementStyle);
-            cy += 42f;
-
-            string timeDisplay = FormatTime(_finishTime);
-            GUI.Label(new Rect(px, cy, pw, 32f), timeDisplay, _heroTimeStyle);
-            if (_isPBCourseTime)
-            {
-                float timeWidth = _heroTimeStyle.CalcSize(new GUIContent(timeDisplay)).x;
-                float badgeX = (Screen.width + timeWidth) * 0.5f + 8f;
-                GUI.Label(new Rect(badgeX, cy + 6f, 55f, 20f), "NEW PB!", _pbBadge);
+                if (hero.IsPersonalBest)
+                {
+                    float valW = _heroStatValue.CalcSize(new GUIContent(heroText)).x;
+                    float badgeX = (Screen.width + valW) * 0.5f + 8f;
+                    GameFont.OutlinedLabel(new Rect(badgeX, cy + 6f, 80f, 24f), "NEW  PB", _pbBadge);
+                }
+                cy += heroH + gap * 0.3f;
             }
-            cy += 38f;
 
-            GUI.Label(new Rect(px + pad, cy, contentW, 24f), $"\"{_encouragingQuote}\"", _quoteStyle);
-            cy += 32f;
-
-            DrawDivider(px + pad, cy, contentW);
-            cy += 18f;
-
-            // Primary breath metrics
-            float statBlockW = contentW / 3f;
-            float statX = px + pad;
-
-            DrawCenteredStat(statX, cy, statBlockW, $"{_totalBreathTime:F1}s", "BREATH TIME", _isPBBreathTime);
-            DrawCenteredStat(statX + statBlockW, cy, statBlockW, $"{_longestBlow:F1}s", "LONGEST BLOW", _isPBLongestBlow);
-            DrawCenteredStat(statX + statBlockW * 2f, cy, statBlockW, $"{_peakIntensity * 100f:F0}%", "PEAK", _isPBPeakIntensity);
-
-            cy += 70f;
-
-            DrawDivider(px + pad, cy, contentW);
-            cy += 16f;
-
-            // Session feedback
-            string encouragement = GetEncouragementMessage();
-            var feedbackStyle = new GUIStyle(_feedbackStyle) { wordWrap = true };
-            GUI.Label(new Rect(px + pad, cy, contentW, 50f), encouragement, feedbackStyle);
-            cy += 52f;
-
-            DrawDivider(px + pad, cy, contentW);
-            cy += 14f;
-
-            // Secondary details
-            float detailY = cy;
-            float detailColW = contentW / 3f;
-
-            DrawSmallStat(px + pad, detailY, detailColW, $"{_frozenKnots:F1} kts", "Speed");
-            DrawSmallStat(px + pad + detailColW, detailY, detailColW, _breathPattern, "Pattern");
-
-            string activityGrade = _activityRatio switch
+            // Hero sub-stat (second hero if present, e.g., time under placement)
+            if (_heroStats.Count > 1)
             {
-                >= 0.7f => "Excellent",
-                >= 0.5f => "Good",
-                >= 0.3f => "Fair",
-                _ => "Low"
-            };
-            DrawSmallStat(px + pad + detailColW * 2f, detailY, detailColW, activityGrade, "Activity");
+                var sub = _heroStats[1];
+                string subText = sub.Value.ToUpper().Replace(" ", "  ");
+                GameFont.OutlinedLabel(new Rect(px, cy, pw, heroSubH), subText, _heroSubStyle);
+                if (sub.IsPersonalBest)
+                {
+                    float valW = _heroSubStyle.CalcSize(new GUIContent(subText)).x;
+                    float badgeX = (Screen.width + valW) * 0.5f + 8f;
+                    GameFont.OutlinedLabel(new Rect(badgeX, cy + 6f, 80f, 24f), "NEW  PB", _pbBadge);
+                }
+                cy += heroSubH + gap * 0.5f;
+            }
 
-            cy += 44f;
+            // Celebration title
+            string celebText = _celebrationTitle.ToUpper().Replace(" ", "  ");
+            GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, celebH),
+                $"\"{celebText}\"", _quoteStyle);
+            cy += celebH + gap * 0.5f;
 
-            detailY = cy;
-            DrawSmallStat(px + pad, detailY, detailColW, $"{_sustainedCount}", "Breaths");
-            DrawSmallStat(px + pad + detailColW, detailY, detailColW, $"{_avgSustainedDuration:F1}s", "Avg Length");
-            DrawSmallStat(px + pad + detailColW * 2f, detailY, detailColW, _courseLayoutName, "Course");
+            // Encouraging quote
+            string quoteText = _encouragingQuote.ToUpper().Replace(" ", "  ");
+            var quoteSmall = new GUIStyle(_quoteStyle) { fontSize = 20 };
+            GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, quoteH), quoteText, quoteSmall);
+            cy += quoteH + gap;
+
+            // Primary stats (3-column layout)
+            if (_primaryStats.Count > 0)
+            {
+                DrawDivider(px + pad, cy, contentW);
+                cy += gap * 0.5f;
+
+                int cols = Mathf.Min(_primaryStats.Count, 3);
+                float colW = contentW / cols;
+                for (int i = 0; i < _primaryStats.Count && i < 3; i++)
+                {
+                    var stat = _primaryStats[i];
+                    string val = stat.Value.ToUpper().Replace(" ", "  ");
+                    string lbl = stat.Label.ToUpper().Replace(" ", "  ");
+                    DrawCenteredStat(px + pad + colW * i, cy, colW, val, lbl, stat.IsPersonalBest);
+                }
+                cy += primaryH + gap;
+
+                // Overflow primary stats into a second row
+                if (_primaryStats.Count > 3)
+                {
+                    int extra = _primaryStats.Count - 3;
+                    int extraCols = Mathf.Min(extra, 3);
+                    float extraColW = contentW / extraCols;
+                    for (int i = 3; i < _primaryStats.Count && i < 6; i++)
+                    {
+                        var stat = _primaryStats[i];
+                        string val = stat.Value.ToUpper().Replace(" ", "  ");
+                        string lbl = stat.Label.ToUpper().Replace(" ", "  ");
+                        DrawCenteredStat(px + pad + extraColW * (i - 3), cy, extraColW,
+                            val, lbl, stat.IsPersonalBest);
+                    }
+                    cy += primaryH + gap;
+                }
+            }
+
+            // Feedback / personal best message
+            if (!string.IsNullOrEmpty(_personalBestMessage))
+            {
+                DrawDivider(px + pad, cy, contentW);
+                cy += gap * 0.5f;
+
+                string fbText = _personalBestMessage.ToUpper().Replace(" ", "  ");
+                var fbStyle = new GUIStyle(_feedbackStyle) { wordWrap = true };
+                GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, feedbackH), fbText, fbStyle);
+                cy += feedbackH + gap;
+            }
+
+            // Secondary stats (3-column rows)
+            if (_secondaryStats.Count > 0)
+            {
+                DrawDivider(px + pad, cy, contentW);
+                cy += gap * 0.5f;
+
+                float detailColW = contentW / 3f;
+                for (int i = 0; i < _secondaryStats.Count; i++)
+                {
+                    int col = i % 3;
+                    if (col == 0 && i > 0) cy += 48f + gap * 0.3f;
+
+                    var stat = _secondaryStats[i];
+                    string val = stat.Value.ToUpper().Replace(" ", "  ");
+                    string lbl = stat.Label.ToUpper().Replace(" ", "  ");
+                    DrawSmallStat(px + pad + detailColW * col, cy, detailColW, val, lbl);
+                }
+            }
 
             // Buttons
-            float btnY = py + ph - 62f;
-            float bw = 150f;
-            float bh = 42f;
-            float gap = 20f;
-            float bx = px + (pw - bw * 2f - gap) * 0.5f;
-
             bool interactive = _phase == Phase.Shown;
 
-            if (GUI.Button(new Rect(bx, btnY, bw, bh), "PLAY AGAIN", _btnPrimary) && interactive)
-            {
-                BeginPopOut(() => SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex));
-            }
+            if (GUI.Button(new Rect(bx, btnY, bw, bh), "PLAY  AGAIN", _btnPrimary) && interactive)
+                BeginPopOut(() => SceneLoader.ReloadCurrentScene());
 
-            if (GUI.Button(new Rect(bx + bw + gap, btnY, bw, bh), "QUIT", _btnSecondary) && interactive)
-            {
-                BeginPopOut(() =>
-                {
-                    if (GameStateManager.Instance != null)
-                        GameStateManager.Instance.TransitionTo(GameState.MainMenu);
-                    else
-                        SceneManager.LoadScene(0);
-                });
-            }
+            if (GUI.Button(new Rect(bx + bw + btnGap, btnY, bw, bh), "MAIN  MENU", _btnSecondary) && interactive)
+                BeginPopOut(() => SceneLoader.LoadMainMenu());
         }
 
         private void DrawCenteredStat(float x, float y, float w, string value, string label, bool isPB)
         {
-            GUI.Label(new Rect(x, y, w, 32f), value, _primaryStatValue);
-            GUI.Label(new Rect(x, y + 30f, w, 18f), label, _primaryStatLabel);
+            GameFont.OutlinedLabel(new Rect(x, y, w, 36f), value, _primaryStatValue);
+            GameFont.OutlinedLabel(new Rect(x, y + 34f, w, 22f), label, _primaryStatLabel);
 
             if (isPB)
             {
-                float valueWidth = _primaryStatValue.CalcSize(new GUIContent(value)).x;
-                float badgeX = x + (w + valueWidth) * 0.5f + 4f;
-                GUI.Label(new Rect(badgeX, y + 4f, 50f, 16f), "PB!", _pbBadgeSmall);
+                float valW = _primaryStatValue.CalcSize(new GUIContent(value)).x;
+                float badgeX = x + (w + valW) * 0.5f + 4f;
+                GameFont.OutlinedLabel(new Rect(badgeX, y + 4f, 50f, 16f), "PB", _pbBadgeSmall);
             }
         }
 
         private void DrawSmallStat(float x, float y, float w, string value, string label)
         {
-            GUI.Label(new Rect(x, y, w, 18f), value, _secondaryValue);
-            GUI.Label(new Rect(x, y + 18f, w, 14f), label, _secondaryLabel);
-        }
-
-        private string GetEncouragementMessage()
-        {
-            if (_isPBCourseTime && _isPBBreathTime)
-                return "Outstanding! You set new personal bests for both speed and breath control!";
-            if (_isPBCourseTime)
-                return "Great racing! You beat your personal best time!";
-            if (_isPBLongestBlow)
-                return "Impressive breath control! Your longest sustained blow is a new record!";
-            if (_activityRatio >= 0.7f)
-                return "Excellent breathing consistency throughout the race!";
-            if (_sustainedCount >= 5)
-                return "Good sustained breathing! Keep practicing for longer breaths.";
-            if (_burstCount > _sustainedCount * 2)
-                return "Try taking longer, steadier breaths for better sail power.";
-            return "Keep practicing! Focus on steady, sustained breathing.";
+            GameFont.OutlinedLabel(new Rect(x, y, w, 26f), value, _secondaryValue);
+            GameFont.OutlinedLabel(new Rect(x, y + 24f, w, 20f), label, _secondaryLabel);
         }
 
         private void DrawDivider(float x, float y, float w)
         {
             GUI.Box(new Rect(x, y, w, 1f), "", _divider);
-        }
-
-        private static string FormatTime(float seconds)
-        {
-            int min = Mathf.FloorToInt(seconds / 60f);
-            float sec = seconds % 60f;
-            return min > 0 ? $"{min}:{sec:00.0}" : $"{sec:F1}s";
         }
 
         private void BuildStyles()
@@ -422,43 +427,56 @@ namespace Breathe.Gameplay
             _headerBar = BoxStyle(new Color(0.12f, 0.45f, 0.75f, 1f));
             _divider = new GUIStyle { normal = { background = Tex(new Color(1f, 1f, 1f, 0.1f)) } };
 
-            _titleStyle = Lbl(22, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
-            _heroStatValue = Lbl(38, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
-            _heroTimeStyle = Lbl(26, FontStyle.Bold, TextAnchor.MiddleCenter,
+            _titleStyle = Lbl(36, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _heroStatValue = Lbl(58, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _heroSubStyle = Lbl(40, FontStyle.Bold, TextAnchor.MiddleCenter,
                 new Color(0.9f, 0.95f, 1f));
 
-            _primaryStatValue = Lbl(22, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
-            _primaryStatLabel = Lbl(10, FontStyle.Normal, TextAnchor.MiddleCenter,
+            _primaryStatValue = Lbl(34, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _primaryStatLabel = Lbl(18, FontStyle.Normal, TextAnchor.MiddleCenter,
                 new Color(0.55f, 0.6f, 0.7f));
 
-            _secondaryValue = Lbl(13, FontStyle.Normal, TextAnchor.MiddleCenter,
-                new Color(0.65f, 0.68f, 0.75f));
-            _secondaryLabel = Lbl(9, FontStyle.Normal, TextAnchor.MiddleCenter,
-                new Color(0.45f, 0.48f, 0.55f));
+            _secondaryValue = Lbl(22, FontStyle.Bold, TextAnchor.MiddleCenter,
+                new Color(0.75f, 0.78f, 0.85f));
+            _secondaryValue.clipping = TextClipping.Overflow;
+            _secondaryLabel = Lbl(16, FontStyle.Normal, TextAnchor.MiddleCenter,
+                new Color(0.50f, 0.53f, 0.60f));
+            _secondaryLabel.clipping = TextClipping.Overflow;
 
-            _feedbackStyle = Lbl(13, FontStyle.Normal, TextAnchor.MiddleCenter,
+            _feedbackStyle = Lbl(24, FontStyle.Normal, TextAnchor.MiddleCenter,
                 new Color(0.8f, 0.83f, 0.9f));
-
-            _pbBadge = Lbl(11, FontStyle.Bold, TextAnchor.MiddleLeft,
-                new Color(1f, 0.85f, 0.2f));
-            _pbBadgeSmall = Lbl(9, FontStyle.Bold, TextAnchor.MiddleLeft,
-                new Color(1f, 0.85f, 0.2f));
-
-            _quoteStyle = Lbl(13, FontStyle.Italic, TextAnchor.MiddleCenter,
+            _quoteStyle = Lbl(24, FontStyle.Italic, TextAnchor.MiddleCenter,
                 new Color(0.5f, 0.78f, 0.62f));
+
+            _pbBadge = Lbl(18, FontStyle.Bold, TextAnchor.MiddleLeft,
+                new Color(1f, 0.85f, 0.2f));
+            _pbBadgeSmall = Lbl(16, FontStyle.Bold, TextAnchor.MiddleLeft,
+                new Color(1f, 0.85f, 0.2f));
 
             _btnPrimary = BtnStyle(Tex(new Color(0.18f, 0.5f, 0.85f, 1f)),
                 Tex(new Color(0.22f, 0.58f, 0.95f, 1f)), Color.white);
-
             _btnSecondary = BtnStyle(Tex(new Color(0.15f, 0.15f, 0.22f, 1f)),
                 Tex(new Color(0.22f, 0.22f, 0.32f, 1f)),
                 new Color(0.75f, 0.75f, 0.82f));
+
+            Font f = GameFont.Get();
+            if (f != null)
+            {
+                GUIStyle[] all = {
+                    _titleStyle, _heroStatValue, _heroSubStyle,
+                    _primaryStatValue, _primaryStatLabel,
+                    _secondaryValue, _secondaryLabel, _feedbackStyle,
+                    _pbBadge, _pbBadgeSmall, _quoteStyle,
+                    _btnPrimary, _btnSecondary
+                };
+                foreach (var s in all)
+                    if (s != null) s.font = f;
+            }
         }
 
         private static GUIStyle BoxStyle(Color col)
         {
-            var s = new GUIStyle(GUI.skin.box) { normal = { background = Tex(col) } };
-            return s;
+            return new GUIStyle(GUI.skin.box) { normal = { background = Tex(col) } };
         }
 
         private static GUIStyle Lbl(int size, FontStyle style, TextAnchor anchor, Color color)
@@ -477,7 +495,7 @@ namespace Breathe.Gameplay
         {
             var s = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 18,
+                fontSize = 28,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };

@@ -77,6 +77,7 @@ namespace Breathe.Input
                 return;
             }
             Instance = this;
+            DontDestroyOnLoad(gameObject);
 
             _activeInput = ResolveInput(currentMode);
             _activeInput?.Initialize();

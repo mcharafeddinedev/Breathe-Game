@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Breathe.Input;
@@ -5,8 +6,11 @@ using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
-    // On-screen debug HUD rendered via OnGUI. Shows live breath, wind, boat,
-    // course, and race telemetry. Toggle with backtick (`), Tab cycles display modes.
+    // On-screen debug HUD rendered via OnGUI. Shared base sections (breath input, FPS,
+    // session time) are always present. Per-minigame sections are read from
+    // IMinigame.GetDebugInfo(). Sailboat-specific telemetry (boats, AI, course) is
+    // discovered automatically if those objects exist in the scene.
+    // Toggle with backtick (`), Tab cycles display modes.
     public class DebugOverlay : MonoBehaviour
     {
         [Header("Display Settings")]
@@ -25,25 +29,29 @@ namespace Breathe.Gameplay
 
         private Vector2 _scrollPosition;
 
-        private WindSystem _windSystem;
+        // Shared references (always available)
+        private BreathPowerSystem _breathPowerSystem;
+        private GameStateManager _gameStateManager;
+
+        // Sailboat-specific references (null in non-sailboat scenes)
         private SailboatController _playerBoat;
         private AICompanionController[] _aiBoats;
         private RaceProgressTracker _raceProgressTracker;
         private CourseManager _courseManager;
         private CourseMarkers _courseMarkers;
-        private GameStateManager _gameStateManager;
 
         public bool Visible => _visible;
 
         private void Start()
         {
-            _windSystem = FindAnyObjectByType<WindSystem>();
+            _breathPowerSystem = FindAnyObjectByType<BreathPowerSystem>();
+            _gameStateManager = FindAnyObjectByType<GameStateManager>();
+
             _playerBoat = FindAnyObjectByType<SailboatController>();
             _aiBoats = FindObjectsByType<AICompanionController>(FindObjectsSortMode.None);
             _raceProgressTracker = FindAnyObjectByType<RaceProgressTracker>();
             _courseManager = FindAnyObjectByType<CourseManager>();
             _courseMarkers = FindAnyObjectByType<CourseMarkers>();
-            _gameStateManager = FindAnyObjectByType<GameStateManager>();
         }
 
         private void Update()
@@ -69,9 +77,9 @@ namespace Breathe.Gameplay
             float panelHeight = _displayMode switch
             {
                 DisplayMode.Minimal => 80f,
-                DisplayMode.Compact => Mathf.Min(240f, maxHeight),
+                DisplayMode.Compact => Mathf.Min(280f, maxHeight),
                 DisplayMode.Expanded => Mathf.Min(maxHeight, 700f),
-                _ => 240f
+                _ => 280f
             };
 
             Rect panelRect = new Rect(_margin, _margin, panelWidth, panelHeight);
@@ -87,8 +95,11 @@ namespace Breathe.Gameplay
 
             GUILayout.BeginArea(contentRect);
 
-            GUILayout.Label("<b>BREATHE</b>  <size=10><color=#888>Debug</color></size>", _headerStyle);
-            GUILayout.Label($"<size=9><color=#555>[`] toggle  [Tab] {_displayMode}</color></size>", _labelStyle);
+            string minigameId = MinigameManager.Instance?.ActiveMinigame?.MinigameId ?? "—";
+            GUILayout.Label($"<b>BREATHE</b>  <size=10><color=#888>Debug  [{minigameId}]</color></size>",
+                _headerStyle);
+            GUILayout.Label($"<size=9><color=#555>[`] toggle  [Tab] {_displayMode}</color></size>",
+                _labelStyle);
             GUILayout.Space(6f);
 
             if (_displayMode == DisplayMode.Expanded)
@@ -121,46 +132,65 @@ namespace Breathe.Gameplay
 
         private void DrawMinimal()
         {
-            string progress = _raceProgressTracker != null ? _raceProgressTracker.Progress.ToString("P0") : "--";
-            string speed = _playerBoat != null ? $"{_playerBoat.CurrentSpeed:F1} u/s" : "--";
-            GUILayout.Label($"<color=#4AF>{progress}</color>  |  Speed: {speed}", _labelStyle);
+            var bim = BreathInputManager.Instance;
+            string intensity = bim != null ? $"{bim.GetBreathIntensity():F2}" : "--";
+            string fps = $"{1f / Time.smoothDeltaTime:F0}";
+            GUILayout.Label($"Breath: <color=#4AF>{intensity}</color>  |  FPS: {fps}", _labelStyle);
         }
 
         private void DrawCompact()
         {
-            DrawSection("RACE");
-            DrawRaceInfo();
-
-            GUILayout.Space(10f);
             DrawSection("BREATH INPUT");
             DrawBreathInfo();
 
             GUILayout.Space(10f);
-            DrawSection("PLAYER BOAT");
-            DrawPlayerBoatInfo();
+            DrawSection("GAME STATE");
+            DrawGameStateInfo();
+
+            DrawMinigameDebugSection();
+
+            // Sailboat-specific sections (only if those objects exist)
+            if (_playerBoat != null)
+            {
+                GUILayout.Space(10f);
+                DrawSection("PLAYER BOAT");
+                DrawPlayerBoatInfo();
+            }
         }
 
         private void DrawExpanded()
         {
-            DrawSection("COURSE");
-            DrawCourseInfo();
-
-            GUILayout.Space(10f);
-            DrawSection("RACE STATUS");
-            DrawRaceInfo();
-            DrawPlacementInfo();
-
-            GUILayout.Space(10f);
             DrawSection("BREATH INPUT");
             DrawBreathInfo();
 
             GUILayout.Space(10f);
-            DrawSection("PLAYER BOAT");
-            DrawPlayerBoatInfo();
+            DrawSection("GAME STATE");
+            DrawGameStateInfo();
 
-            GUILayout.Space(10f);
-            DrawSection("AI BOATS");
-            DrawAIBoatsInfo();
+            DrawMinigameDebugSection();
+
+            // Sailboat-specific sections (auto-discovered, only if present)
+            if (_courseMarkers != null)
+            {
+                GUILayout.Space(10f);
+                DrawSection("COURSE");
+                DrawCourseInfo();
+            }
+
+            if (_playerBoat != null)
+            {
+                GUILayout.Space(10f);
+                DrawSection("PLAYER BOAT");
+                DrawPlayerBoatInfo();
+                DrawPlacementInfo();
+            }
+
+            if (_aiBoats != null && _aiBoats.Length > 0)
+            {
+                GUILayout.Space(10f);
+                DrawSection("AI BOATS");
+                DrawAIBoatsInfo();
+            }
 
             GUILayout.Space(10f);
             DrawSection("SYSTEMS");
@@ -169,58 +199,48 @@ namespace Breathe.Gameplay
             GUILayout.Space(12f);
         }
 
-        private void DrawCourseInfo()
+        // Renders key-value pairs from the active IMinigame.GetDebugInfo()
+        private void DrawMinigameDebugSection()
         {
-            if (_courseMarkers != null)
-            {
-                string layoutName = GetCourseLayoutName();
-                DrawRow("Layout", $"<color=#FFA>{layoutName}</color>");
-                DrawRow("Length", $"{_courseMarkers.CourseLength:F0} units");
-            }
-            else
-            {
-                DrawRow("Layout", "<color=#F66>No CourseMarkers</color>");
-            }
+            var minigame = MinigameManager.Instance?.ActiveMinigame;
+            if (minigame == null) return;
+
+            Dictionary<string, string> debugInfo = minigame.GetDebugInfo();
+            if (debugInfo == null || debugInfo.Count == 0) return;
+
+            GUILayout.Space(10f);
+            DrawSection($"MINIGAME ({minigame.MinigameId.ToUpper()})");
+            foreach (var kvp in debugInfo)
+                DrawRow(kvp.Key, kvp.Value);
         }
 
-        private void DrawRaceInfo()
+        private void DrawGameStateInfo()
         {
             string state = _gameStateManager != null
                 ? _gameStateManager.CurrentState.ToString()
                 : "N/A";
             DrawRow("State", state);
 
-            string time = _courseManager != null
-                ? FormatTime(_courseManager.RaceTime)
-                : "--:--";
-            DrawRow("Race Time", time);
-
-            string progress = _raceProgressTracker != null
-                ? _raceProgressTracker.Progress.ToString("P1")
-                : "N/A";
-            DrawRow("Progress", $"<color=#4CF>{progress}</color>");
-        }
-
-        private void DrawPlacementInfo()
-        {
-            if (_playerBoat == null || _aiBoats == null || _aiBoats.Length == 0) return;
-
-            float playerY = _playerBoat.transform.position.y;
-            int place = 1;
-            foreach (var ai in _aiBoats)
+            if (_courseManager != null)
             {
-                if (ai != null && ai.transform.position.y > playerY)
-                    place++;
+                string time = FormatTime(_courseManager.RaceTime);
+                DrawRow("Race Time", time);
             }
 
-            string ordinal = place switch
+            if (_raceProgressTracker != null)
             {
-                1 => "<color=#FFD700>1st</color>",
-                2 => "<color=#C0C0C0>2nd</color>",
-                3 => "<color=#CD7F32>3rd</color>",
-                _ => $"{place}th"
-            };
-            DrawRow("Position", $"{ordinal} of {_aiBoats.Length + 1}");
+                string progress = _raceProgressTracker.Progress.ToString("P1");
+                DrawRow("Progress", $"<color=#4CF>{progress}</color>");
+            }
+        }
+
+        private void DrawCourseInfo()
+        {
+            if (_courseMarkers != null)
+            {
+                DrawRow("Layout", $"<color=#FFA>{_courseMarkers.ActiveLayoutName}</color>");
+                DrawRow("Length", $"{_courseMarkers.CourseLength:F0} units");
+            }
         }
 
         private void DrawBreathInfo()
@@ -236,19 +256,13 @@ namespace Breathe.Gameplay
             DrawRow("Intensity", $"{bim.GetBreathIntensity():F3}");
             DrawRow("Level", bim.GetBreathLevel().ToString());
 
-            if (_windSystem != null)
-            {
-                DrawRow("Wind Power", $"{_windSystem.WindPower:F2}");
-            }
+            if (_breathPowerSystem != null)
+                DrawRow("Breath Power", $"{_breathPowerSystem.BreathPower:F2}");
         }
 
         private void DrawPlayerBoatInfo()
         {
-            if (_playerBoat == null)
-            {
-                DrawRow("Status", "<color=#F66>No PlayerBoat</color>");
-                return;
-            }
+            if (_playerBoat == null) return;
 
             var zone = EnvironmentalZoneEffect.CurrentZoneForDebug;
             if (zone != null)
@@ -264,6 +278,25 @@ namespace Breathe.Gameplay
             Vector3 pos = _playerBoat.transform.position;
             DrawRow("Position", $"({pos.x:F1}, {pos.y:F1})");
             DrawRow("Finished", _playerBoat.FinishedCourse ? "<color=#4F4>Yes</color>" : "No");
+        }
+
+        private void DrawPlacementInfo()
+        {
+            if (_playerBoat == null || _aiBoats == null || _aiBoats.Length == 0) return;
+
+            float playerY = _playerBoat.transform.position.y;
+            int place = 1;
+            foreach (var ai in _aiBoats)
+                if (ai != null && ai.transform.position.y > playerY) place++;
+
+            string ordinal = place switch
+            {
+                1 => "<color=#FFD700>1st</color>",
+                2 => "<color=#C0C0C0>2nd</color>",
+                3 => "<color=#CD7F32>3rd</color>",
+                _ => $"{place}th"
+            };
+            DrawRow("Position", $"{ordinal} of {_aiBoats.Length + 1}");
         }
 
         private void DrawAIBoatsInfo()
@@ -290,11 +323,6 @@ namespace Breathe.Gameplay
             DrawRow("Frame Rate", $"{1f / Time.smoothDeltaTime:F0} FPS");
             DrawRow("Time Scale", $"{Time.timeScale:F2}x");
             DrawRow("Play Time", FormatTime(Time.time));
-        }
-
-        private string GetCourseLayoutName()
-        {
-            return _courseMarkers != null ? _courseMarkers.ActiveLayoutName : "Unknown";
         }
 
         private static string FormatTime(float seconds)

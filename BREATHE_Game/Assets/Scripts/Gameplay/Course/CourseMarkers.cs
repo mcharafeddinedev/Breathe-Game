@@ -18,8 +18,8 @@ namespace Breathe.Gameplay
         public float LaneHalfWidth => _laneHalfWidth;
         public float FinishLineHalfWidth => _laneHalfWidth + 1f;
         [SerializeField] private float _buoySize = 0.5f;
-        [SerializeField] private Color _leftBuoyColor = new Color(1f, 0.3f, 0.2f, 0.8f);
-        [SerializeField] private Color _rightBuoyColor = new Color(0.2f, 0.9f, 0.3f, 0.8f);
+        [SerializeField] private Color _buoyColorA = new Color(0.88f, 0.38f, 0.12f, 0.85f);
+        [SerializeField] private Color _buoyColorB = new Color(0.95f, 0.65f, 0.18f, 0.85f);
 
         [Header("Buoy Sprites (leave empty for placeholder)")]
         [SerializeField] private Sprite _buoyBodySprite;
@@ -161,7 +161,7 @@ namespace Breathe.Gameplay
         }
 
         public float CourseLength => _courseLength;
-        public string ActiveLayoutName => _activeLayout != null ? _activeLayout.LayoutName : "None";
+        public string ActiveLayoutName => _activeLayout != null ? _activeLayout.LayoutName : "NONE";
 
         // X-center of the course at a given Y along the track.
         // CourseManager uses this to generate waypoints on the same spline as the buoys.
@@ -190,8 +190,9 @@ namespace Breathe.Gameplay
                 float jRX = (Mathf.PerlinNoise(jitterSeed, 20f) - 0.5f) * 2f * _positionJitter;
                 float jRY = (Mathf.PerlinNoise(jitterSeed, 30f) - 0.5f) * 2f * _positionJitter;
 
-                MakeBuoy(root.transform, new Vector3(cx - _laneHalfWidth + jLX, y + jLY, 0f), _leftBuoyColor, jitterSeed);
-                MakeBuoy(root.transform, new Vector3(cx + _laneHalfWidth + jRX, y + jRY, 0f), _rightBuoyColor, jitterSeed + 50f);
+                Color gateColor = (i % 2 == 0) ? _buoyColorA : _buoyColorB;
+                MakeBuoy(root.transform, new Vector3(cx - _laneHalfWidth + jLX, y + jLY, 0f), gateColor, jitterSeed);
+                MakeBuoy(root.transform, new Vector3(cx + _laneHalfWidth + jRX, y + jRY, 0f), gateColor, jitterSeed + 50f);
 
                 if (_showCenterDashes)
                     TrackRenderer(MakeSprite(root.transform, new Vector3(cx, y, 0f), new Vector3(0.12f, 0.7f, 1f), _dashColor, -6));

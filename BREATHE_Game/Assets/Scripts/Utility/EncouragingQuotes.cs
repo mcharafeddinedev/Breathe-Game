@@ -8,107 +8,99 @@ namespace Breathe.Utility
     {
         private static readonly string[] GeneralQuotes =
         {
-            "Nice job!",
-            "Great work!",
-            "Well done!",
-            "Awesome effort!",
-            "You did it!",
-            "Fantastic!",
-            "Way to go!",
-            "Keep it up!",
-            "Amazing!",
-            "Super!",
-            "Brilliant!",
-            "Wonderful!",
-            "Excellent!",
-            "You're doing great!",
-            "Impressive!",
-            "Good playing!",
-            "That was fun!",
-            "Nice one!",
-            "You rock!",
-            "Stellar performance!",
-            "Bravo!",
-            "Outstanding!",
-            "Terrific!",
-            "You nailed it!",
-            "Spectacular!"
+            "NICE  JOB",
+            "GREAT  WORK",
+            "WELL  DONE",
+            "AWESOME  EFFORT",
+            "YOU  DID  IT",
+            "FANTASTIC",
+            "WAY  TO  GO",
+            "KEEP  IT  UP",
+            "AMAZING",
+            "SUPER",
+            "BRILLIANT",
+            "WONDERFUL",
+            "EXCELLENT",
+            "IMPRESSIVE",
+            "GOOD  PLAYING",
+            "THAT  WAS  FUN",
+            "NICE  ONE",
+            "YOU  ROCK",
+            "STELLAR  PERFORMANCE",
+            "BRAVO",
+            "OUTSTANDING",
+            "TERRIFIC",
+            "YOU  NAILED  IT",
+            "SPECTACULAR"
         };
 
         private static readonly string[] BreathQuotes =
         {
-            "Great breathing!",
-            "Steady breaths!",
-            "Nice lung power!",
-            "Breathe easy!",
-            "Strong exhales!",
-            "Perfect pacing!",
-            "Smooth sailing!",
-            "Deep breaths pay off!",
-            "Breath of fresh air!",
-            "You've got wind!",
-            "Powerful lungs!",
-            "Breathtaking!",
-            "In the zone!",
-            "Rhythm master!",
-            "Flow state achieved!"
+            "GREAT  BREATHING",
+            "STEADY  BREATHS",
+            "NICE  LUNG  POWER",
+            "BREATHE  EASY",
+            "STRONG  EXHALES",
+            "PERFECT  PACING",
+            "SMOOTH  SAILING",
+            "DEEP  BREATHS  PAY  OFF",
+            "BREATH  OF  FRESH  AIR",
+            "POWERFUL  LUNGS",
+            "BREATHTAKING",
+            "IN  THE  ZONE",
+            "RHYTHM  MASTER",
+            "FLOW  STATE  ACHIEVED"
         };
 
         private static readonly string[] WinnerQuotes =
         {
-            "Champion!",
-            "Victory!",
-            "First place!",
-            "Gold medal!",
-            "You're #1!",
-            "Top of the podium!",
-            "Unbeatable!",
-            "The best!",
-            "Winner winner!",
-            "Supreme!",
-            "Legendary!",
-            "Flawless victory!",
-            "Crushed it!",
-            "Dominated!",
-            "Unstoppable!"
+            "CHAMPION",
+            "VICTORY",
+            "FIRST  PLACE",
+            "GOLD  MEDAL",
+            "TOP  OF  THE  PODIUM",
+            "UNBEATABLE",
+            "THE  BEST",
+            "WINNER  WINNER",
+            "SUPREME",
+            "LEGENDARY",
+            "FLAWLESS  VICTORY",
+            "CRUSHED  IT",
+            "DOMINATED",
+            "UNSTOPPABLE"
         };
 
         private static readonly string[] PersonalBestQuotes =
         {
-            "New record!",
-            "Personal best!",
-            "You beat yourself!",
-            "New high score!",
-            "Record breaker!",
-            "Best yet!",
-            "Leveling up!",
-            "Progress!",
-            "Improvement!",
-            "Getting stronger!",
-            "Better every time!",
-            "Growth mindset!",
-            "Self-improvement!",
-            "Breaking barriers!",
-            "Surpassing limits!"
+            "NEW  RECORD",
+            "PERSONAL  BEST",
+            "YOU  BEAT  YOURSELF",
+            "NEW  HIGH  SCORE",
+            "RECORD  BREAKER",
+            "BEST  YET",
+            "LEVELING  UP",
+            "PROGRESS",
+            "IMPROVEMENT",
+            "GETTING  STRONGER",
+            "BETTER  EVERY  TIME",
+            "BREAKING  BARRIERS",
+            "SURPASSING  LIMITS"
         };
 
         private static readonly string[] KeepTryingQuotes =
         {
-            "Good effort!",
-            "Nice try!",
-            "Keep practicing!",
-            "You'll get there!",
-            "Almost!",
-            "So close!",
-            "Next time!",
-            "Don't give up!",
-            "Progress takes time!",
-            "Every attempt counts!",
-            "Learning curve!",
-            "Building skills!",
-            "Getting better!",
-            "Stay determined!",
-            "Persistence wins!"
+            "GOOD  EFFORT",
+            "NICE  TRY",
+            "KEEP  PRACTICING",
+            "ALMOST",
+            "SO  CLOSE",
+            "NEXT  TIME",
+            "PROGRESS  TAKES  TIME",
+            "EVERY  ATTEMPT  COUNTS",
+            "BUILDING  SKILLS",
+            "GETTING  BETTER",
+            "STAY  DETERMINED",
+            "PERSISTENCE  WINS"
         };
 
         public static string GetRandomQuote()
@@ -158,11 +150,20 @@ namespace Breathe.Utility
         // Same as GetContextualQuote but mixes in breath-focused quotes when activity is high.
         public static string GetBreathGameQuote(int placement, bool isPersonalBest, float activityRatio)
         {
-            // High activity ratio? Highlight the breathing
             if (activityRatio >= 0.6f && Random.value > 0.4f)
                 return GetBreathQuote();
 
             return GetContextualQuote(placement, isPersonalBest);
+        }
+
+        // For non-race minigames that have no placement concept.
+        public static string GetMinigameQuote(bool isPersonalBest, float activityRatio)
+        {
+            if (isPersonalBest)
+                return GetPersonalBestQuote();
+            if (activityRatio >= 0.6f && Random.value > 0.4f)
+                return GetBreathQuote();
+            return GetRandomQuote();
         }
     }
 }

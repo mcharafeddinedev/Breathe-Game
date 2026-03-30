@@ -167,8 +167,8 @@ MonoBehaviour:
   _buoyInterval: 5
   _laneHalfWidth: 12
   _buoySize: 0.5
-  _leftBuoyColor: {r: 1, g: 0.13521993, b: 0.14926076, a: 0.7}
-  _rightBuoyColor: {r: 0.2, g: 0.9, b: 0.3, a: 0.7}
+  _buoyColorA: {r: 0.88, g: 0.38, b: 0.12, a: 0.85}
+  _buoyColorB: {r: 0.95, g: 0.65, b: 0.18, a: 0.85}
   _buoyBodySprite: {fileID: 0}
   _buoyCapSprite: {fileID: 0}
   _bobAmplitude: 0.18
@@ -186,6 +186,53 @@ MonoBehaviour:
   _ringColor: {r: 1, g: 1, b: 1, a: 0.06}
   _finishLineSprite: {fileID: 0}
   _fadeOutDuration: 2.5
+--- !u!1 &321462981
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 321462982}
+  - component: {fileID: 321462983}
+  m_Layer: 0
+  m_Name: SailboatMinigame
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &321462982
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 321462981}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 771060616}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &321462983
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 321462981}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68d9eb83690d0d542b501eee1612ce03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.SailboatMinigame
+  _breathAnalytics: {fileID: 1504569916}
+  _scoreManager: {fileID: 485784121}
+  _courseManager: {fileID: 1504569914}
 --- !u!1 &463047558
 GameObject:
   m_ObjectHideFlags: 0
@@ -315,6 +362,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fce90162fc1cb954fae78302598378cd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.ScoreManager
+  _minigameScope: sailboat
   _courseManager: {fileID: 1504569914}
 --- !u!4 &485784122
 Transform:
@@ -593,7 +641,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.07624286, g: 0.6855345, b: 0, a: 1}
+  m_Color: {r: 0.8, g: 0, b: 0.043137256, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -848,7 +896,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 651989711}
-  - component: {fileID: 651989710}
+  - component: {fileID: 651989712}
   m_Layer: 0
   m_Name: WindSystem
   m_TagString: Untagged
@@ -856,25 +904,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &651989710
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 651989709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 740c24a588979b64eaa2d192bd4eebbc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.WindSystem
-  _smoothingFactor: 0.4
-  _responseCurveExponent: 0.55
-  _logThresholds:
-  - 0.2
-  - 0.4
-  - 0.6
-  - 0.8
 --- !u!4 &651989711
 Transform:
   m_ObjectHideFlags: 0
@@ -890,6 +919,25 @@ Transform:
   m_Children: []
   m_Father: {fileID: 771060616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &651989712
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651989709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3f7c92e1b4d6a8509e2d7f3b6c1e4a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.BreathPowerSystem
+  _smoothingFactor: 0.4
+  _responseCurveExponent: 0.55
+  _logThresholds:
+  - 0.2
+  - 0.4
+  - 0.6
+  - 0.8
 --- !u!1 &771060615
 GameObject:
   m_ObjectHideFlags: 0
@@ -929,6 +977,7 @@ Transform:
   - {fileID: 1105235858}
   - {fileID: 651989711}
   - {fileID: 1812854527}
+  - {fileID: 321462982}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &772912536
@@ -1605,15 +1654,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fbb33f6e8b9e8147b3e436b6de909d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.RaceResultOverlay
-  _courseManager: {fileID: 1504569914}
-  _playerBoat: {fileID: 1994442565}
-  _aiBoats:
-  - {fileID: 1773250717}
-  - {fileID: 1241053642}
-  _courseMarkers: {fileID: 164074670}
-  _breathAnalytics: {fileID: 1504569916}
-  _scoreManager: {fileID: 485784121}
-  _coastDelay: 0.3
+  _showDelay: 0.25
   _popInDuration: 0.4
   _popOutDuration: 0.3
   _popOvershoot: 1.70158
@@ -1847,7 +1888,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.42138356, g: 0.14628018, b: 0, a: 1}
+  m_Color: {r: 0, g: 1, b: 0.15639687, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -1970,7 +2011,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20cc195b57d7d6a46966bcf5d44cfb6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.SailboatController
-  _windSystem: {fileID: 651989710}
+  _breathPowerSystem: {fileID: 651989712}
   _courseConfig: {fileID: 11400000, guid: 5d7cc06292f488445b7ae0d0bcdc9a1f, type: 2}
   _waypoints:
   - {fileID: 0}

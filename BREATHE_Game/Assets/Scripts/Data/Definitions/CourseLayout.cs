@@ -26,7 +26,7 @@ namespace Breathe.Data
     [CreateAssetMenu(fileName = "NewCourseLayout", menuName = "Breathe/Course Layout")]
     public class CourseLayout : ScriptableObject
     {
-        [SerializeField] private string _layoutName = "Unnamed";
+        [SerializeField] private string _layoutName = "UNNAMED";
         [SerializeField, Tooltip("Sine harmonics that get summed to define the curve.")]
         private CurveHarmonic[] _harmonics = { new CurveHarmonic(5f, 2f, 0f) };
 
@@ -55,53 +55,53 @@ namespace Breathe.Data
             return new[]
             {
                 // Gentle, flowing
-                MakePreset("Gentle Drift",
+                MakePreset("GENTLE DRIFT",
                     new CurveHarmonic(6f, 1.5f, 0f),
                     new CurveHarmonic(2f, 0.5f, 1.5f)),
-                MakePreset("Lazy River",
+                MakePreset("LAZY RIVER",
                     new CurveHarmonic(8f, 1f, 0.3f),
                     new CurveHarmonic(3f, 2.5f, 2f)),
 
                 // Medium complexity
-                MakePreset("Serpentine",
+                MakePreset("SERPENTINE",
                     new CurveHarmonic(5f, 3f, 0f),
                     new CurveHarmonic(2.5f, 1.2f, 1f)),
-                MakePreset("Rolling Hills",
+                MakePreset("ROLLING HILLS",
                     new CurveHarmonic(7f, 2f, 0.5f),
                     new CurveHarmonic(3f, 4f, 0f),
                     new CurveHarmonic(1.5f, 7f, 2.2f)),
-                MakePreset("Winding Path",
+                MakePreset("WINDING PATH",
                     new CurveHarmonic(4f, 2.5f, 0f),
                     new CurveHarmonic(3f, 1f, 1.8f),
                     new CurveHarmonic(2f, 5f, 0.7f)),
 
                 // Tighter turns
-                MakePreset("Chicane",
+                MakePreset("CHICANE",
                     new CurveHarmonic(6f, 2.5f, 0f),
                     new CurveHarmonic(3f, 5f, 1.2f)),
-                MakePreset("Slalom Gates",
+                MakePreset("SAILBOAT COURSE",
                     new CurveHarmonic(4f, 4f, 0f),
                     new CurveHarmonic(2f, 8f, 1.5f)),
 
                 // Big sweeping
-                MakePreset("Grand Sweep",
+                MakePreset("GRAND SWEEP",
                     new CurveHarmonic(10f, 0.7f, 0f),
                     new CurveHarmonic(4f, 2.2f, 2.5f)),
-                MakePreset("Ocean Swell",
+                MakePreset("OCEAN SWELL",
                     new CurveHarmonic(7f, 1.3f, 0f),
                     new CurveHarmonic(5f, 3f, 1.2f),
                     new CurveHarmonic(2f, 6f, 0.5f)),
 
                 // Complex multi-harmonic
-                MakePreset("Coastal Run",
+                MakePreset("COASTAL RUN",
                     new CurveHarmonic(5f, 1.8f, 0.2f),
                     new CurveHarmonic(3f, 3.5f, 1.5f),
                     new CurveHarmonic(2f, 0.6f, 0f)),
-                MakePreset("Reef Passage",
+                MakePreset("REEF PASSAGE",
                     new CurveHarmonic(4f, 2f, 0f),
                     new CurveHarmonic(3f, 4.5f, 0.8f),
                     new CurveHarmonic(1.5f, 9f, 2f)),
-                MakePreset("Channel Markers",
+                MakePreset("CHANNEL MARKERS",
                     new CurveHarmonic(6f, 1.5f, 1f),
                     new CurveHarmonic(2.5f, 4f, 0f),
                     new CurveHarmonic(1.5f, 2f, 2.5f)),

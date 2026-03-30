@@ -1,4 +1,5 @@
 using UnityEngine;
+using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
@@ -12,12 +13,12 @@ namespace Breathe.Gameplay
 
         private void OnEnable()
         {
-            ObstacleZone.OnZonePopup += HandlePopup;
+            ZoneEvents.OnZonePopup += HandlePopup;
         }
 
         private void OnDisable()
         {
-            ObstacleZone.OnZonePopup -= HandlePopup;
+            ZoneEvents.OnZonePopup -= HandlePopup;
         }
 
         private void HandlePopup(string text)
@@ -34,26 +35,24 @@ namespace Breathe.Gameplay
 
             if (_style == null)
             {
-                _style = new GUIStyle(GUI.skin.box)
+                _style = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 22,
+                    fontSize = 34,
                     alignment = TextAnchor.MiddleCenter,
                     fontStyle = FontStyle.Bold,
-                    wordWrap = true,
-                    normal = { textColor = Color.white },
-                    padding = new RectOffset(24, 24, 16, 16)
+                    wordWrap = false,
+                    normal = { textColor = Color.white }
                 };
+                Font f = GameFont.Get();
+                if (f != null) _style.font = f;
             }
 
-            float w = 520f;
-            float h = 90f;
+            float w = Screen.width * 0.8f;
+            float h = 60f;
             float topOffset = 100f;
             Rect r = new Rect((Screen.width - w) / 2f, topOffset, w, h);
 
-            GUI.color = new Color(0f, 0f, 0f, 0.75f);
-            GUI.Box(r, "");
-            GUI.color = Color.white;
-            GUI.Label(r, _currentText, _style);
+            GameFont.OutlinedLabel(r, _currentText, _style);
         }
     }
 }

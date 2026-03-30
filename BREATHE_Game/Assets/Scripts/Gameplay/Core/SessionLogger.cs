@@ -20,6 +20,7 @@ namespace Breathe.Gameplay
         {
             if (_instance != null && _instance != this) { Destroy(gameObject); return; }
             _instance = this;
+            DontDestroyOnLoad(gameObject);
 
             _sessionDir = Path.Combine(Application.persistentDataPath, "sessions");
             if (!Directory.Exists(_sessionDir))
@@ -44,6 +45,7 @@ namespace Breathe.Gameplay
                 totalActiveTime = analytics != null ? analytics.TotalActiveTime : 0f,
                 totalSessionTime = analytics != null ? analytics.TotalSessionTime : 0f,
                 activityRatio = analytics != null ? analytics.ActivityRatio : 0f,
+                adjustedActivityRatio = analytics != null ? analytics.AdjustedActivityRatio : 0f,
                 sustainedSegments = analytics != null ? analytics.SustainedSegmentCount : 0,
                 avgSustainedDuration = analytics != null ? analytics.AverageSustainedDuration : 0f,
                 burstCount = analytics != null ? analytics.BurstCount : 0,
@@ -91,6 +93,7 @@ namespace Breathe.Gameplay
             public float totalActiveTime;
             public float totalSessionTime;
             public float activityRatio;
+            public float adjustedActivityRatio;
             public int sustainedSegments;
             public float avgSustainedDuration;
             public int burstCount;

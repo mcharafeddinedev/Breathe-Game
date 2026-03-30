@@ -4,12 +4,19 @@ using Breathe.Input;
 namespace Breathe.Gameplay
 {
     // Accumulates per-race breathing stats and persists personal bests via PlayerPrefs.
+    // PB keys are scoped by minigame ID to prevent cross-game collisions.
     public class ScoreManager : MonoBehaviour
     {
-        private const string PB_BREATH_TIME = "PB_BreathTime";
-        private const string PB_PEAK_INTENSITY = "PB_PeakIntensity";
-        private const string PB_LONGEST_BLOW = "PB_LongestBlow";
-        private const string PB_COURSE_TIME = "PB_CourseTime";
+        private const string KEY_BREATH_TIME = "PB_BreathTime";
+        private const string KEY_PEAK_INTENSITY = "PB_PeakIntensity";
+        private const string KEY_LONGEST_BLOW = "PB_LongestBlow";
+        private const string KEY_COURSE_TIME = "PB_CourseTime";
+
+        [Header("Scoping")]
+        [SerializeField, Tooltip("Minigame ID prefix for PlayerPrefs keys (e.g. 'sailboat').")]
+        private string _minigameScope = "sailboat";
+
+        private string ScopedKey(string key) => $"{_minigameScope}_{key}";
 
         private static ScoreManager _instance;
         public static ScoreManager Instance { get => _instance; private set => _instance = value; }
@@ -48,8 +55,8 @@ namespace Breathe.Gameplay
         }
 
         private void OnDestroy() { if (_instance == this) _instance = null; }
-        private void OnEnable() => ObstacleZone.OnZonePopup += HandleZonePopup;
-        private void OnDisable() => ObstacleZone.OnZonePopup -= HandleZonePopup;
+        private void OnEnable() => ZoneEvents.OnZonePopup += HandleZonePopup;
+        private void OnDisable() => ZoneEvents.OnZonePopup -= HandleZonePopup;
 
         private void Update()
         {
@@ -93,26 +100,26 @@ namespace Breathe.Gameplay
         public void SavePersonalBests()
         {
             if (_totalBreathTime > _pbBreathTime)
-            { _pbBreathTime = _totalBreathTime; PlayerPrefs.SetFloat(PB_BREATH_TIME, _pbBreathTime); }
+            { _pbBreathTime = _totalBreathTime; PlayerPrefs.SetFloat(ScopedKey(KEY_BREATH_TIME), _pbBreathTime); }
             if (_peakBreathIntensity > _pbPeakIntensity)
-            { _pbPeakIntensity = _peakBreathIntensity; PlayerPrefs.SetFloat(PB_PEAK_INTENSITY, _pbPeakIntensity); }
+            { _pbPeakIntensity = _peakBreathIntensity; PlayerPrefs.SetFloat(ScopedKey(KEY_PEAK_INTENSITY), _pbPeakIntensity); }
             if (_longestSustainedBlow > _pbLongestBlow)
-            { _pbLongestBlow = _longestSustainedBlow; PlayerPrefs.SetFloat(PB_LONGEST_BLOW, _pbLongestBlow); }
+            { _pbLongestBlow = _longestSustainedBlow; PlayerPrefs.SetFloat(ScopedKey(KEY_LONGEST_BLOW), _pbLongestBlow); }
 
             bool courseTimeBetter = _pbCourseTime <= 0f || _courseTime < _pbCourseTime;
             if (courseTimeBetter && _courseTime > 0f)
-            { _pbCourseTime = _courseTime; PlayerPrefs.SetFloat(PB_COURSE_TIME, _pbCourseTime); }
+            { _pbCourseTime = _courseTime; PlayerPrefs.SetFloat(ScopedKey(KEY_COURSE_TIME), _pbCourseTime); }
 
             PlayerPrefs.Save();
-            Debug.Log("[ScoreManager] Personal bests saved.");
+            Debug.Log($"[ScoreManager] Personal bests saved (scope: {_minigameScope}).");
         }
 
         public void LoadPersonalBests()
         {
-            _pbBreathTime = PlayerPrefs.GetFloat(PB_BREATH_TIME, 0f);
-            _pbPeakIntensity = PlayerPrefs.GetFloat(PB_PEAK_INTENSITY, 0f);
-            _pbLongestBlow = PlayerPrefs.GetFloat(PB_LONGEST_BLOW, 0f);
-            _pbCourseTime = PlayerPrefs.GetFloat(PB_COURSE_TIME, 0f);
+            _pbBreathTime = PlayerPrefs.GetFloat(ScopedKey(KEY_BREATH_TIME), 0f);
+            _pbPeakIntensity = PlayerPrefs.GetFloat(ScopedKey(KEY_PEAK_INTENSITY), 0f);
+            _pbLongestBlow = PlayerPrefs.GetFloat(ScopedKey(KEY_LONGEST_BLOW), 0f);
+            _pbCourseTime = PlayerPrefs.GetFloat(ScopedKey(KEY_COURSE_TIME), 0f);
         }
 
         // Check if this race's stat beats the stored personal best

@@ -16,6 +16,11 @@ namespace Breathe.Gameplay
         private float _burstMaxDuration = 0.8f;
         [SerializeField] private float _activeThreshold = 0.05f;
 
+        [Header("Hardware Compensation")]
+        [SerializeField, Tooltip("Estimated seconds the fan device coasts after the user stops blowing. " +
+            "Subtracted from each segment duration for more accurate classification.")]
+        private float _deviceSpinDownLatency = 1.5f;
+
         private bool _isActive;
         private float _currentSegmentDuration;
         private bool _wasBreathing;
@@ -28,6 +33,8 @@ namespace Breathe.Gameplay
         private int _burstCount;
         private float _totalActiveTime;
         private float _totalSessionTime;
+
+        private int _segmentCount;
 
         private float _lastZoneMultiplier = 1f;
         private float _effortBeforeZoneChange;
@@ -44,21 +51,25 @@ namespace Breathe.Gameplay
         public float TotalSessionTime => _totalSessionTime;
         public float ActivityRatio =>
             _totalSessionTime > 0f ? _totalActiveTime / _totalSessionTime : 0f;
+        public float AdjustedActivityRatio =>
+            _totalSessionTime > 0f
+                ? Mathf.Clamp01((_totalActiveTime - _segmentCount * _deviceSpinDownLatency) / _totalSessionTime)
+                : 0f;
 
         // Classifies the overall breath pattern based on segment data
         public string BreathPatternLabel
         {
             get
             {
-                if (_sustainedSegmentCount == 0 && _burstCount == 0) return "Minimal";
+                if (_sustainedSegmentCount == 0 && _burstCount == 0) return "MINIMAL";
                 float ratio = _burstCount > 0
                     ? (float)_sustainedSegmentCount / _burstCount
                     : float.MaxValue;
 
-                if (ratio > 2f) return "Sustained";
-                if (ratio < 0.5f) return "Burst-Dominant";
-                if (_burstCount >= 5 && AverageSustainedDuration < 2f) return "Rhythmic";
-                return "Mixed";
+                if (ratio > 2f) return "SUSTAINED";
+                if (ratio < 0.5f) return "BURST-DOMINANT";
+                if (_burstCount >= 5 && AverageSustainedDuration < 2f) return "RHYTHMIC";
+                return "MIXED";
             }
         }
 
@@ -78,6 +89,7 @@ namespace Breathe.Gameplay
             _sustainedSegmentCount = 0;
             _sustainedSegmentTotalDuration = 0f;
             _burstCount = 0;
+            _segmentCount = 0;
             _totalActiveTime = 0f;
             _totalSessionTime = 0f;
             _lastZoneMultiplier = 1f;
@@ -150,12 +162,15 @@ namespace Breathe.Gameplay
         {
             if (_currentSegmentDuration <= 0f) return;
 
-            if (_currentSegmentDuration >= _sustainedSegmentMinDuration)
+            _segmentCount++;
+            float compensated = Mathf.Max(0f, _currentSegmentDuration - _deviceSpinDownLatency);
+
+            if (compensated >= _sustainedSegmentMinDuration)
             {
                 _sustainedSegmentCount++;
-                _sustainedSegmentTotalDuration += _currentSegmentDuration;
+                _sustainedSegmentTotalDuration += compensated;
             }
-            else if (_currentSegmentDuration <= _burstMaxDuration && _currentSegmentDuration > 0.05f)
+            else if (compensated <= _burstMaxDuration && compensated > 0.05f)
             {
                 _burstCount++;
             }

@@ -1,8 +1,11 @@
 using UnityEngine;
+using Breathe.Data;
+using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
     // Full-screen countdown overlay (3, 2, 1, GO!) shown when entering the Playing state.
+    // The final "GO" text is configurable per minigame via MinigameDefinition.CountdownGoText.
     // Uses OnGUI for immediate rendering without scene setup.
     public class CountdownOverlay : MonoBehaviour
     {
@@ -13,9 +16,12 @@ namespace Breathe.Gameplay
         private float _displayTimer;
         private float _animProgress;
         private GUIStyle _countdownStyle;
+        private string _goText = "GO";
 
         private void Start()
         {
+            ResolveGoText();
+
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.OnCountdownTick += HandleCountdownTick;
         }
@@ -26,9 +32,17 @@ namespace Breathe.Gameplay
                 GameStateManager.Instance.OnCountdownTick -= HandleCountdownTick;
         }
 
+        private void ResolveGoText()
+        {
+            if (MinigameManager.Instance == null) return;
+            MinigameDefinition def = MinigameManager.Instance.SelectedDefinition;
+            if (def != null && !string.IsNullOrEmpty(def.CountdownGoText))
+                _goText = def.CountdownGoText;
+        }
+
         private void HandleCountdownTick(int remaining)
         {
-            _currentText = remaining > 0 ? remaining.ToString() : "GO!";
+            _currentText = remaining > 0 ? remaining.ToString() : _goText;
             _displayTimer = _displayDuration;
             _animProgress = 0f;
         }
@@ -54,39 +68,45 @@ namespace Breathe.Gameplay
             {
                 _countdownStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 120,
+                    fontSize = 200,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleCenter
                 };
                 _countdownStyle.normal.textColor = Color.white;
+                Font f = GameFont.Get();
+                if (f != null) _countdownStyle.font = f;
             }
 
             float popScale = EaseOutBack(_animProgress);
-            float alpha = _animProgress < 0.7f ? 1f : Mathf.Lerp(1f, 0f, (_animProgress - 0.7f) / 0.3f);
+            bool fading = _animProgress >= 0.6f;
+            float alpha = fading ? Mathf.Lerp(1f, 0f, (_animProgress - 0.6f) / 0.4f) : 1f;
 
-            int baseSize = 120;
-            int animatedSize = Mathf.RoundToInt(baseSize * popScale);
+            float sizeScale = fading ? popScale + (1f - alpha) * 0.3f : popScale;
+            int animatedSize = Mathf.RoundToInt(400f * sizeScale);
             _countdownStyle.fontSize = Mathf.Max(10, animatedSize);
 
-            Color textColor = _currentText == "GO!" 
+            bool isGoText = _currentText == _goText;
+            Color baseColor = isGoText
                 ? new Color(0.2f, 1f, 0.4f, alpha)
                 : new Color(1f, 1f, 1f, alpha);
-            _countdownStyle.normal.textColor = textColor;
-
-            Color shadowColor = new Color(0f, 0f, 0f, alpha * 0.6f);
+            _countdownStyle.normal.textColor = baseColor;
+            _countdownStyle.hover.textColor = baseColor;
 
             float centerX = Screen.width / 2f;
             float centerY = Screen.height / 2f;
-            float boxWidth = 400f;
-            float boxHeight = 200f;
+            float boxWidth = 800f;
+            float boxHeight = 560f;
             Rect rect = new Rect(centerX - boxWidth / 2f, centerY - boxHeight / 2f, boxWidth, boxHeight);
 
-            GUIStyle shadowStyle = new GUIStyle(_countdownStyle);
-            shadowStyle.normal.textColor = shadowColor;
-            Rect shadowRect = new Rect(rect.x + 4, rect.y + 4, rect.width, rect.height);
-            GUI.Label(shadowRect, _currentText, shadowStyle);
-
-            GUI.Label(rect, _currentText, _countdownStyle);
+            if (fading)
+            {
+                // During fade: draw text only (no outline) so it cleanly disappears
+                GUI.Label(rect, _currentText, _countdownStyle);
+            }
+            else
+            {
+                GameFont.OutlinedLabel(rect, _currentText, _countdownStyle, 2);
+            }
         }
 
         private float EaseOutBack(float t)

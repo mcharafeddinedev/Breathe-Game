@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using Breathe.Data;
 
 namespace Breathe.Gameplay
 {
@@ -110,6 +111,16 @@ namespace Breathe.Gameplay
                 yield return new WaitForSecondsRealtime(_countdownStepDuration);
             }
             OnCountdownTick?.Invoke(0);
+
+            float buffer = 0f;
+            if (MinigameManager.Instance != null)
+            {
+                MinigameDefinition def = MinigameManager.Instance.SelectedDefinition;
+                if (def != null) buffer = def.PostCountdownBuffer;
+            }
+            if (buffer > 0f)
+                yield return new WaitForSecondsRealtime(buffer);
+
             if (_courseManager != null) _courseManager.StartRace();
             _countdownCoroutine = null;
         }
