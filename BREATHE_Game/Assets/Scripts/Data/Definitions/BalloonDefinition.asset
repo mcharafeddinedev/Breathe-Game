@@ -15,17 +15,18 @@ MonoBehaviour:
   _minigameId: balloon
   _displayName: BALLOON
   _description: Inflate  as  many  balloons  as  you  can  before  time  runs  out! 
-    (60 seconds)
+    (45  seconds)
   _thumbnail: {fileID: 0}
   _breathPattern: Intensity  Ramp
-  _isUnlocked: 0
+  _isUnlocked: 1
   _cardColor: {r: 1, g: 0.1, b: 0.1, a: 1}
   _sceneName: BALLOON
   _countdownGoText: BALLOONS!
   _postCountdownBuffer: 0
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: "Blow to inflate the balloon!\n\nYour breath fills it gradually
-    \u2014 blow harder to inflate faster. \n\nWhen the balloon is full, it ties off
-    and floats away. A new one appears immediately \u2014 inflate as many as you
-    can!"
-  _tutorialTip: You can puff in bursts or blow steadily. Every breath adds up!
+  _tutorialInstruction: "Blow  to  inflate  the  balloon!\n\nYour  breath  fills 
+    it  gradually  \u2014  blow  harder  to  inflate  faster. \n\nWhen  the  balloon 
+    is  full,  it  ties  off  and  floats  away.  A  new  one  appears  immediately 
+    \u2014  inflate  as   many  as  you  can!"
+  _tutorialTip: You  can  puff  in  bursts  or  blow  steadily.  Every  breath  adds 
+    up!

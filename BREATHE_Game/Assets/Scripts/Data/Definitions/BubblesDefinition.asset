@@ -17,7 +17,7 @@ MonoBehaviour:
   _description: Blow  rhythmic  bubble  chains  and  chase  streaks!
   _thumbnail: {fileID: 0}
   _breathPattern: Rhythmic  Pulsing
-  _isUnlocked: 1
+  _isUnlocked: 0
   _cardColor: {r: 1, g: 0.5, b: 0.7, a: 1}
   _sceneName: BUBBLES
   _countdownGoText: BUBBLES!
