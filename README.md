@@ -1,6 +1,6 @@
-Last Updated: Mar 29, 2026
+Last Updated: Mar 30, 2026
 
-# Breathe -- Breath-Controlled Minigame Collection
+# BREATHE -- Breath-Controlled Minigame Collection
 
 A Unity minigame collection where breath is the only input. Blow toward a custom-built fan device to fill a sail, inflate a balloon, clear clouds from a night sky, skip stones across a lake, and more. No buttons, no controller, no secondary controls. No one ever loses.
 
@@ -16,8 +16,8 @@ This project explores whether breath can serve as a compelling primary game inpu
 - **Platform:** Windows PC
 - **Input:** Breath only -- custom hardware (fan RPM via Arduino serial), microphone fallback, simulated for development
 - **Art direction:** Stylized, Wind Waker-inspired aesthetic
-- **Game format:** A collection of breath-only, no-fail minigames -- SAILBOAT, STARGAZE, BALLOON, SKYDIVE, STONE SKIP, BUBBLES, FROG LEAP -- each targeting a different breathing pattern
-- **Current phase:** Production -- shared infrastructure built, expanding into multi-scene collection
+- **Game format:** A collection of breath-only, no-fail minigames -- SAILBOAT, STARGAZE, BALLOON, SKYDIVE, STONE SKIP, BUBBLES, FROG LEAP -- each targeting a different breathing pattern/exercise
+- **Current phase:** Production -- shared infrastructure built, expanding into multi-scene collection, working on BALLOON and STONE SKIP
 
 ## What Makes This Different
 
