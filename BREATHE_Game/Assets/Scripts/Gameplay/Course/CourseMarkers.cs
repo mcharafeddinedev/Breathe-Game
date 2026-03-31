@@ -30,6 +30,12 @@ namespace Breathe.Gameplay
         [SerializeField] private float _bobFrequency = 1.8f;
         [SerializeField] private float _positionJitter = 0.6f;
 
+        [Header("Buoy Ropes")]
+        [SerializeField] private bool _showRopes = true;
+        [SerializeField] private Color _ropeColor = new Color(0.45f, 0.32f, 0.18f, 0.7f);
+        [SerializeField] private float _ropeWidth = 0.06f;
+        [SerializeField] private float _ropeSag = 0.35f;
+
         [Header("Course Layouts")]
         [SerializeField, Tooltip("Hand-designed course shapes. Random pick each run. Falls back to built-in presets.")]
         private CourseLayout[] _courseLayouts;
@@ -47,7 +53,7 @@ namespace Breathe.Gameplay
         [SerializeField] private Color _finishLineColor = new Color(1f, 1f, 1f, 0.6f);
 
         [Header("Distance Rings")]
-        [SerializeField] private bool _showDistanceRings = true;
+        [SerializeField] private bool _showDistanceRings = false;
         [SerializeField] private float _ringInterval = 10f;
         [SerializeField] private Color _ringColor = new Color(1f, 1f, 1f, 0.06f);
 
@@ -67,7 +73,16 @@ namespace Breathe.Gameplay
             public float phase;
         }
 
+        private struct RopeRef
+        {
+            public LineRenderer line;
+            public int buoyA;
+            public int buoyB;
+        }
+
         private readonly List<BuoyRef> _buoys = new List<BuoyRef>();
+        private readonly List<RopeRef> _ropes = new List<RopeRef>();
+        private static Material _ropeMat;
         private readonly List<SpriteRenderer> _allRenderers = new List<SpriteRenderer>();
         private readonly List<float> _originalAlphas = new List<float>();
         private Transform _markersRoot;
@@ -94,6 +109,7 @@ namespace Breathe.Gameplay
         {
             if (_markersRoot != null) { Destroy(_markersRoot.gameObject); _markersRoot = null; }
             _buoys.Clear();
+            _ropes.Clear();
             _allRenderers.Clear();
             _originalAlphas.Clear();
             _fadingOut = false;
@@ -127,6 +143,7 @@ namespace Breathe.Gameplay
                     float bobX = Mathf.Sin(t * _bobFrequency * 0.7f + b.phase + 1.3f) * _bobAmplitude * 0.3f;
                     b.root.position = new Vector3(b.basePos.x + bobX, b.basePos.y + bobY, b.basePos.z);
                 }
+                UpdateRopePositions(t);
                 return;
             }
 
@@ -148,6 +165,15 @@ namespace Breathe.Gameplay
                 float bobX = Mathf.Sin(t * _bobFrequency * 0.7f + b.phase + 1.3f) * _bobAmplitude * 0.3f * alpha;
                 b.root.position = new Vector3(b.basePos.x + bobX, b.basePos.y + bobY, b.basePos.z);
             }
+            for (int i = 0; i < _ropes.Count; i++)
+            {
+                if (_ropes[i].line == null) continue;
+                Color rc = _ropeColor;
+                rc.a *= alpha;
+                _ropes[i].line.startColor = rc;
+                _ropes[i].line.endColor = rc;
+            }
+            UpdateRopePositions(t);
 
             if (_fadeProgress >= 1f && _markersRoot != null)
                 _markersRoot.gameObject.SetActive(false);
@@ -197,6 +223,9 @@ namespace Breathe.Gameplay
                 if (_showCenterDashes)
                     TrackRenderer(MakeSprite(root.transform, new Vector3(cx, y, 0f), new Vector3(0.12f, 0.7f, 1f), _dashColor, -6));
             }
+
+            if (_showRopes)
+                SpawnRopes(root.transform);
 
             int ringCount = Mathf.CeilToInt(_courseLength / _ringInterval);
             for (int r = 1; r < ringCount; r++)
@@ -313,6 +342,66 @@ namespace Breathe.Gameplay
         {
             _allRenderers.Add(sr);
             _originalAlphas.Add(sr.color.a);
+        }
+
+        private void SpawnRopes(Transform parent)
+        {
+            if (_ropeMat == null)
+                _ropeMat = new Material(Shader.Find("Sprites/Default"));
+
+            // Connect consecutive buoys on the same lane side
+            // Even indices = left lane, odd indices = right lane
+            for (int side = 0; side < 2; side++)
+            {
+                int prev = -1;
+                for (int i = side; i < _buoys.Count; i += 2)
+                {
+                    if (prev >= 0)
+                    {
+                        var go = new GameObject("BuoyRope");
+                        go.transform.SetParent(parent);
+                        var lr = go.AddComponent<LineRenderer>();
+                        lr.useWorldSpace = true;
+                        lr.positionCount = 8;
+                        lr.material = _ropeMat;
+                        lr.startWidth = _ropeWidth;
+                        lr.endWidth = _ropeWidth;
+                        lr.startColor = _ropeColor;
+                        lr.endColor = _ropeColor;
+                        lr.sortingOrder = -6;
+                        lr.numCornerVertices = 3;
+                        lr.numCapVertices = 2;
+                        _ropes.Add(new RopeRef { line = lr, buoyA = prev, buoyB = i });
+                    }
+                    prev = i;
+                }
+            }
+            UpdateRopePositions(0f);
+        }
+
+        private void UpdateRopePositions(float time)
+        {
+            for (int r = 0; r < _ropes.Count; r++)
+            {
+                var rope = _ropes[r];
+                if (rope.line == null) continue;
+
+                Vector3 a = _buoys[rope.buoyA].root.position;
+                Vector3 b = _buoys[rope.buoyB].root.position;
+                int segments = rope.line.positionCount - 1;
+
+                for (int s = 0; s <= segments; s++)
+                {
+                    float t = (float)s / segments;
+                    Vector3 pos = Vector3.Lerp(a, b, t);
+                    float sag = 4f * t * (1f - t) * _ropeSag;
+                    float wave = Mathf.Sin(time * 1.2f + pos.y * 0.5f + r * 0.7f) * 0.04f;
+                    pos.x += wave;
+                    pos.y -= sag;
+                    pos.z = -0.3f;
+                    rope.line.SetPosition(s, pos);
+                }
+            }
         }
 
         private static void EnsurePlaceholderSprite()

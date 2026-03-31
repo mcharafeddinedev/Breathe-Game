@@ -186,6 +186,13 @@ namespace Breathe.UI
                 FontStyles.Bold | FontStyles.Italic, patternColor,
                 new Vector2(0, 0.03f), new Vector2(1, 0.22f));
 
+            if (!available)
+            {
+                AddAnchoredLabel(cardGO.transform, "COMING  SOON", 14,
+                    FontStyles.Bold | FontStyles.Italic, new Color(1f, 0.85f, 0.3f),
+                    new Vector2(0, 0.03f), new Vector2(1, 0.22f));
+            }
+
             // Wire button
             var button = cardGO.GetComponent<Button>();
             button.interactable = available;

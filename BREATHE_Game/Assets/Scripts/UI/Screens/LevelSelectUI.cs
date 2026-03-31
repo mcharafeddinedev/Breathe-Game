@@ -87,6 +87,9 @@ namespace Breathe.UI
                     var captured = def;
                     button.onClick.AddListener(() => OnSelectMinigame(captured));
                 }
+
+                if (!def.IsUnlocked)
+                    AddComingSoonLabel(card.transform);
             }
         }
 
@@ -111,7 +114,30 @@ namespace Breathe.UI
                     var captured = def;
                     button.onClick.AddListener(() => OnSelectMinigame(captured));
                 }
+
+                if (!def.IsUnlocked)
+                    AddComingSoonLabel(child);
             }
+        }
+
+        private static void AddComingSoonLabel(Transform parent)
+        {
+            var go = new GameObject("ComingSoon", typeof(RectTransform), typeof(CanvasRenderer));
+            go.transform.SetParent(parent, false);
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0.03f);
+            rt.anchorMax = new Vector2(1f, 0.22f);
+            rt.offsetMin = new Vector2(4, 0);
+            rt.offsetMax = new Vector2(-4, 0);
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = "COMING  SOON";
+            tmp.fontSize = 14;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.Italic;
+            tmp.color = new Color(1f, 0.85f, 0.3f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.raycastTarget = false;
         }
 
         private void OnSelectMinigame(MinigameDefinition def)

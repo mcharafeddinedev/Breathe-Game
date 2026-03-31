@@ -160,6 +160,93 @@ namespace Breathe.Gameplay
             return info;
         }
 
+        // Wind power bar state
+        private Texture2D _whiteTex;
+        private GUIStyle _barLabelStyle;
+        private float _smoothBreathPower;
+
+        private void Update()
+        {
+            float breathPower = BreathPowerSystem.Instance != null
+                ? BreathPowerSystem.Instance.CurrentBreathPower : 0f;
+            _smoothBreathPower = Mathf.Lerp(_smoothBreathPower, breathPower, Time.deltaTime * 12f);
+        }
+
+        private void OnGUI()
+        {
+            if (GameStateManager.Instance == null ||
+                GameStateManager.Instance.CurrentState != GameState.Playing)
+                return;
+
+            DrawWindBar();
+        }
+
+        private void DrawWindBar()
+        {
+            if (_whiteTex == null)
+            {
+                _whiteTex = new Texture2D(1, 1);
+                _whiteTex.SetPixel(0, 0, Color.white);
+                _whiteTex.Apply();
+            }
+
+            float barWidth = 28f;
+            float barHeight = Screen.height * 0.45f;
+            float barX = 20f;
+            float barY = Screen.height * 0.28f;
+            float cornerInset = 4f;
+
+            GUI.color = new Color(0.1f, 0.1f, 0.15f, 0.8f);
+            GUI.DrawTexture(new Rect(barX - 3f, barY - 3f, barWidth + 6f, barHeight + 6f), _whiteTex);
+
+            GUI.color = new Color(0.15f, 0.15f, 0.22f, 0.7f);
+            GUI.DrawTexture(new Rect(barX, barY, barWidth, barHeight), _whiteTex);
+
+            float fill = Mathf.Clamp01(_smoothBreathPower);
+            float fillHeight = barHeight * fill;
+            float fillY = barY + barHeight - fillHeight;
+
+            Color lowColor = new Color(0.3f, 0.7f, 0.95f);
+            Color midColor = new Color(0.2f, 0.9f, 0.5f);
+            Color highColor = new Color(1f, 0.85f, 0.2f);
+            Color fillColor = fill < 0.5f
+                ? Color.Lerp(lowColor, midColor, fill * 2f)
+                : Color.Lerp(midColor, highColor, (fill - 0.5f) * 2f);
+            GUI.color = fillColor;
+            GUI.DrawTexture(new Rect(barX + cornerInset * 0.5f, fillY, barWidth - cornerInset, fillHeight), _whiteTex);
+
+            if (fill > 0.02f)
+            {
+                GUI.color = new Color(fillColor.r, fillColor.g, fillColor.b, 0.4f);
+                float glowH = Mathf.Min(8f, fillHeight);
+                GUI.DrawTexture(new Rect(barX + cornerInset * 0.5f, fillY, barWidth - cornerInset, glowH), _whiteTex);
+            }
+
+            GUI.color = new Color(1f, 1f, 1f, 0.2f);
+            for (int i = 1; i <= 3; i++)
+            {
+                float tickY = barY + barHeight * (1f - i * 0.25f);
+                GUI.DrawTexture(new Rect(barX, tickY, barWidth, 1f), _whiteTex);
+            }
+
+            GUI.color = Color.white;
+            if (_barLabelStyle == null)
+            {
+                Font f = GameFont.Get();
+                _barLabelStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 14,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                _barLabelStyle.normal.textColor = Color.white;
+                if (f != null) _barLabelStyle.font = f;
+            }
+
+            Rect labelRect = new Rect(barX - 10f, barY + barHeight + 6f, barWidth + 20f, 24f);
+            GameFont.OutlinedLabel(labelRect, "WIND", _barLabelStyle);
+        }
+
         private static string FormatActivityGrade(float ratio)
         {
             if (ratio >= 0.7f) return "Excellent";
