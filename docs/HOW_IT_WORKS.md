@@ -1,4 +1,4 @@
-Last Updated: Mar 29, 2026
+Last Updated: Mar 31, 2026
 
 # How It Works — Technical Systems Overview
 
@@ -32,9 +32,9 @@ One input, zero failure. The player controls only the intensity of their breath.
 
 ## Procedural Generation
 
-The Unity scene is intentionally minimal — just the boats and manager objects. Everything else is generated at runtime: ocean surface, buoy-marked race course (randomly selected from a layout pool each run), obstacles, environmental zones, background scenery, boat visual effects, and UI overlays. Object pooling prevents garbage collection spikes during gameplay.
+Unity scenes are intentionally minimal — manager objects and a camera. Nearly everything is generated at runtime. In the sailboat: ocean surface, buoy-marked race course (randomly selected from a layout pool each run), obstacles, environmental zones, background scenery, boat visual effects, and UI overlays. In Stargaze: star fields, cloud layers, constellation line art, star name labels, and educational captions. In Bubbles: the bubble wand, splash effects, and floating bubbles. Object pooling prevents garbage collection spikes during gameplay.
 
-This keeps the scene maintainable, makes every run different, and eliminates the art pipeline as a bottleneck during development.
+This keeps scenes maintainable, makes runs varied, and eliminates the art pipeline as a bottleneck.
 
 ---
 
@@ -54,17 +54,19 @@ All sources pass through the same processing: range normalization, EMA smoothing
 
 `BreathPowerSystem` is the universal power variable that all minigames read from. It applies a response curve that compresses the lower input range — light breath produces a proportionally larger effect, keeping the experience rewarding for players with limited lung capacity.
 
-What changes per minigame is interpretation. In the sailboat, breath power becomes wind. The boat always moves at a base speed (the player is never stuck), and breath adds speed on top. The sail visually inflates in proportion to effort. Environmental zones modify the multiplier, driving natural breath variation. All tuning lives in ScriptableObject assets.
+The system also handles spin-down detection. When the player stops blowing, the fan propeller coasts for a few seconds. If breath power drops by 12% or more within one second, the system snaps to zero immediately rather than slowly trailing off. It tracks the lowest raw intensity during the coast-down and resumes the moment it detects a meaningful rise — meaning the player can start blowing again mid-coast and get an instant response.
+
+What changes per minigame is interpretation. In the sailboat, breath power becomes wind. In Stargaze, it pushes clouds off the screen. In Bubbles, it fills the bubble wand's sweet spot. The underlying signal is always the same 0-to-1 value. All tuning lives in ScriptableObject assets.
 
 ---
 
-## Race Structure
+## Session Structure
 
 A session follows a state machine (`GameStateManager`): Menu → Level Select → Calibration (mic only) → Tutorial → Countdown → Playing → Celebration. Each minigame provides its own tutorial content, countdown text, and result stats through the `IMinigame` interface.
 
 The minigame abstraction is handled through `IMinigame` (the contract) and `MinigameBase` (shared boilerplate: analytics lifecycle, session logging, registration). The result overlay, scoring, data persistence, and debug tools all work generically for any game that implements the contract. Per-game metadata is defined in `MinigameDefinition` ScriptableObject assets.
 
-A soft time cap guarantees the player always finishes — the finish line moves to the player if the session runs long.
+Breath input drives the entire flow — not just gameplay. The main menu and level select are navigable by breath (scroll through options by blowing, dwell on a selection for 8 seconds to confirm). Tutorial popups and result screens accept breath as a continue/replay trigger alongside mouse and keyboard. A player can go from launch to playing a minigame without touching any other input device.
 
 ---
 

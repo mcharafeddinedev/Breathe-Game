@@ -1,4 +1,4 @@
-Last Updated: Mar 29, 2026
+Last Updated: Mar 31, 2026
 
 # Project Plan
 
@@ -8,12 +8,12 @@ This repository is public for review and portfolio visibility only. All material
 
 ## Project Snapshot
 
-- **Project:** Breath-controlled minigame collection — SAILBOAT, STARGAZE, BALLOON, SKYDIVE, STONE SKIP, BUBBLES, FROG LEAP
+- **Project:** Breath-controlled minigame collection — SAILBOAT, STARGAZE, BALLOON, BUBBLES, SKYDIVE, STONE SKIP
 - **Engine:** Unity 6 (C#, 2D URP)
 - **Platform:** Windows PC
 - **Input:** Breath only — custom hardware (fan RPM via Arduino), microphone fallback, simulated for development
 - **Design constraints:** Breath-only input (no secondary controls), no-fail design (no loss conditions)
-- **Current phase:** Production — shared minigame infrastructure built, expanding into multi-scene collection
+- **Current phase:** Production — Sailboat complete, Stargaze and Balloon near-complete, Bubbles in progress. Breath-driven menu navigation and universal breath UI controls implemented.
 
 ## Milestone Roadmap
 
@@ -26,7 +26,7 @@ This repository is public for review and portfolio visibility only. All material
 
 **3 - Production** -- Content and polish *(current phase)*
 - Full minigame collection playable, art, audio, complete game loop
-- Status: In progress — shared infrastructure built, sailboat verified, remaining minigames in development
+- Status: In progress — Sailboat complete, Stargaze near-complete (3-round flow, educational captions, adaptive zoom), Balloon prototyped, Bubbles WIP, Skydive and Stone Skip scripted
 
 **4 - Testing** -- External playtesting
 - Documented test sessions with multiple external testers, bug fixes

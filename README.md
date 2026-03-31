@@ -1,4 +1,4 @@
-Last Updated: Mar 30, 2026
+Last Updated: Mar 31, 2026
 
 # BREATHE -- Breath-Controlled Minigame Collection
 
@@ -16,8 +16,8 @@ This project explores whether breath can serve as a compelling primary game inpu
 - **Platform:** Windows PC
 - **Input:** Breath only -- custom hardware (fan RPM via Arduino serial), microphone fallback, simulated for development
 - **Art direction:** Stylized, Wind Waker-inspired aesthetic
-- **Game format:** A collection of breath-only, no-fail minigames -- SAILBOAT, STARGAZE, BALLOON, SKYDIVE, STONE SKIP, BUBBLES, FROG LEAP -- each targeting a different breathing pattern/exercise
-- **Current phase:** Production -- shared infrastructure built, expanding into multi-scene collection, working on BALLOON and STONE SKIP
+- **Game format:** A collection of breath-only, no-fail minigames -- SAILBOAT, STARGAZE, BALLOON, BUBBLES, SKYDIVE, STONE SKIP -- each targeting a different breathing pattern
+- **Current phase:** Production -- Sailboat complete, Stargaze and Balloon near-complete, Bubbles in progress, remaining games scripted. Breath-driven menu navigation implemented.
 
 ## What Makes This Different
 

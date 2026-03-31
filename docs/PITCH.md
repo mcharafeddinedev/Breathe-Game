@@ -1,4 +1,4 @@
-Last Updated: Mar 29, 2026
+Last Updated: Mar 31, 2026
 
 # Pitch: Breathe — Breath-Controlled Minigame Collection
 
@@ -47,7 +47,7 @@ Every race ends with a celebration screen showing personal stats and comparisons
 
 ## Minigame Collection
 
-The project is expanding into a collection of breath-only minigames sharing the same input system and no-fail philosophy. Each minigame targets a different breathing pattern (sustained effort, burst control, gradual ramps, modulated intensity, rhythmic pulsing). The sailboat race is the anchor game; additional games build variety around the same breath mechanic across different settings and scenarios.
+Six breath-only minigames share the same input system and no-fail philosophy. Each targets a different breathing pattern — sustained effort, burst control, gradual ramps, modulated intensity, rhythmic pulsing. The sailboat race is the anchor game. Stargaze has the player clearing clouds from a night sky to discover constellations, with educational captions about each one. Balloon and Bubbles explore controlled, gentle breath. The collection is designed so every game feels different but the input is always the same: just breathe.
 
 ## Input Strategy
 
@@ -63,7 +63,7 @@ The immediate goal is a polished, playable Windows PC game that proves breath-co
 
 ## Current Status
 
-In production. The sailboat race is complete and validated with real hardware. Shared minigame infrastructure is in place. Six minigame definitions are configured (Sailboat, Balloon, Stone Skip, Bubbles, Skydive, Stargaze); the sailboat is fully playable, and the remaining games are in active development.
+In production. Six minigames are in various stages: Sailboat is complete and hardware-validated, Stargaze is near-complete (3-round constellation clearing with educational content), Balloon is prototyped, Bubbles is in progress, and Skydive and Stone Skip are scripted. The main menu and level select are navigable entirely by breath — scroll through options by blowing, dwell to select. Breath also triggers continue/replay buttons across all minigame overlays. The game is fully playable end-to-end without touching a mouse or keyboard.
 
 ## Related Documents
 
