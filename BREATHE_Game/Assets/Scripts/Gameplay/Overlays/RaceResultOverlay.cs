@@ -387,6 +387,13 @@ namespace Breathe.Gameplay
             // Buttons
             bool interactive = _phase == Phase.Shown;
 
+            if (interactive && Event.current.type == EventType.KeyDown
+                && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter))
+            {
+                BeginPopOut(() => SceneLoader.ReloadCurrentScene());
+                Event.current.Use();
+            }
+
             if (GUI.Button(new Rect(bx, btnY, bw, bh), "PLAY  AGAIN", _btnPrimary) && interactive)
                 BeginPopOut(() => SceneLoader.ReloadCurrentScene());
 

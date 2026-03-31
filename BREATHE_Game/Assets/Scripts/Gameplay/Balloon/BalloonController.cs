@@ -9,7 +9,7 @@ namespace Breathe.Gameplay
     {
         [Header("Inflation")]
         [SerializeField] private float _inflationSpeed = 0.6f;
-        [SerializeField] private float _maxScreenFill = 0.78f;
+        [SerializeField] private float _maxScreenFill = 0.68f;
 
         [Header("Grab Animation")]
         [SerializeField] private float _grabDuration = 0.65f;
@@ -145,7 +145,7 @@ namespace Breathe.Gameplay
             _cam = Camera.main;
             EnsureMaterial();
             _balloonTexture = GenerateBalloonTexture(512);
-            _deflatedTexture = GenerateDeflatedBalloonTexture(96, 128);
+            _deflatedTexture = GenerateDeflatedBalloonTexture(128, 160);
             _handTexture = GenerateHandTexture(256, 320);
             _fistTexture = GenerateFistTexture(256);
 
@@ -559,14 +559,17 @@ namespace Breathe.Gameplay
                 float targetScaleY = thresholdScale * HEIGHT_RATIO;
 
                 float growT = Mathf.Clamp01(_inflationProgress / DEFLATED_THRESHOLD);
-                float minFrac = 0.15f;
-                float frac = Mathf.Lerp(minFrac, 1f, growT);
+                float minFrac = 1.0f;
+                float maxFrac = 2.0f;
+                float eased = growT * growT;
+                float frac = Mathf.Lerp(minFrac, maxFrac, eased);
                 _balloonBody.transform.localScale = new Vector3(
                     targetScaleX * frac * _deflatedFlip, -targetScaleY * frac, 1f);
 
                 float nozzleTop = _nozzleY + 0.55f;
                 _balloonBody.transform.position = new Vector3(0f, nozzleTop, -0.05f);
-                _balloonBody.transform.rotation = Quaternion.Euler(0f, 0f, _deflatedTilt);
+                float tiltAmount = _deflatedTilt * 0.3f;
+                _balloonBody.transform.rotation = Quaternion.Euler(0f, 0f, tiltAmount);
 
                 Color muted = baseColor * 0.7f;
                 muted.a = 1f;
@@ -1430,71 +1433,62 @@ namespace Breathe.Gameplay
             return tex;
         }
 
-        // Droopy P shape — narrow neck at top, rounded lobe sagging to one side.
+        // Soft deflated balloon — smooth egg/oval like the inflated balloon but
+        // slightly elongated and not taut. Narrow neck at top for nozzle attachment.
         private static Texture2D GenerateDeflatedBalloonTexture(int width, int height)
         {
             var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
             float w = width;
             float h = height;
 
-            // Neck: narrow stem at the top center (nozzle attachment when flipped)
-            float neckCx = w * 0.50f;
-            float neckCy = h * 0.82f;
+            // Main body: smooth ellipse, center shifted slightly low for egg shape
+            float bodyCx = w * 0.5f;
+            float bodyCy = h * 0.38f;
+            float bodyRx = w * 0.40f;
+            float bodyRy = h * 0.34f;
+
+            // Neck: short squarish connector between body and nozzle
+            float neckCx = w * 0.5f;
+            float neckCy = h * 0.72f;
             float neckRx = w * 0.09f;
-            float neckRy = h * 0.14f;
-
-            // Shoulder: transition from neck into the lobe, offset to one side
-            float shoulderCx = w * 0.55f;
-            float shoulderCy = h * 0.62f;
-            float shoulderRx = w * 0.18f;
-            float shoulderRy = h * 0.14f;
-
-            // Lobe: the main droopy bulge, offset right and sagging down
-            float lobeCx = w * 0.58f;
-            float lobeCy = h * 0.35f;
-            float lobeRx = w * 0.34f;
-            float lobeRy = h * 0.28f;
-
-            // Droop tip: slight extension at the bottom of the lobe
-            float droopCx = w * 0.52f;
-            float droopCy = h * 0.12f;
-            float droopRx = w * 0.18f;
-            float droopRy = h * 0.12f;
+            float neckRy = h * 0.11f;
 
             for (int py = 0; py < height; py++)
             {
                 for (int px = 0; px < width; px++)
                 {
-                    float minDist = 999f;
+                    float bdx = (px - bodyCx) / bodyRx;
+                    float bdy = (py - bodyCy) / bodyRy;
+                    float bodyDist = bdx * bdx + bdy * bdy;
 
-                    float ndx = (px - neckCx) / neckRx;
-                    float ndy = (py - neckCy) / neckRy;
-                    minDist = Mathf.Min(minDist, ndx * ndx + ndy * ndy);
+                    float nax = Mathf.Abs(px - neckCx) / neckRx;
+                    float nay = Mathf.Abs(py - neckCy) / neckRy;
+                    float neckBox = Mathf.Max(nax, nay);
+                    float neckDist = neckBox * neckBox;
 
-                    float sdx = (px - shoulderCx) / shoulderRx;
-                    float sdy = (py - shoulderCy) / shoulderRy;
-                    minDist = Mathf.Min(minDist, sdx * sdx + sdy * sdy);
+                    float dist = Mathf.Min(bodyDist, neckDist);
 
-                    float ldx = (px - lobeCx) / lobeRx;
-                    float ldy = (py - lobeCy) / lobeRy;
-                    minDist = Mathf.Min(minDist, ldx * ldx + ldy * ldy);
-
-                    float ddx = (px - droopCx) / droopRx;
-                    float ddy = (py - droopCy) / droopRy;
-                    minDist = Mathf.Min(minDist, ddx * ddx + ddy * ddy);
-
-                    float alpha = Mathf.Clamp01((1f - minDist) * 4f);
+                    float alpha = Mathf.Clamp01((1f - dist) * 4f);
                     if (alpha <= 0f)
                     {
                         tex.SetPixel(px, py, Color.clear);
                         continue;
                     }
 
-                    float wrinkle1 = Mathf.Abs(Mathf.Sin(py * 0.18f + px * 0.06f)) * 0.05f;
-                    float wrinkle2 = Mathf.Abs(Mathf.Sin(px * 0.14f + py * 0.10f)) * 0.03f;
-                    float shade = 0.88f - Mathf.Clamp01(minDist) * 0.12f - wrinkle1 - wrinkle2;
-                    shade = Mathf.Clamp01(shade);
+                    float shade = 0.82f - Mathf.Clamp01(dist) * 0.14f;
 
+                    // Specular highlight upper-left (matches inflated balloon)
+                    float hlDist = Mathf.Sqrt(
+                        (px - w * 0.36f) * (px - w * 0.36f) +
+                        (py - h * 0.50f) * (py - h * 0.50f));
+                    float hl = Mathf.Clamp01(1f - hlDist / (w * 0.30f));
+                    shade += hl * hl * 0.22f;
+
+                    // Subtle wrinkles for not-taut look
+                    float wrinkle = Mathf.Abs(Mathf.Sin(py * 0.10f + px * 0.04f)) * 0.03f;
+                    shade -= wrinkle;
+
+                    shade = Mathf.Clamp01(shade);
                     tex.SetPixel(px, py, new Color(shade, shade, shade, alpha));
                 }
             }

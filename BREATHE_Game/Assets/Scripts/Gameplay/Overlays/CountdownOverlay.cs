@@ -12,9 +12,13 @@ namespace Breathe.Gameplay
         [SerializeField, Tooltip("How long each number stays on screen.")]
         private float _displayDuration = 0.8f;
 
+        [SerializeField, Tooltip("Extra time the GO text lingers while floating up.")]
+        private float _goFloatDuration = 1.1f;
+
         private string _currentText;
         private float _displayTimer;
         private float _animProgress;
+        private bool _isGoTick;
         private GUIStyle _countdownStyle;
         private string _goText = "GO";
 
@@ -42,8 +46,9 @@ namespace Breathe.Gameplay
 
         private void HandleCountdownTick(int remaining)
         {
-            _currentText = remaining > 0 ? remaining.ToString() : _goText;
-            _displayTimer = _displayDuration;
+            _isGoTick = remaining <= 0;
+            _currentText = _isGoTick ? _goText : remaining.ToString();
+            _displayTimer = _isGoTick ? _goFloatDuration : _displayDuration;
             _animProgress = 0f;
         }
 
@@ -51,8 +56,9 @@ namespace Breathe.Gameplay
         {
             if (_displayTimer > 0f)
             {
+                float dur = _isGoTick ? _goFloatDuration : _displayDuration;
                 _displayTimer -= Time.unscaledDeltaTime;
-                _animProgress = 1f - (_displayTimer / _displayDuration);
+                _animProgress = 1f - (_displayTimer / dur);
             }
             else
             {
@@ -97,11 +103,21 @@ namespace Breathe.Gameplay
             float centerY = Screen.height / 2f;
             float boxWidth = Screen.width * 0.9f;
             float boxHeight = 560f;
-            Rect rect = new Rect(centerX - boxWidth / 2f, centerY - boxHeight / 2f, boxWidth, boxHeight);
+
+            float yOffset = 0f;
+            if (_isGoTick && fading)
+            {
+                float fadeT = (_animProgress - 0.6f) / 0.4f;
+                float eased = fadeT * fadeT;
+                yOffset = -eased * (centerY - boxHeight * 0.2f);
+            }
+
+            Rect rect = new Rect(centerX - boxWidth / 2f,
+                                  centerY - boxHeight / 2f + yOffset,
+                                  boxWidth, boxHeight);
 
             if (fading)
             {
-                // During fade: draw text only (no outline) so it cleanly disappears
                 GUI.Label(rect, _currentText, _countdownStyle);
             }
             else

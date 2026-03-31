@@ -246,6 +246,12 @@ namespace Breathe.Gameplay
                 OnContinueClicked();
                 Event.current.Use();
             }
+            if (Event.current.type == EventType.KeyDown
+                && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter))
+            {
+                OnContinueClicked();
+                Event.current.Use();
+            }
 
             GUI.color = prevColor;
         }
