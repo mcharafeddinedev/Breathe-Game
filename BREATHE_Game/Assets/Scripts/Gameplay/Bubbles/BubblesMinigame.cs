@@ -45,6 +45,7 @@ namespace Breathe.Gameplay
         private GUIStyle _labelStyle;
         private GUIStyle _zoneStyle;
         private GUIStyle _timerStyle;
+        private Texture2D _headerBarTex;
 
         protected override void Awake()
         {
@@ -214,7 +215,7 @@ namespace Breathe.Gameplay
                 new MinigameStat("Score", $"{_totalScore}", _newPBScore, StatTier.Hero),
                 new MinigameStat("Time", $"{_sessionTimer:F1}s", _newPBTime, StatTier.Hero),
                 new MinigameStat("Bubbles", $"{bubbles}", false, StatTier.Primary),
-                new MinigameStat("Best Streak", $"{streakBubbles}  in a row", false, StatTier.Primary),
+                new MinigameStat("Best Streak", $"{streakBubbles} in a row", false, StatTier.Primary),
                 new MinigameStat("Streak Time", $"{longestStreak:F1}s", false, StatTier.Primary),
                 new MinigameStat("Avg Power", $"{avgIntensity * 100f:F0}%", false, StatTier.Secondary),
                 new MinigameStat("Pattern", pattern, false, StatTier.Secondary),
@@ -245,6 +246,10 @@ namespace Breathe.Gameplay
                 return;
 
             BuildHUDStyles();
+
+            // Header bar background
+            if (_headerBarTex != null)
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, 90f), _headerBarTex, ScaleMode.StretchToFill);
 
             int bubbles = _wandController != null ? _wandController.SweetSpotBubblesProduced : 0;
 
@@ -306,7 +311,7 @@ namespace Breathe.Gameplay
 
             _counterStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 38,
+                fontSize = 48,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -315,7 +320,7 @@ namespace Breathe.Gameplay
 
             _labelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 18,
+                fontSize = 24,
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -324,7 +329,7 @@ namespace Breathe.Gameplay
 
             _timerStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 32,
+                fontSize = 40,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -333,12 +338,16 @@ namespace Breathe.Gameplay
 
             _zoneStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 30,
+                fontSize = 42,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _zoneStyle.normal.textColor = Color.white;
             if (f != null) _zoneStyle.font = f;
+
+            _headerBarTex = new Texture2D(1, 1);
+            _headerBarTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.5f));
+            _headerBarTex.Apply();
         }
 
         private static string FormatActivityGrade(float ratio)

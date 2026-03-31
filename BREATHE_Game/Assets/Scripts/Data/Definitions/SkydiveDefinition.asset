@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
   _minigameId: skydive
   _displayName: SKYDIVE
-  _description: Guide  skydivers  onto  targets  by  controlling  the  wind!
+  _description: Guide    skydivers    onto    targets    by    controlling    the   
+    wind!
   _thumbnail: {fileID: 0}
   _breathPattern: Modulated  Control
   _isUnlocked: 0
@@ -23,8 +24,10 @@ MonoBehaviour:
   _countdownGoText: DIVE!
   _postCountdownBuffer: 0
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: "A crosswind pushes each skydiver sideways as they fall.
-    Blow to push them the opposite direction!\n\nControl your breath intensity to
-    guide the skydiver onto the target pad. Light breath nudges gently \u2014 hard
-    breath pushes fast."
-  _tutorialTip: Watch the wind direction arrow and match your effort to steer!
+  _tutorialInstruction: "A    crosswind    pushes    each    skydiver    sideways   
+    as    they    fall.    Blow    to    push    them    the    opposite    direction!\n\nControl   
+    your    breath    intensity    to    guide    the    skydiver    onto    the   
+    target    pad.    Light    breath    nudges    gently    \u2014    hard    breath   
+    pushes    fast."
+  _tutorialTip: Watch    the    wind    direction    arrow    and    match    your   
+    effort    to    steer!

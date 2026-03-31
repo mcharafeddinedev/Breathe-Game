@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
   _minigameId: stoneskip
   _displayName: STONE  SKIP
-  _description: Skip  stones  across  a  beautiful  lake  with  a  single  breath!
+  _description: Skip    stones    across    a    beautiful    lake    with    a   
+    single,   powerful    breath!
   _thumbnail: {fileID: 0}
   _breathPattern: Burst  Calibration
   _isUnlocked: 0
@@ -23,10 +24,13 @@ MonoBehaviour:
   _countdownGoText: MAXIMUM POWER!
   _postCountdownBuffer: 0.2
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: 'Give one strong blow to throw a stone! The harder you blow,
-    the farther it skips across the water.
+  _tutorialInstruction: 'Give    one    strong    blow    to    throw    a    stone!    
+    The     harder     you     blow,     the     farther     it     skips     across    
+    the     water.
 
 
-    After the stone slows and sinks,
-    a new one appears. Skip as many stones as you can before time runs out!'
-  _tutorialTip: "One big puff per stone \u2014 make it count!"
+    After     the     stone     slows     and     sinks,    
+    a     new     one     appears.     Skip     as     many     stones     as    
+    you     can     before     time     runs     out!'
+  _tutorialTip: "One     big     puff     per     stone     \u2014     make     it    
+    count!"

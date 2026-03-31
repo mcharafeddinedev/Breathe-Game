@@ -138,6 +138,12 @@ namespace Breathe.Gameplay
                     }
                     break;
 
+                case Phase.Visible:
+                    if (BreathPowerSystem.Instance != null &&
+                        BreathPowerSystem.Instance.CurrentBreathPower >= 0.08f)
+                        OnContinueClicked();
+                    break;
+
                 case Phase.FadingOut:
                     _timer += dt;
                     _alpha = 1f - Mathf.Clamp01(_timer / _fadeOutDuration);

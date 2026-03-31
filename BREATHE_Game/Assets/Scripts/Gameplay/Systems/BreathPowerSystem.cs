@@ -23,6 +23,21 @@ namespace Breathe.Gameplay
         private float _smoothedBreathPower;
         private int _previousThresholdIndex = -1;
 
+        // Spin-down detection: snaps power to 0 when the fan is clearly winding
+        // down (sustained decline of >= SpinDownThreshold within SpinDownWindow).
+        // While suppressed, tracks the lowest raw intensity (the trough). Resumes
+        // when raw rises ResumeRiseDelta above the trough — meaning the user is
+        // actively blowing again, even if the fan hasn't fully stopped.
+        private const float SpinDownThreshold = 0.12f;
+        private const float SpinDownWindow = 1.0f;
+        private const float ResumeRiseDelta = 0.06f;
+        private float _decayBaseline;
+        private float _declineTimer;
+        private bool _inputSuppressed;
+        private float _suppressedRawTrough;
+        private float _lastComputedPower;
+        private float _lastRawIntensity;
+
         public float BreathPower { get; private set; }
         public float CurrentBreathPower => BreathPower;
 
@@ -49,7 +64,47 @@ namespace Breathe.Gameplay
                 1f - Mathf.Pow(_smoothingFactor, Time.deltaTime * 60f));
 
             float curved = Mathf.Pow(Mathf.Clamp01(_smoothedBreathPower), _responseCurveExponent);
-            BreathPower = Mathf.Clamp01(curved);
+            float computedPower = Mathf.Clamp01(curved);
+
+            if (!_inputSuppressed)
+            {
+                float drop = _lastComputedPower - computedPower;
+                if (drop > 0.001f)
+                {
+                    if (_declineTimer <= 0f)
+                        _decayBaseline = _lastComputedPower;
+                    _declineTimer += Time.deltaTime;
+
+                    if (_declineTimer <= SpinDownWindow &&
+                        (_decayBaseline - computedPower) >= SpinDownThreshold)
+                    {
+                        _inputSuppressed = true;
+                        _suppressedRawTrough = effective;
+                        _smoothedBreathPower = 0f;
+                        Debug.Log($"[BreathPower] Spin-down detected (baseline {_decayBaseline:F2} → {computedPower:F2}). Suppressing to 0.");
+                    }
+                }
+                else
+                {
+                    _declineTimer = 0f;
+                }
+            }
+            else
+            {
+                _smoothedBreathPower = 0f;
+                _suppressedRawTrough = Mathf.Min(_suppressedRawTrough, effective);
+
+                if (effective > _suppressedRawTrough + ResumeRiseDelta)
+                {
+                    _inputSuppressed = false;
+                    _declineTimer = 0f;
+                    Debug.Log($"[BreathPower] Input resumed (raw {effective:F3}, trough was {_suppressedRawTrough:F3}).");
+                }
+            }
+
+            _lastComputedPower = computedPower;
+            _lastRawIntensity = effective;
+            BreathPower = _inputSuppressed ? 0f : computedPower;
 
             LogThresholdCrossings();
         }

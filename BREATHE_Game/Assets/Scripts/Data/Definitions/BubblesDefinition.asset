@@ -14,17 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
   _minigameId: bubbles
   _displayName: BUBBLES
-  _description: Blow  rhythmic  bubble  chains  and  chase  streaks!
+  _description: Blow    rhythmic    bubble    chains    and    chase    streaks!
   _thumbnail: {fileID: 0}
   _breathPattern: Rhythmic  Pulsing
-  _isUnlocked: 0
+  _isUnlocked: 1
   _cardColor: {r: 1, g: 0.5, b: 0.7, a: 1}
   _sceneName: BUBBLES
-  _countdownGoText: BUBBLES!
+  _countdownGoText: FIND THE SWEET SPOT!
   _postCountdownBuffer: 0
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: "Blow short, rhythmic puffs to create bubbles! Each puff
-    makes one bubble that floats upward.\n\nKeep a steady rhythm to build your streak
-    \u2014 evenly-paced puffs score more points. Hold a long blow to create a giant
-    bubble!"
-  _tutorialTip: Watch the bubble wand pulse for the ideal rhythm!
+  _tutorialInstruction: "Blow    short,     rhythmic     puffs     to     create    
+    bubbles!     Each     puff     makes     one     bubble     that     floats    
+    upward.\n\nKeep     a     steady     rhythm     to     build     your     streak    
+    \u2014     evenly-paced     puffs     score     more     points.     Hold    
+    a     long     steady    breath     to     create     a     giant     bubble   
+    chain!"
+  _tutorialTip: Watch     the     bubble     wand     effects     and    text   
+    to    find    the    sweet    spot!

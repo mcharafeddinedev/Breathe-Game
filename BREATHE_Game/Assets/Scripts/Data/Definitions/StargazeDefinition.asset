@@ -14,18 +14,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
   _minigameId: stargaze
   _displayName: STARGAZE
-  _description: Clear  clouds  from  the  night  sky  to  reveal  hidden  constellations!
+  _description: Clear    clouds    from    the    night    sky    to    reveal   
+    hidden    constellations!
   _thumbnail: {fileID: 0}
   _breathPattern: Sustained  and  Burst
-  _isUnlocked: 0
+  _isUnlocked: 1
   _cardColor: {r: 0.3, g: 0.15, b: 0.5, a: 1}
   _sceneName: STARGAZE
   _countdownGoText: CLEAR THE SKIES!
   _postCountdownBuffer: 0
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: 'Blow steadily to push clouds aside and uncover the stars
-    hiding beneath!
+  _tutorialInstruction: 'Blow    steadily    to    push    clouds    aside    and   
+    uncover    the    stars    hiding    beneath!
 
 
-    Reveal enough stars in a group to discover a constellation!'
-  _tutorialTip: "Clouds drift back slowly \u2014 keep blowing to hold areas clear!"
+    Reveal    enough    stars   
+    in    a    group    to    discover    a    constellation!'
+  _tutorialTip: "Clouds    drift    back    slowly    \u2014    keep    blowing   
+    to    hold    areas    clear!"

@@ -14,18 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameDefinition
   _minigameId: sailboat
   _displayName: SAILBOAT
-  _description: Blow  steadily   to   fill   your   sails   and   race   across  
-    the   finish   line!
+  _description: Blow   steadily    to    fill    your    sails    and    race   
+    across    the    finish    line!
   _thumbnail: {fileID: 0}
   _breathPattern: Sustained  Breathing
   _isUnlocked: 1
   _cardColor: {r: 0.20719108, g: 0.6792453, b: 0.30551732, a: 1}
   _sceneName: SAILBOAT
+  _countdownGoText: GO
+  _postCountdownBuffer: 0
   _tutorialTitle: HOW   TO   PLAY
-  _tutorialInstruction: 'Blow   steadily  into   the   device   to   fill  your 
-    sails  and  move   your   boat   forward!
+  _tutorialInstruction: 'Blow    steadily    into    the    device    to    fill   
+    your    sails    and    move    your    boat    forward!
 
 
-    Longer,  steady  breaths  are  
-    more   effective  than  quick  puffs.'
-  _tutorialTip: Keep   breathing   to   maintain   your   speed!
+    Longer,    steady   
+    breaths    are    more     effective    than    quick    puffs.'
+  _tutorialTip: Keep    breathing    to    maintain    your    speed!

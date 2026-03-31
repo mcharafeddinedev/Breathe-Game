@@ -8,9 +8,9 @@ namespace Breathe.Gameplay
     public class BubbleWandController : MonoBehaviour
     {
         [Header("Sweet Spot")]
-        [SerializeField] private float _sweetSpotMin = 0.30f;
-        [SerializeField] private float _sweetSpotMax = 0.60f;
-        [SerializeField] private float _gentleMin = 0.05f;
+        [SerializeField] private float _sweetSpotMin = 0.18f;
+        [SerializeField] private float _sweetSpotMax = 0.70f;
+        [SerializeField] private float _gentleMin = 0.03f;
 
         [Header("Bubble Spawning")]
         [SerializeField] private float _sweetSpotSpawnRate = 4f;
@@ -46,6 +46,7 @@ namespace Breathe.Gameplay
             public float BaseX;
             public float Size;
             public bool IsSweetSpot;
+            public Color BaseColor;
         }
 
         private List<Bubble> _activeBubbles = new();
@@ -53,17 +54,24 @@ namespace Breathe.Gameplay
         private float _splashTimer;
         private BreathZone _currentZone;
         private bool _active;
+        private float _debugLogTimer;
 
         // Scene objects
         private GameObject _wandObj;
         private LineRenderer _wandRing;
         private LineRenderer _wandHandle;
+        private SpriteRenderer _wandFilm;
         private List<GameObject> _splashParticles = new();
         private float _splashAnimTimer;
         private GameObject _backgroundObj;
 
         private static Material _spriteMat;
         private Texture2D _bubbleTex;
+
+        // Camera-relative positioning (computed once)
+        private Camera _cam;
+        private float _ringLocalY;   // ring center Y, relative to camera center
+        private float _ringRadius;
 
         // Tracking
         private int _sweetSpotBubblesProduced;
@@ -176,21 +184,52 @@ namespace Breathe.Gameplay
             _longestStreakBubbles = 0;
         }
 
+        private float RingWorldY => _cam != null ? _cam.transform.position.y + _ringLocalY : 0f;
+        private float RingWorldX => _cam != null ? _cam.transform.position.x : 0f;
+
+        private void UpdateWandWorldPositions(float shakeX)
+        {
+            if (_cam == null) return;
+            float cx = _cam.transform.position.x + shakeX;
+            float ringY = RingWorldY;
+            float z = 0f;
+
+            if (_wandRing != null)
+            {
+                for (int i = 0; i < _wandRing.positionCount; i++)
+                {
+                    float angle = (float)i / _wandRing.positionCount * Mathf.PI * 2f;
+                    _wandRing.SetPosition(i, new Vector3(
+                        cx + Mathf.Cos(angle) * _ringRadius,
+                        ringY + Mathf.Sin(angle) * _ringRadius,
+                        z));
+                }
+            }
+
+            if (_wandHandle != null)
+            {
+                float handleTop = ringY - _ringRadius;
+                _wandHandle.SetPosition(0, new Vector3(cx, handleTop, z));
+                _wandHandle.SetPosition(1, new Vector3(cx, handleTop - 4f, z));
+            }
+
+            if (_wandFilm != null)
+                _wandFilm.transform.position = new Vector3(cx, ringY, z + 0.01f);
+        }
+
         private void SpawnBubble(bool isSweetSpot, float power)
         {
             if (_activeBubbles.Count >= _maxActiveBubbles) return;
 
             var obj = new GameObject("Bubble");
-            obj.transform.SetParent(transform);
             var sr = obj.AddComponent<SpriteRenderer>();
             sr.sprite = Sprite.Create(_bubbleTex,
                 new Rect(0, 0, _bubbleTex.width, _bubbleTex.height),
                 new Vector2(0.5f, 0.5f), 32f);
             sr.sortingOrder = 5;
 
-            float xSpread = isSweetSpot ? 1.2f : 0.5f;
+            float xSpread = isSweetSpot ? _ringRadius * 1.2f : _ringRadius * 0.5f;
             float baseX = Random.Range(-xSpread, xSpread);
-            float wandY = -3f;
 
             float size;
             float lifetime;
@@ -212,7 +251,7 @@ namespace Breathe.Gameplay
             }
 
             sr.color = color;
-            obj.transform.position = new Vector3(baseX, wandY + 0.5f, 0f);
+            obj.transform.position = new Vector3(RingWorldX + baseX, RingWorldY + 0.3f, 0f);
             obj.transform.localScale = Vector3.one * size;
 
             _activeBubbles.Add(new Bubble
@@ -224,7 +263,8 @@ namespace Breathe.Gameplay
                 WobblePhase = Random.Range(0f, Mathf.PI * 2f),
                 BaseX = baseX,
                 Size = size,
-                IsSweetSpot = isSweetSpot
+                IsSweetSpot = isSweetSpot,
+                BaseColor = color
             });
         }
 
@@ -246,56 +286,57 @@ namespace Breathe.Gameplay
                     continue;
                 }
 
-                // Rise upward
-                float y = -3f + 0.5f + b.Lifetime * _riseSpeed;
+                float y = RingWorldY + 0.3f + b.Lifetime * _riseSpeed;
 
-                // Wobble side to side
                 float wobbleX = Mathf.Sin(b.Lifetime * _wobbleFrequency + b.WobblePhase) * _wobbleAmplitude;
-                float x = b.BaseX + wobbleX;
+                float x = RingWorldX + b.BaseX + wobbleX;
 
                 b.Obj.transform.position = new Vector3(x, y, 0f);
 
-                // Sweet-spot bubbles grow slightly as they rise
                 float sizeScale = b.IsSweetSpot ? (1f + t * 0.3f) : (1f - t * 0.5f);
                 b.Obj.transform.localScale = Vector3.one * b.Size * sizeScale;
 
-                // Fade near end of life
                 float alpha = t > 0.7f ? Mathf.Lerp(1f, 0f, (t - 0.7f) / 0.3f) : 1f;
-                Color c = b.Renderer.color;
-                c.a = (b.IsSweetSpot ? 0.7f : 0.3f) * alpha;
-                b.Renderer.color = c;
 
-                // Iridescent shimmer for sweet-spot bubbles
                 if (b.IsSweetSpot)
                 {
-                    float hueShift = Mathf.Sin(b.Lifetime * 1.5f + b.WobblePhase) * 0.05f;
-                    Color.RGBToHSV(b.Renderer.color, out float h, out float s, out float v);
+                    float hueShift = Mathf.Sin(b.Lifetime * 0.5f + b.WobblePhase) * 0.03f;
+                    Color.RGBToHSV(b.BaseColor, out float h, out float s, out float v);
                     Color shimmer = Color.HSVToRGB(Mathf.Repeat(h + hueShift, 1f), s, v);
-                    shimmer.a = c.a;
+                    shimmer.a = b.BaseColor.a * alpha;
                     b.Renderer.color = shimmer;
+                }
+                else
+                {
+                    Color c = b.BaseColor;
+                    c.a = c.a * alpha;
+                    b.Renderer.color = c;
                 }
             }
         }
 
         private void SpawnSplash(float power)
         {
-            int particleCount = Random.Range(4, 8);
+            int particleCount = Random.Range(6, 12);
             for (int i = 0; i < particleCount; i++)
             {
                 var obj = new GameObject("SplashDrop");
-                obj.transform.SetParent(transform);
                 var sr = obj.AddComponent<SpriteRenderer>();
                 sr.sprite = Sprite.Create(_bubbleTex,
                     new Rect(0, 0, _bubbleTex.width, _bubbleTex.height),
-                    new Vector2(0.5f, 0.5f), 64f);
-                sr.color = new Color(0.7f, 0.8f, 0.95f, 0.8f);
+                    new Vector2(0.5f, 0.5f), 32f);
+                Color splashColor = Random.value > 0.5f
+                    ? new Color(0.5f, 0.7f, 1f, 1f)
+                    : new Color(0.8f, 0.9f, 1f, 0.95f);
+                sr.color = splashColor;
                 sr.sortingOrder = 6;
 
-                float angle = Random.Range(-70f, 70f) * Mathf.Deg2Rad;
-                float speed = Random.Range(2f, 5f) * power;
+                float angle = Random.Range(-80f, 80f) * Mathf.Deg2Rad;
+                float speed = Random.Range(3f, 7f) * power;
                 obj.transform.position = new Vector3(
-                    Random.Range(-0.5f, 0.5f), -2.5f, -0.2f);
-                obj.transform.localScale = Vector3.one * Random.Range(0.1f, 0.25f);
+                    RingWorldX + Random.Range(-_ringRadius * 0.5f, _ringRadius * 0.5f),
+                    RingWorldY, -0.2f);
+                obj.transform.localScale = Vector3.one * Random.Range(0.15f, 0.4f);
 
                 // Store velocity in a quick component
                 var mover = obj.AddComponent<SplashDropMover>();
@@ -335,10 +376,16 @@ namespace Breathe.Gameplay
             _wandRing.startColor = ringColor;
             _wandRing.endColor = ringColor;
 
-            // Shake the wand when too aggressive
             float shake = _currentZone == BreathZone.TooAggressive
                 ? Random.Range(-0.08f, 0.08f) : 0f;
-            _wandObj.transform.position = new Vector3(shake, -3f, -0.5f);
+            UpdateWandWorldPositions(shake);
+
+            _debugLogTimer += Time.deltaTime;
+            if (_debugLogTimer >= 3f)
+            {
+                _debugLogTimer = 0f;
+                Debug.Log($"[BubbleWand:Tick] ringWorldY={RingWorldY:F2} ringPt0={(_wandRing != null ? _wandRing.GetPosition(0).ToString("F2") : "null")}");
+            }
         }
 
         private void BuildBackground()
@@ -348,7 +395,6 @@ namespace Breathe.Gameplay
                 cam.backgroundColor = new Color(0.65f, 0.85f, 0.70f);
 
             _backgroundObj = new GameObject("BubblesBackground");
-            _backgroundObj.transform.SetParent(transform);
             var sr = _backgroundObj.AddComponent<SpriteRenderer>();
             var bgTex = GenerateGradientTexture(4, 64,
                 new Color(0.55f, 0.80f, 0.60f),
@@ -356,66 +402,61 @@ namespace Breathe.Gameplay
             sr.sprite = Sprite.Create(bgTex, new Rect(0, 0, bgTex.width, bgTex.height),
                 new Vector2(0.5f, 0.5f), 8f);
             sr.sortingOrder = -20;
-            _backgroundObj.transform.position = new Vector3(0f, 1f, 10f);
+            float bgZ = cam != null ? cam.transform.position.z + 20f : 10f;
+            _backgroundObj.transform.position = new Vector3(0f, 1f, bgZ);
             _backgroundObj.transform.localScale = new Vector3(30f, 20f, 1f);
         }
 
         private void BuildWand()
         {
-            _wandObj = new GameObject("BubbleWand");
-            _wandObj.transform.SetParent(transform);
-            _wandObj.transform.position = new Vector3(0f, -3f, -0.5f);
+            _cam = Camera.main;
+            float orthoH = _cam.orthographicSize;
+            float halfW = orthoH * _cam.aspect;
 
-            // Wand ring
-            var ringObj = new GameObject("WandRing");
-            ringObj.transform.SetParent(_wandObj.transform);
-            _wandRing = ringObj.AddComponent<LineRenderer>();
-            _wandRing.useWorldSpace = false;
+            _ringRadius = Mathf.Max(halfW * 0.10f, 0.8f);
+            _ringLocalY = -orthoH + orthoH * 2f * 0.3f;
+
+            _wandObj = new GameObject("BubbleWand");
+
+            Debug.Log($"[BubbleWand:Build] cam=({_cam.transform.position.x:F1},{_cam.transform.position.y:F1},{_cam.transform.position.z:F1}) " +
+                      $"orthoH={orthoH:F2} ringWorldY={RingWorldY:F2} ringRadius={_ringRadius:F2}");
+
+            // Wand ring — useWorldSpace so positions are absolute
+            _wandRing = _wandObj.AddComponent<LineRenderer>();
+            _wandRing.useWorldSpace = true;
             _wandRing.loop = true;
             _wandRing.material = _spriteMat;
             _wandRing.startColor = new Color(0.5f, 0.5f, 0.55f, 0.6f);
             _wandRing.endColor = new Color(0.5f, 0.5f, 0.55f, 0.6f);
-            _wandRing.widthMultiplier = 0.08f;
+            _wandRing.widthMultiplier = 0.10f;
             _wandRing.sortingOrder = 3;
             _wandRing.numCornerVertices = 6;
+            _wandRing.positionCount = 32;
 
-            int ringSegs = 32;
-            _wandRing.positionCount = ringSegs;
-            float ringRadius = 0.7f;
-            for (int i = 0; i < ringSegs; i++)
-            {
-                float angle = (float)i / ringSegs * Mathf.PI * 2f;
-                _wandRing.SetPosition(i, new Vector3(
-                    Mathf.Cos(angle) * ringRadius,
-                    Mathf.Sin(angle) * ringRadius + 0.8f, 0f));
-            }
-
-            // Film inside ring (subtle)
-            var filmObj = new GameObject("WandFilm");
-            filmObj.transform.SetParent(_wandObj.transform);
-            var filmRend = filmObj.AddComponent<SpriteRenderer>();
-            filmRend.sprite = Sprite.Create(_bubbleTex,
-                new Rect(0, 0, _bubbleTex.width, _bubbleTex.height),
-                new Vector2(0.5f, 0.5f), 32f);
-            filmRend.color = new Color(0.7f, 0.8f, 0.95f, 0.15f);
-            filmRend.sortingOrder = 2;
-            filmObj.transform.localPosition = new Vector3(0f, 0.8f, 0.01f);
-            filmObj.transform.localScale = new Vector3(1.3f, 1.3f, 1f);
-
-            // Handle
+            // Handle — also world space
             var handleObj = new GameObject("WandHandle");
-            handleObj.transform.SetParent(_wandObj.transform);
             _wandHandle = handleObj.AddComponent<LineRenderer>();
-            _wandHandle.useWorldSpace = false;
+            _wandHandle.useWorldSpace = true;
             _wandHandle.positionCount = 2;
             _wandHandle.material = _spriteMat;
             _wandHandle.startColor = new Color(0.55f, 0.40f, 0.25f);
             _wandHandle.endColor = new Color(0.50f, 0.35f, 0.20f);
-            _wandHandle.startWidth = 0.12f;
-            _wandHandle.endWidth = 0.10f;
+            _wandHandle.startWidth = 0.15f;
+            _wandHandle.endWidth = 0.12f;
             _wandHandle.sortingOrder = 1;
-            _wandHandle.SetPosition(0, new Vector3(0f, 0.1f, 0f));
-            _wandHandle.SetPosition(1, new Vector3(0f, -2f, 0f));
+
+            // Film inside ring
+            var filmObj = new GameObject("WandFilm");
+            _wandFilm = filmObj.AddComponent<SpriteRenderer>();
+            _wandFilm.sprite = Sprite.Create(_bubbleTex,
+                new Rect(0, 0, _bubbleTex.width, _bubbleTex.height),
+                new Vector2(0.5f, 0.5f), 32f);
+            _wandFilm.color = new Color(0.7f, 0.8f, 0.95f, 0.15f);
+            _wandFilm.sortingOrder = 2;
+            float filmScale = _ringRadius / 0.7f * 1.3f;
+            filmObj.transform.localScale = new Vector3(filmScale, filmScale, 1f);
+
+            UpdateWandWorldPositions(0f);
         }
 
         private static void EnsureMaterial()

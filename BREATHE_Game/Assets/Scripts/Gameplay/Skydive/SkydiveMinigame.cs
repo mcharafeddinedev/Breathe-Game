@@ -59,6 +59,9 @@ namespace Breathe.Gameplay
         private float _landingFeedbackTimer;
         private Color _landingFeedbackColor;
 
+        private float _windChangeTimer;
+        private GUIStyle _windChangeStyle;
+
         protected override void Awake()
         {
             base.Awake();
@@ -140,6 +143,11 @@ namespace Breathe.Gameplay
             {
                 case Phase.DiverFalling:
                     _controller.UpdateDiver(breathPower);
+
+                    if (_controller.WindChangedThisFrame)
+                        _windChangeTimer = 2.5f;
+                    if (_windChangeTimer > 0f)
+                        _windChangeTimer -= Time.deltaTime;
 
                     if (_controller.State == SkydiverController.DiverState.Landed)
                     {
@@ -352,6 +360,26 @@ namespace Breathe.Gameplay
                 _windStyle.normal.textColor = new Color(0.8f, 0.85f, 1f, 0.4f + windAlpha * 0.6f);
                 Rect windRect = new Rect(0f, Screen.height - 60f, Screen.width, 36f);
                 GameFont.OutlinedLabel(windRect, $"WIND  {windDir}", _windStyle);
+            }
+
+            // Wind change popup
+            if (_windChangeTimer > 0f)
+            {
+                if (_windChangeStyle == null)
+                {
+                    Font wf = GameFont.Get();
+                    _windChangeStyle = new GUIStyle(GUI.skin.label)
+                    {
+                        fontSize = 26,
+                        fontStyle = FontStyle.Bold,
+                        alignment = TextAnchor.MiddleCenter
+                    };
+                    if (wf != null) _windChangeStyle.font = wf;
+                }
+                float wAlpha = Mathf.Clamp01(_windChangeTimer / 1.2f);
+                _windChangeStyle.normal.textColor = new Color(1f, 0.9f, 0.5f, wAlpha);
+                Rect wcRect = new Rect(0f, Screen.height * 0.55f, Screen.width, 40f);
+                GameFont.OutlinedLabel(wcRect, "WIND  SHIFT!  BLOW  TO  GUIDE!", _windChangeStyle, 2);
             }
 
             // Landing feedback text

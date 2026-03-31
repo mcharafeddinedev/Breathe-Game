@@ -173,6 +173,12 @@ namespace Breathe.Gameplay
                     }
                     break;
 
+                case Phase.Shown:
+                    if (BreathPowerSystem.Instance != null &&
+                        BreathPowerSystem.Instance.CurrentBreathPower >= 0.08f)
+                        BeginPopOut(() => SceneLoader.ReloadCurrentScene());
+                    break;
+
                 case Phase.PoppingOut:
                     _timer += Time.deltaTime;
                     float tOut = Mathf.Clamp01(_timer / _popOutDuration);
@@ -439,9 +445,11 @@ namespace Breathe.Gameplay
             _heroSubStyle = Lbl(40, FontStyle.Bold, TextAnchor.MiddleCenter,
                 new Color(0.9f, 0.95f, 1f));
 
-            _primaryStatValue = Lbl(34, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _primaryStatValue = Lbl(28, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _primaryStatValue.clipping = TextClipping.Overflow;
             _primaryStatLabel = Lbl(18, FontStyle.Normal, TextAnchor.MiddleCenter,
                 new Color(0.55f, 0.6f, 0.7f));
+            _primaryStatLabel.clipping = TextClipping.Overflow;
 
             _secondaryValue = Lbl(22, FontStyle.Bold, TextAnchor.MiddleCenter,
                 new Color(0.75f, 0.78f, 0.85f));

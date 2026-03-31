@@ -7,21 +7,24 @@ namespace Breathe.Gameplay
     public class SkydiverController : MonoBehaviour
     {
         [Header("World Bounds")]
-        [SerializeField] private float _groundY = -3.5f;
+        [SerializeField] private float _groundY = -4.5f;
         [SerializeField] private float _spawnY = 5.5f;
         [SerializeField] private float _xMin = -7f;
         [SerializeField] private float _xMax = 7f;
 
         [Header("Fall")]
-        [SerializeField] private float _fallSpeed = 1.8f;
+        [SerializeField] private float _fallSpeed = 1.1f;
 
         [Header("Wind")]
-        [SerializeField] private float _windCyclePeriodMin = 2f;
-        [SerializeField] private float _windCyclePeriodMax = 4f;
+        [SerializeField] private float _windCyclePeriodMin = 4.5f;
+        [SerializeField] private float _windCyclePeriodMax = 6f;
         [SerializeField] private float _windMaxForce = 3.5f;
 
         [Header("Breath Opposition")]
         [SerializeField] private float _breathForceMultiplier = 5f;
+
+        [Header("Target Drift")]
+        [SerializeField] private float _targetDriftForce = 0.8f;
 
         [Header("Landing")]
         [SerializeField] private float _perfectRadius = 0.5f;
@@ -43,6 +46,8 @@ namespace Breathe.Gameplay
         private GameObject _diverObj;
         private LineRenderer[] _diverLines;
         private SpriteRenderer _diverHead;
+        private SpriteRenderer _canopyRenderer;
+        private LineRenderer[] _chuteStrings;
         private GameObject _targetObj;
         private SpriteRenderer[] _targetRings;
         private LineRenderer[] _windStreaks;
@@ -64,8 +69,10 @@ namespace Breathe.Gameplay
 
         private LandingQuality _lastLandingQuality;
         private float _lastLandingDistance;
+        private float _prevWindSign;
         public LandingQuality LastLandingQuality => _lastLandingQuality;
         public float LastLandingDistance => _lastLandingDistance;
+        public bool WindChangedThisFrame { get; private set; }
 
         public void Initialize()
         {
@@ -94,6 +101,7 @@ namespace Breathe.Gameplay
 
             _windPhase = Random.Range(0f, Mathf.PI * 2f);
             _windCyclePeriod = Random.Range(_windCyclePeriodMin, _windCyclePeriodMax);
+            _prevWindSign = 0f;
 
             _diverObj.SetActive(true);
             UpdateTargetPosition();
@@ -111,15 +119,19 @@ namespace Breathe.Gameplay
             if (_state != DiverState.Falling) return;
 
             float dt = Time.deltaTime;
+            WindChangedThisFrame = false;
 
-            // Wind: gradual sine-wave oscillation
             _windPhase += dt * (Mathf.PI * 2f / _windCyclePeriod);
             _currentWindForce = Mathf.Sin(_windPhase) * _windMaxForce;
 
-            // Smooth display wind for telegraph (lags slightly behind actual)
+            float newSign = Mathf.Sign(_currentWindForce);
+            if (_prevWindSign != 0f && newSign != _prevWindSign && Mathf.Abs(_currentWindForce) > 0.2f)
+                WindChangedThisFrame = true;
+            if (Mathf.Abs(_currentWindForce) > 0.2f)
+                _prevWindSign = newSign;
+
             _displayWindForce = Mathf.Lerp(_displayWindForce, _currentWindForce, dt * 3f);
 
-            // Breath opposes wind direction
             float breathForce = 0f;
             if (Mathf.Abs(_currentWindForce) > 0.1f)
             {
@@ -127,8 +139,11 @@ namespace Breathe.Gameplay
                 breathForce = oppositionDir * breathPower * _breathForceMultiplier;
             }
 
-            // Apply forces
-            float totalXForce = _currentWindForce + breathForce;
+            float targetDiff = _targetX - _diverPos.x;
+            float driftForce = Mathf.Sign(targetDiff)
+                * Mathf.Min(Mathf.Abs(targetDiff) * 0.3f, _targetDriftForce);
+
+            float totalXForce = _currentWindForce + breathForce + driftForce;
             _diverPos.x += totalXForce * dt;
             _diverPos.x = Mathf.Clamp(_diverPos.x, _xMin, _xMax);
             _diverPos.y -= _fallSpeed * dt;
@@ -320,8 +335,8 @@ namespace Breathe.Gameplay
         {
             _diverObj = new GameObject("Skydiver");
             _diverObj.transform.SetParent(transform);
+            _diverObj.transform.localScale = Vector3.one * 0.5f;
 
-            // Stick figure
             _diverLines = new LineRenderer[5];
             string[] names = { "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg" };
             Vector3[][] poses = {
@@ -347,7 +362,6 @@ namespace Breathe.Gameplay
                 _diverLines[i].SetPositions(poses[i]);
             }
 
-            // Head
             var headObj = new GameObject("Head");
             headObj.transform.SetParent(_diverObj.transform);
             _diverHead = headObj.AddComponent<SpriteRenderer>();
@@ -359,7 +373,6 @@ namespace Breathe.Gameplay
             headObj.transform.localPosition = new Vector3(0f, 1.1f, 0f);
             headObj.transform.localScale = Vector3.one * 0.5f;
 
-            // Helmet/goggles
             var helmetObj = new GameObject("Helmet");
             helmetObj.transform.SetParent(_diverObj.transform);
             var helmetRend = helmetObj.AddComponent<SpriteRenderer>();
@@ -371,7 +384,93 @@ namespace Breathe.Gameplay
             helmetObj.transform.localPosition = new Vector3(0f, 1.15f, -0.01f);
             helmetObj.transform.localScale = new Vector3(0.55f, 0.35f, 1f);
 
+            BuildParachute();
             _diverObj.SetActive(false);
+        }
+
+        private void BuildParachute()
+        {
+            var canopyTex = GenerateCanopyTexture(128);
+            var canopyObj = new GameObject("Canopy");
+            canopyObj.transform.SetParent(_diverObj.transform);
+            _canopyRenderer = canopyObj.AddComponent<SpriteRenderer>();
+            _canopyRenderer.sprite = Sprite.Create(canopyTex,
+                new Rect(0, 0, canopyTex.width, canopyTex.height),
+                new Vector2(0.5f, 0f), 24f);
+            _canopyRenderer.sortingOrder = 8;
+            canopyObj.transform.localPosition = new Vector3(0f, 2.8f, 0f);
+            canopyObj.transform.localScale = new Vector3(4.5f, 3f, 1f);
+
+            Vector3[] canopyAnchors = {
+                new Vector3(-1.8f, 2.8f, 0f),
+                new Vector3(-0.6f, 3.6f, 0f),
+                new Vector3( 0.6f, 3.6f, 0f),
+                new Vector3( 1.8f, 2.8f, 0f)
+            };
+            Vector3[] bodyAnchors = {
+                new Vector3(-0.4f, 0.65f, 0f),
+                new Vector3(-0.05f, 0.75f, 0f),
+                new Vector3( 0.05f, 0.75f, 0f),
+                new Vector3( 0.4f, 0.65f, 0f)
+            };
+
+            _chuteStrings = new LineRenderer[4];
+            for (int i = 0; i < 4; i++)
+            {
+                var stringObj = new GameObject($"ChuteString_{i}");
+                stringObj.transform.SetParent(_diverObj.transform);
+                _chuteStrings[i] = stringObj.AddComponent<LineRenderer>();
+                _chuteStrings[i].useWorldSpace = false;
+                _chuteStrings[i].positionCount = 2;
+                _chuteStrings[i].material = _spriteMat;
+                _chuteStrings[i].startColor = new Color(0.6f, 0.55f, 0.45f);
+                _chuteStrings[i].endColor = new Color(0.6f, 0.55f, 0.45f);
+                _chuteStrings[i].widthMultiplier = 0.04f;
+                _chuteStrings[i].sortingOrder = 9;
+                _chuteStrings[i].SetPosition(0, canopyAnchors[i]);
+                _chuteStrings[i].SetPosition(1, bodyAnchors[i]);
+            }
+        }
+
+        private static Texture2D GenerateCanopyTexture(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float cx = size * 0.5f;
+            float radius = size * 0.48f;
+
+            Color panelA = new Color(0.95f, 0.35f, 0.2f);
+            Color panelB = new Color(1f, 0.98f, 0.95f);
+            int panelCount = 8;
+
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - cx;
+                    float dy = y;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                    if (dist > radius || y < 0)
+                    {
+                        tex.SetPixel(x, y, Color.clear);
+                        continue;
+                    }
+
+                    float angle = Mathf.Atan2(dx, dy);
+                    float panelPhase = (angle / Mathf.PI + 1f) * 0.5f * panelCount;
+                    int panelIdx = (int)panelPhase;
+                    Color baseCol = (panelIdx % 2 == 0) ? panelA : panelB;
+
+                    float edgeFade = Mathf.Clamp01((radius - dist) / (radius * 0.1f));
+                    float bottomFade = Mathf.Clamp01(y / (size * 0.08f));
+                    float shade = 0.85f + 0.15f * (1f - dist / radius);
+                    Color final = baseCol * shade;
+                    final.a = edgeFade * bottomFade;
+                    tex.SetPixel(x, y, final);
+                }
+
+            tex.Apply();
+            tex.filterMode = FilterMode.Bilinear;
+            return tex;
         }
 
         private void BuildWindStreaks()
