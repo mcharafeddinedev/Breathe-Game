@@ -8,6 +8,9 @@ namespace Breathe.Gameplay
     // Each minigame reads BreathPower and maps it to game-specific behavior.
     public class BreathPowerSystem : MonoBehaviour
     {
+        private static BreathPowerSystem _instance;
+        public static BreathPowerSystem Instance => _instance;
+
         [SerializeField, Tooltip("EMA alpha — higher = smoother but laggier.")]
         private float _smoothingFactor = 0.4f;
 
@@ -22,6 +25,17 @@ namespace Breathe.Gameplay
 
         public float BreathPower { get; private set; }
         public float CurrentBreathPower => BreathPower;
+
+        private void Awake()
+        {
+            if (_instance != null && _instance != this) { Destroy(gameObject); return; }
+            _instance = this;
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance == this) _instance = null;
+        }
 
         private void Update()
         {

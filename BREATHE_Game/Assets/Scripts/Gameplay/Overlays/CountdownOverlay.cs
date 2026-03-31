@@ -81,11 +81,12 @@ namespace Breathe.Gameplay
             bool fading = _animProgress >= 0.6f;
             float alpha = fading ? Mathf.Lerp(1f, 0f, (_animProgress - 0.6f) / 0.4f) : 1f;
 
+            bool isGoText = _currentText == _goText;
+            float baseSize = isGoText ? GoTextBaseSize(_goText) : 400f;
             float sizeScale = fading ? popScale + (1f - alpha) * 0.3f : popScale;
-            int animatedSize = Mathf.RoundToInt(400f * sizeScale);
+            int animatedSize = Mathf.RoundToInt(baseSize * sizeScale);
             _countdownStyle.fontSize = Mathf.Max(10, animatedSize);
 
-            bool isGoText = _currentText == _goText;
             Color baseColor = isGoText
                 ? new Color(0.2f, 1f, 0.4f, alpha)
                 : new Color(1f, 1f, 1f, alpha);
@@ -94,7 +95,7 @@ namespace Breathe.Gameplay
 
             float centerX = Screen.width / 2f;
             float centerY = Screen.height / 2f;
-            float boxWidth = 800f;
+            float boxWidth = Screen.width * 0.9f;
             float boxHeight = 560f;
             Rect rect = new Rect(centerX - boxWidth / 2f, centerY - boxHeight / 2f, boxWidth, boxHeight);
 
@@ -107,6 +108,15 @@ namespace Breathe.Gameplay
             {
                 GameFont.OutlinedLabel(rect, _currentText, _countdownStyle, 2);
             }
+        }
+
+        private static float GoTextBaseSize(string text)
+        {
+            int len = text.Length;
+            if (len <= 3) return 120f;
+            if (len <= 6) return 100f;
+            if (len <= 10) return 80f;
+            return 64f;
         }
 
         private float EaseOutBack(float t)
