@@ -181,7 +181,7 @@ namespace Breathe.Gameplay
             GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "", _overlayBg);
 
             float pw = Mathf.Min(Screen.width * 0.85f, 780f);
-            float ph = Mathf.Min(Screen.height * 0.90f, 650f);
+            float ph = Mathf.Min(Screen.height * 0.92f, 760f);
             float px = (Screen.width - pw) * 0.5f;
             float py = (Screen.height - ph) * 0.5f;
 
@@ -207,15 +207,11 @@ namespace Breathe.Gameplay
 
             // Calculate instruction and tip heights
             float instrHeight = _instructionStyle.CalcHeight(new GUIContent(_instruction), contentW) + 8f;
-            instrHeight = Mathf.Min(instrHeight, 180f);
 
             bool hasTip = !string.IsNullOrEmpty(_tip);
             float tipHeight = 0f;
             if (hasTip)
-            {
                 tipHeight = _tipStyle.CalcHeight(new GUIContent(_tip), contentW);
-                tipHeight = Mathf.Min(tipHeight, 80f);
-            }
 
             // Zone between title bottom and button top
             float zoneTop = titleY + titleH;

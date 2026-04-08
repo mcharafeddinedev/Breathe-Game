@@ -24,13 +24,20 @@ namespace Breathe.Gameplay
         private int _previousThresholdIndex = -1;
 
         // Spin-down detection: snaps power to 0 when the fan is clearly winding
-        // down (sustained decline of >= SpinDownThreshold within SpinDownWindow).
-        // While suppressed, tracks the lowest raw intensity (the trough). Resumes
-        // when raw rises ResumeRiseDelta above the trough — meaning the user is
-        // actively blowing again, even if the fan hasn't fully stopped.
-        private const float SpinDownThreshold = 0.12f;
-        private const float SpinDownWindow = 1.0f;
-        private const float ResumeRiseDelta = 0.06f;
+        // down (sustained decline of >= threshold within window). While suppressed,
+        // tracks the lowest raw intensity (the trough). Resumes when raw rises
+        // resumeDelta above the trough — meaning the user is actively blowing
+        // again, even if the fan hasn't fully stopped.
+        //
+        // Defaults work well for Sailboat. Other minigames can call
+        // ConfigureSpinDown() with different values from their definition assets.
+        public const float DefaultSpinDownThreshold = 0.12f;
+        public const float DefaultSpinDownWindow = 1.0f;
+        public const float DefaultResumeRiseDelta = 0.06f;
+
+        private float _spinDownThreshold = DefaultSpinDownThreshold;
+        private float _spinDownWindow = DefaultSpinDownWindow;
+        private float _resumeRiseDelta = DefaultResumeRiseDelta;
         private float _decayBaseline;
         private float _declineTimer;
         private bool _inputSuppressed;
@@ -40,6 +47,25 @@ namespace Breathe.Gameplay
 
         public float BreathPower { get; private set; }
         public float CurrentBreathPower => BreathPower;
+
+        /// <summary>
+        /// Per-minigame spin-down tuning. Lower threshold = more aggressive snap-to-zero.
+        /// Set threshold to a very high value (e.g. 999) to effectively disable spin-down.
+        /// </summary>
+        public void ConfigureSpinDown(float threshold, float window, float resumeDelta)
+        {
+            _spinDownThreshold = threshold;
+            _spinDownWindow = window;
+            _resumeRiseDelta = resumeDelta;
+            Debug.Log($"[BreathPower] Spin-down configured: threshold={threshold:F2}, window={window:F1}s, resume={resumeDelta:F2}");
+        }
+
+        public void ResetSpinDownDefaults()
+        {
+            _spinDownThreshold = DefaultSpinDownThreshold;
+            _spinDownWindow = DefaultSpinDownWindow;
+            _resumeRiseDelta = DefaultResumeRiseDelta;
+        }
 
         private void Awake()
         {
@@ -75,8 +101,8 @@ namespace Breathe.Gameplay
                         _decayBaseline = _lastComputedPower;
                     _declineTimer += Time.deltaTime;
 
-                    if (_declineTimer <= SpinDownWindow &&
-                        (_decayBaseline - computedPower) >= SpinDownThreshold)
+                    if (_declineTimer <= _spinDownWindow &&
+                        (_decayBaseline - computedPower) >= _spinDownThreshold)
                     {
                         _inputSuppressed = true;
                         _suppressedRawTrough = effective;
@@ -94,7 +120,7 @@ namespace Breathe.Gameplay
                 _smoothedBreathPower = 0f;
                 _suppressedRawTrough = Mathf.Min(_suppressedRawTrough, effective);
 
-                if (effective > _suppressedRawTrough + ResumeRiseDelta)
+                if (effective > _suppressedRawTrough + _resumeRiseDelta)
                 {
                     _inputSuppressed = false;
                     _declineTimer = 0f;

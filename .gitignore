@@ -64,3 +64,6 @@ BREATHE_Game/Assets/_Recovery.meta
 # Internal/private docs
 dev-docs/
 plain-docs/
+
+# Tooling/Debugging
+.claude/

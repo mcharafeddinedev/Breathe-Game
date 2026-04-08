@@ -174,9 +174,6 @@ namespace Breathe.Gameplay
                     break;
 
                 case Phase.Shown:
-                    if (BreathPowerSystem.Instance != null &&
-                        BreathPowerSystem.Instance.CurrentBreathPower >= 0.08f)
-                        BeginPopOut(() => SceneLoader.ReloadCurrentScene());
                     break;
 
                 case Phase.PoppingOut:

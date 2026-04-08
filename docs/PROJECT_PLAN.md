@@ -13,7 +13,7 @@ This repository is public for review and portfolio visibility only. All material
 - **Platform:** Windows PC
 - **Input:** Breath only — custom hardware (fan RPM via Arduino), microphone fallback, simulated for development
 - **Design constraints:** Breath-only input (no secondary controls), no-fail design (no loss conditions)
-- **Current phase:** Production — Sailboat complete, Stargaze and Balloon near-complete, Bubbles in progress. Breath-driven menu navigation and universal breath UI controls implemented.
+- **Current phase:** Production — Sailboat, Stargaze, Balloon, Bubbles, and Skydive are working prototypes with procedural art. Stone Skip is scripted but needs concept validation and visual work.
 
 ## Milestone Roadmap
 
@@ -26,7 +26,7 @@ This repository is public for review and portfolio visibility only. All material
 
 **3 - Production** -- Content and polish *(current phase)*
 - Full minigame collection playable, art, audio, complete game loop
-- Status: In progress — Sailboat complete, Stargaze near-complete (3-round flow, educational captions, adaptive zoom), Balloon prototyped, Bubbles WIP, Skydive and Stone Skip scripted
+- Status: In progress — Sailboat, Stargaze, Balloon, Bubbles, and Skydive are working prototypes with procedural art. Stone Skip needs concept validation and visual buildout.
 
 **4 - Testing** -- External playtesting
 - Documented test sessions with multiple external testers, bug fixes

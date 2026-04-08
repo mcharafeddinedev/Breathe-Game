@@ -63,7 +63,7 @@ The immediate goal is a polished, playable Windows PC game that proves breath-co
 
 ## Current Status
 
-In production. Six minigames are in various stages: Sailboat is complete and hardware-validated, Stargaze is near-complete (3-round constellation clearing with educational content), Balloon is prototyped, Bubbles is in progress, and Skydive and Stone Skip are scripted. The main menu and level select are navigable entirely by breath — scroll through options by blowing, dwell to select. Breath also triggers continue/replay buttons across all minigame overlays. The game is fully playable end-to-end without touching a mouse or keyboard.
+In production. Sailboat, Stargaze, Balloon, Bubbles, and Skydive are all working prototypes with procedural art. Stone Skip is the remaining minigame — scripted but needs concept validation and visual work. Menu navigation uses mouse input. During gameplay, tutorial popups accept breath as a continue trigger so the player can stay hands-free while learning the game.
 
 ## Related Documents
 

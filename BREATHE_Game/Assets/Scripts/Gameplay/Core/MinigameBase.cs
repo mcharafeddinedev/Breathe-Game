@@ -45,6 +45,18 @@ namespace Breathe.Gameplay
         public virtual void OnMinigameStart()
         {
             if (_breathAnalytics != null) _breathAnalytics.ResetAll();
+            ApplySpinDownConfig();
+        }
+
+        private void ApplySpinDownConfig()
+        {
+            if (BreathPowerSystem.Instance == null) return;
+            var def = Definition;
+            if (def != null)
+                BreathPowerSystem.Instance.ConfigureSpinDown(
+                    def.SpinDownThreshold, def.SpinDownWindow, def.SpinDownResumeDelta);
+            else
+                BreathPowerSystem.Instance.ResetSpinDownDefaults();
         }
 
         public virtual void OnMinigameEnd()

@@ -50,18 +50,16 @@ With infrastructure in place, I started building the actual minigames. Each one 
 
 Stargaze is the most complete after Sailboat. The player blows to push clouds off the night sky, revealing constellations underneath. It runs three rounds with increasing difficulty — clouds drift back when breath stops, and each round needs more sustained effort. When the sky clears, the camera zooms in on the constellation with star name labels and a short educational caption about its mythology and brightest stars. A continue button (triggered by mouse, keyboard, or breath) advances to the next round.
 
-Balloon is prototyped — the player inflates a balloon by breathing at a controlled intensity. Bubbles is in progress — the player blows into a bubble wand at a "sweet spot" intensity to produce bubbles.
+Balloon is a working prototype — the player inflates a balloon by breathing at a controlled intensity. Bubbles is a working prototype — the player blows into a bubble wand at a "sweet spot" intensity to produce bubbles.
 
-Skydive and Stone Skip have their gameplay scripts written and scenes set up but haven't been playtested yet.
+Skydive is now a working prototype. The player guides a parachuting skydiver onto a bullseye target by blowing to fire directional thrusters on a jetpack. Wind pushes the diver in one direction per turn, and the player opposes it with breath. The scene is built entirely at runtime — a procedural stick-figure diver in a red jumpsuit, a parachute canopy with strings, a pixel-art forest of ~260 trees, a distant city skyline, scrolling clouds, and a multi-layer parallax system that gives a sense of continuous forward motion between turns. A two-stage boost transition scrolls the old target off-screen and brings the new one in without breaking the illusion of movement. The background keeps scrolling infinitely during the results screen.
+
+Stone Skip has its gameplay script written and scene set up but hasn't been playtested yet.
 
 
-10. BREATH-DRIVEN NAVIGATION
+10. BREATH AS A UI TRIGGER
 
-Partway through building out minigames, it became clear that breath should work everywhere — not just during gameplay. I added breath input to all continue and replay buttons (tutorial popups, result screens) so a player can advance through the whole flow without touching a mouse.
-
-Then I extended it to the main menu. Blowing scrolls through the nav buttons and game cards. Stop blowing on an option and it auto-selects after 8 seconds. Enter key and mouse clicks still work as expected. Controls instructions are displayed on the main menu screen so first-time users know what to do.
-
-The menu reads from BreathInputManager directly (since BreathPowerSystem only exists in minigame scenes) and falls back gracefully if neither is available.
+Tutorial popups accept breath input as a continue trigger alongside mouse and keyboard, so the player can advance through the how-to-play flow hands-free. Menu navigation itself uses standard mouse input — breath-driven menu scrolling was prototyped and removed in favor of simplicity.
 
 
 11. SPIN-DOWN DETECTION
@@ -71,4 +69,4 @@ The fan propeller coasts for 1-3 seconds after the player stops blowing. This wa
 
 12. CURRENT STATE
 
-Sailboat is complete and hardware-validated. Stargaze is near-complete — 3-round constellation clearing with adaptive zoom, educational captions, star name labels, difficulty scaling, and a user-controlled continue flow. Balloon is prototyped. Bubbles is in progress (wand positioning recently fixed). Skydive and Stone Skip are scripted but untested. The entire game is navigable by breath alone. Still no audio or final art — those are next after gameplay is locked.
+Sailboat, Stargaze, Balloon, Bubbles, and Skydive are all working prototypes with procedural art. Stone Skip is the last minigame that needs concept validation and visual buildout. Still no audio or final art — those are next after gameplay is locked.

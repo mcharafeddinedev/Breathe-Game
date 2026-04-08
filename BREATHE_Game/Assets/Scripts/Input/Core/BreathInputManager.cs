@@ -30,6 +30,7 @@ namespace Breathe.Input
         private bool _wasBreathing;
         private float _breathLogTimer;
         private const float BreathLogInterval = 2f;
+        private bool _menuMode;
 
         public static BreathInputManager Instance { get; private set; }
 
@@ -37,10 +38,74 @@ namespace Breathe.Input
         public InputMode CurrentMode => currentMode;
         public BreathConfig BreathConfig => breathConfig;
         public string InputSourceName => currentMode.ToString();
+        public bool IsMenuMode => _menuMode;
 
-        public float GetBreathIntensity() => _activeInput?.GetBreathIntensity() ?? 0f;
-        public int GetBreathLevel() => _activeInput?.GetBreathLevel() ?? 0;
-        public bool IsBreathing() => _activeInput?.IsBreathing() ?? false;
+        public float GetBreathIntensity()
+        {
+            if (_menuMode)
+            {
+                float sim = simulatedInput != null ? simulatedInput.GetBreathIntensity() : 0f;
+                float fan = fanInput != null ? fanInput.GetBreathIntensity() : 0f;
+                return Mathf.Max(sim, fan);
+            }
+            return _activeInput?.GetBreathIntensity() ?? 0f;
+        }
+
+        public int GetBreathLevel()
+        {
+            if (_menuMode)
+            {
+                int simLvl = simulatedInput?.GetBreathLevel() ?? 0;
+                int fanLvl = fanInput?.GetBreathLevel() ?? 0;
+                return Mathf.Max(simLvl, fanLvl);
+            }
+            return _activeInput?.GetBreathLevel() ?? 0;
+        }
+
+        public bool IsBreathing()
+        {
+            if (_menuMode)
+                return (simulatedInput?.IsBreathing() ?? false) || (fanInput?.IsBreathing() ?? false);
+            return _activeInput?.IsBreathing() ?? false;
+        }
+
+        /// Activates both Simulated and Fan input simultaneously while blocking Mic.
+        /// Used in the main menu so spacebar AND fan device both drive breath navigation.
+        public void EnableMenuMode()
+        {
+            if (_menuMode) return;
+            _menuMode = true;
+
+            if (currentMode == InputMode.Microphone)
+                micInput?.Shutdown();
+
+            if (currentMode != InputMode.Simulated)
+                simulatedInput?.Initialize();
+            if (currentMode != InputMode.Fan)
+                fanInput?.Initialize();
+
+            Debug.Log("[BreathInputManager] Menu mode ENABLED — Simulated + Fan active, Mic blocked");
+        }
+
+        /// Shuts down menu mode and restores single-source operation.
+        public void DisableMenuMode(InputMode restoreMode)
+        {
+            if (!_menuMode) return;
+            _menuMode = false;
+
+            simulatedInput?.Shutdown();
+            fanInput?.Shutdown();
+            micInput?.Shutdown();
+
+            currentMode = restoreMode;
+            _activeInput = ResolveInput(restoreMode);
+            _activeInput?.Initialize();
+
+            _wasBreathing = false;
+            _breathLogTimer = 0f;
+
+            Debug.Log($"[BreathInputManager] Menu mode DISABLED — restored to {restoreMode}");
+        }
 
         /// Switch to a new input source. Shuts down the previous one, initializes the new one,
         /// and logs exactly what happened.
@@ -87,15 +152,17 @@ namespace Breathe.Input
 
         private void Update()
         {
-            if (_activeInput == null) return;
+            if (!_menuMode && _activeInput == null) return;
 
-            bool breathing = _activeInput.IsBreathing();
-            float intensity = _activeInput.GetBreathIntensity();
+            bool breathing = IsBreathing();
+            float intensity = GetBreathIntensity();
+
+            string modeLabel = _menuMode ? "MenuMode(Sim+Fan)" : currentMode.ToString();
 
             if (breathing && !_wasBreathing)
-                Debug.Log($"[BreathInput] Breath DETECTED on {currentMode} — intensity: {intensity:F3}");
+                Debug.Log($"[BreathInput] Breath DETECTED on {modeLabel} — intensity: {intensity:F3}");
             else if (!breathing && _wasBreathing)
-                Debug.Log($"[BreathInput] Breath STOPPED on {currentMode}");
+                Debug.Log($"[BreathInput] Breath STOPPED on {modeLabel}");
 
             _wasBreathing = breathing;
 
@@ -103,8 +170,8 @@ namespace Breathe.Input
             if (_breathLogTimer >= BreathLogInterval)
             {
                 _breathLogTimer = 0f;
-                Debug.Log($"[BreathInput] Status — mode: {currentMode}, intensity: {intensity:F3}, " +
-                    $"level: {_activeInput.GetBreathLevel()}, breathing: {breathing}");
+                Debug.Log($"[BreathInput] Status — mode: {modeLabel}, intensity: {intensity:F3}, " +
+                    $"level: {GetBreathLevel()}, breathing: {breathing}");
             }
         }
 

@@ -53,11 +53,11 @@ Game systems consume a common breath-input interface. The actual signal source -
 
 ## Implementation Status
 
-The architecture described above is fully implemented and validated. The breath-to-power pipeline (`BreathPowerSystem.cs`) serves as the universal power variable for all minigames and the menu navigation system.
+The architecture described above is fully implemented and validated. The breath-to-power pipeline (`BreathPowerSystem.cs`) serves as the universal power variable for all minigames.
 
 Recent additions include spin-down detection — when the player stops blowing and the fan coasts, the system detects the rapid decay and snaps power to zero immediately instead of slowly trailing off. It tracks the lowest point during the coast and resumes the instant raw intensity rises above it, so starting a new breath mid-coast still gets an instant response. This is handled entirely within `BreathPowerSystem` and is transparent to all consumers.
 
-Breath power also drives UI navigation. The main menu and level select are scrollable by breath intensity, with dwell-to-select. Tutorial and result overlays accept breath as a continue trigger. The entire game is playable with breath alone.
+Tutorial popups accept breath as a continue trigger alongside mouse and keyboard. Menu navigation uses standard mouse input.
 
 ## Related Documents
 

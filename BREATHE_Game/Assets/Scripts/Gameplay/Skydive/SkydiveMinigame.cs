@@ -23,7 +23,7 @@ namespace Breathe.Gameplay
         [SerializeField] private int _goodPoints = 200;
         [SerializeField] private int _nearPoints = 100;
 
-        private enum Phase { WaitingForStart, DiverFalling, DiverLanded, DiverDelay, Complete }
+        private enum Phase { WaitingForStart, DiverFalling, DiverLanded, DiverBoost, Complete }
 
         private Phase _phase;
         private bool _gameplayActive;
@@ -144,8 +144,6 @@ namespace Breathe.Gameplay
                 case Phase.DiverFalling:
                     _controller.UpdateDiver(breathPower);
 
-                    if (_controller.WindChangedThisFrame)
-                        _windChangeTimer = 2.5f;
                     if (_windChangeTimer > 0f)
                         _windChangeTimer -= Time.deltaTime;
 
@@ -158,19 +156,21 @@ namespace Breathe.Gameplay
 
                 case Phase.DiverLanded:
                     _controller.UpdatePostLanding();
-                    _delayTimer = _delayBetweenDivers;
-                    _phase = Phase.DiverDelay;
+                    float camW = Camera.main.orthographicSize * Camera.main.aspect;
+                    float nextTargetX = Random.Range(-camW * 0.6f, camW * 0.6f);
+                    _controller.StartTransition(nextTargetX);
+                    _phase = Phase.DiverBoost;
                     break;
 
-                case Phase.DiverDelay:
+                case Phase.DiverBoost:
                     _controller.UpdatePostLanding();
-                    _delayTimer -= Time.deltaTime;
 
-                    if (_delayTimer <= 0f)
+                    if (_controller.IsTransitionComplete)
                     {
                         if (_onTargetCount >= _successTarget || _offTargetCount >= _missLimit)
                         {
                             _phase = Phase.Complete;
+                            _controller.EnterAmbientMode();
                             EvaluatePersonalBests();
                             if (GameStateManager.Instance != null)
                                 GameStateManager.Instance.TransitionTo(GameState.Celebration);
@@ -181,6 +181,10 @@ namespace Breathe.Gameplay
                         }
                     }
                     break;
+
+                case Phase.Complete:
+                    _controller.UpdateAmbient();
+                    break;
             }
         }
 
@@ -189,6 +193,8 @@ namespace Breathe.Gameplay
             _controller.SpawnDiver();
             _phase = Phase.DiverFalling;
             _totalDivers++;
+
+            _windChangeTimer = 3.5f;
         }
 
         private void ProcessLanding()
@@ -355,12 +361,16 @@ namespace Breathe.Gameplay
             if (_controller != null)
             {
                 float wind = _controller.DisplayWindForce;
-                string windDir = wind > 0.3f ? ">>>" : wind < -0.3f ? "<<<" : "CALM";
+                string windArrows = Mathf.Abs(wind) > 2f ? ">>>>>" :
+                    Mathf.Abs(wind) > 1f ? ">>>" : ">";
+                string windDir = wind > 0.3f ? windArrows : wind < -0.3f ?
+                    windArrows.Replace('>', '<') : "---";
                 float windAlpha = Mathf.Clamp01(Mathf.Abs(wind) / 2f);
-                _windStyle.normal.textColor = new Color(0.8f, 0.85f, 1f, 0.4f + windAlpha * 0.6f);
-                Rect windRect = new Rect(0f, Screen.height - 60f, Screen.width, 36f);
+                _windStyle.normal.textColor = new Color(0.8f, 0.85f, 1f, 0.5f + windAlpha * 0.5f);
+                Rect windRect = new Rect(0f, Screen.height - 70f, Screen.width, 40f);
                 GameFont.OutlinedLabel(windRect, $"WIND  {windDir}", _windStyle);
             }
+
 
             // Wind change popup
             if (_windChangeTimer > 0f)
@@ -370,16 +380,21 @@ namespace Breathe.Gameplay
                     Font wf = GameFont.Get();
                     _windChangeStyle = new GUIStyle(GUI.skin.label)
                     {
-                        fontSize = 26,
+                        fontSize = 38,
                         fontStyle = FontStyle.Bold,
                         alignment = TextAnchor.MiddleCenter
                     };
                     if (wf != null) _windChangeStyle.font = wf;
                 }
-                float wAlpha = Mathf.Clamp01(_windChangeTimer / 1.2f);
-                _windChangeStyle.normal.textColor = new Color(1f, 0.9f, 0.5f, wAlpha);
-                Rect wcRect = new Rect(0f, Screen.height * 0.55f, Screen.width, 40f);
-                GameFont.OutlinedLabel(wcRect, "WIND  SHIFT!  BLOW  TO  GUIDE!", _windChangeStyle, 2);
+
+                float pulse = 0.92f + 0.08f * Mathf.Sin(Time.time * 5f);
+                float fade = _windChangeTimer < 1.2f
+                    ? 0.5f + 0.5f * (_windChangeTimer / 1.2f)
+                    : 1f;
+                float wAlpha = fade * pulse;
+                _windChangeStyle.normal.textColor = new Color(1f, 0.85f, 0.3f, wAlpha);
+                Rect wcRect = new Rect(0f, Screen.height * 0.50f, Screen.width, 50f);
+                GameFont.OutlinedLabel(wcRect, "WIND  SHIFT", _windChangeStyle, 3);
             }
 
             // Landing feedback text
@@ -418,7 +433,7 @@ namespace Breathe.Gameplay
 
             _windStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 24,
+                fontSize = 30,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };

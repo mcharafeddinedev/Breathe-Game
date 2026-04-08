@@ -1,4 +1,4 @@
-Last Updated: Mar 31, 2026
+Last Updated: Apr 07, 2026
 
 # How It Works — Technical Systems Overview
 
@@ -32,7 +32,7 @@ One input, zero failure. The player controls only the intensity of their breath.
 
 ## Procedural Generation
 
-Unity scenes are intentionally minimal — manager objects and a camera. Nearly everything is generated at runtime. In the sailboat: ocean surface, buoy-marked race course (randomly selected from a layout pool each run), obstacles, environmental zones, background scenery, boat visual effects, and UI overlays. In Stargaze: star fields, cloud layers, constellation line art, star name labels, and educational captions. In Bubbles: the bubble wand, splash effects, and floating bubbles. Object pooling prevents garbage collection spikes during gameplay.
+Unity scenes are intentionally minimal — manager objects and a camera. Nearly everything is generated at runtime. In the sailboat: ocean surface, buoy-marked race course (randomly selected from a layout pool each run), obstacles, environmental zones, background scenery, boat visual effects, and UI overlays. In Stargaze: star fields, cloud layers, constellation line art, star name labels, and educational captions. In Bubbles: the bubble wand, splash effects, and floating bubbles. In Skydive: the diver (stick figure with jumpsuit colors, helmet, parachute canopy, jetpack pack with flame thrusters), a procedural forest of ~260 pixel trees, a distant city skyline, scrolling clouds, bullseye targets, and a multi-layer parallax system that scrolls infinitely. Object pooling prevents garbage collection spikes during gameplay.
 
 This keeps scenes maintainable, makes runs varied, and eliminates the art pipeline as a bottleneck.
 
@@ -56,7 +56,7 @@ All sources pass through the same processing: range normalization, EMA smoothing
 
 The system also handles spin-down detection. When the player stops blowing, the fan propeller coasts for a few seconds. If breath power drops by 12% or more within one second, the system snaps to zero immediately rather than slowly trailing off. It tracks the lowest raw intensity during the coast-down and resumes the moment it detects a meaningful rise — meaning the player can start blowing again mid-coast and get an instant response.
 
-What changes per minigame is interpretation. In the sailboat, breath power becomes wind. In Stargaze, it pushes clouds off the screen. In Bubbles, it fills the bubble wand's sweet spot. The underlying signal is always the same 0-to-1 value. All tuning lives in ScriptableObject assets.
+What changes per minigame is interpretation. In the sailboat, breath power becomes wind. In Stargaze, it pushes clouds off the screen. In Bubbles, it fills the bubble wand's ring. In Skydive, it fires directional thrusters on a jetpack to guide a falling skydiver toward a target. The underlying signal is always the same 0-to-1 value. All tuning lives in ScriptableObject assets.
 
 ---
 
@@ -66,7 +66,7 @@ A session follows a state machine (`GameStateManager`): Menu → Level Select �
 
 The minigame abstraction is handled through `IMinigame` (the contract) and `MinigameBase` (shared boilerplate: analytics lifecycle, session logging, registration). The result overlay, scoring, data persistence, and debug tools all work generically for any game that implements the contract. Per-game metadata is defined in `MinigameDefinition` ScriptableObject assets.
 
-Breath input drives the entire flow — not just gameplay. The main menu and level select are navigable by breath (scroll through options by blowing, dwell on a selection for 8 seconds to confirm). Tutorial popups and result screens accept breath as a continue/replay trigger alongside mouse and keyboard. A player can go from launch to playing a minigame without touching any other input device.
+Menu navigation uses standard mouse input. During gameplay, tutorial popups accept breath as a continue trigger alongside mouse and keyboard, so the player can advance through the how-to-play flow without lifting their hands.
 
 ---
 

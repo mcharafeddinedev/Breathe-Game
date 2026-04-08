@@ -18,7 +18,7 @@ MonoBehaviour:
     wind!
   _thumbnail: {fileID: 0}
   _breathPattern: Modulated  Control
-  _isUnlocked: 0
+  _isUnlocked: 1
   _cardColor: {r: 0.4, g: 0.8, b: 1, a: 1}
   _sceneName: SKYDIVE
   _countdownGoText: DIVE!
@@ -31,3 +31,6 @@ MonoBehaviour:
     pushes    fast."
   _tutorialTip: Watch    the    wind    direction    arrow    and    match    your   
     effort    to    steer!
+  _spinDownThreshold: 0.12
+  _spinDownWindow: 1
+  _spinDownResumeDelta: 0.06

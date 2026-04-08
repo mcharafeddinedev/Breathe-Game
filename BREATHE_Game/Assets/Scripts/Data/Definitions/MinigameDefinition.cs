@@ -36,6 +36,16 @@ namespace Breathe.Data
         [SerializeField, TextArea(3, 6)] private string _tutorialInstruction = "BLOW  STEADILY  INTO  THE  DEVICE  TO  FILL  YOUR  SAILS  AND  MOVE  YOUR  BOAT  FORWARD\n\nLONGER  STEADY  BREATHS  ARE  MORE  EFFECTIVE  THAN  QUICK  PUFFS";
         [SerializeField, TextArea(1, 3)] private string _tutorialTip = "KEEP  BREATHING  TO  MAINTAIN  YOUR  SPEED";
 
+        [Header("Spin-Down Detection")]
+        [SerializeField, Tooltip("How far power must drop within the window to trigger snap-to-zero. " +
+            "Lower = more aggressive. Set very high (e.g. 999) to disable.")]
+        private float _spinDownThreshold = 0.12f;
+        [SerializeField, Tooltip("Time window (seconds) over which the drop is measured.")]
+        private float _spinDownWindow = 1.0f;
+        [SerializeField, Tooltip("How much raw intensity must rise above the trough to resume. " +
+            "Lower = resumes faster after spin-down.")]
+        private float _spinDownResumeDelta = 0.06f;
+
         public string MinigameId => _minigameId;
         public string DisplayName => _displayName;
         public string Description => _description;
@@ -49,5 +59,8 @@ namespace Breathe.Data
         public string TutorialTitle => _tutorialTitle;
         public string TutorialInstruction => _tutorialInstruction;
         public string TutorialTip => _tutorialTip;
+        public float SpinDownThreshold => _spinDownThreshold;
+        public float SpinDownWindow => _spinDownWindow;
+        public float SpinDownResumeDelta => _spinDownResumeDelta;
     }
 }
