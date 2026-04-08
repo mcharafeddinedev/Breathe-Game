@@ -18,7 +18,7 @@ MonoBehaviour:
     single,   powerful    breath!
   _thumbnail: {fileID: 0}
   _breathPattern: Burst  Calibration
-  _isUnlocked: 0
+  _isUnlocked: 1
   _cardColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
   _sceneName: STONESKIP
   _countdownGoText: MAXIMUM POWER!
@@ -34,3 +34,6 @@ MonoBehaviour:
     you     can     before     time     runs     out!'
   _tutorialTip: "One     big     puff     per     stone     \u2014     make     it    
     count!"
+  _spinDownThreshold: 0.12
+  _spinDownWindow: 1
+  _spinDownResumeDelta: 0.06

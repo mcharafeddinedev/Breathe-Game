@@ -16,7 +16,6 @@ namespace Breathe.Gameplay
         [Header("Session")]
         [SerializeField] private int _successTarget = 10;
         [SerializeField] private int _missLimit = 3;
-        [SerializeField] private float _delayBetweenDivers = 1.2f;
 
         [Header("Scoring")]
         [SerializeField] private int _perfectPoints = 300;
@@ -29,7 +28,6 @@ namespace Breathe.Gameplay
         private bool _gameplayActive;
         private bool _countdownDone;
         private float _postCountdownTimer = -1f;
-        private float _delayTimer;
 
         private int _totalScore;
         private int _onTargetCount;
@@ -194,7 +192,7 @@ namespace Breathe.Gameplay
             _phase = Phase.DiverFalling;
             _totalDivers++;
 
-            _windChangeTimer = 3.5f;
+                _windChangeTimer = 1.8f;
         }
 
         private void ProcessLanding()
@@ -388,12 +386,13 @@ namespace Breathe.Gameplay
                 }
 
                 float pulse = 0.92f + 0.08f * Mathf.Sin(Time.time * 5f);
-                float fade = _windChangeTimer < 1.2f
-                    ? 0.5f + 0.5f * (_windChangeTimer / 1.2f)
+                float fade = _windChangeTimer < 0.6f
+                    ? _windChangeTimer / 0.6f
                     : 1f;
                 float wAlpha = fade * pulse;
                 _windChangeStyle.normal.textColor = new Color(1f, 0.85f, 0.3f, wAlpha);
-                Rect wcRect = new Rect(0f, Screen.height * 0.50f, Screen.width, 50f);
+                float windY = 90f;
+                Rect wcRect = new Rect(0f, windY, Screen.width, 50f);
                 GameFont.OutlinedLabel(wcRect, "WIND  SHIFT", _windChangeStyle, 3);
             }
 
@@ -403,7 +402,8 @@ namespace Breathe.Gameplay
                 float alpha = Mathf.Clamp01(_landingFeedbackTimer / 0.8f);
                 _feedbackStyle.normal.textColor = new Color(
                     _landingFeedbackColor.r, _landingFeedbackColor.g, _landingFeedbackColor.b, alpha);
-                Rect feedbackRect = new Rect(0f, Screen.height * 0.35f, Screen.width, 50f);
+                float feedbackY = _windChangeTimer > 0f ? 145f : 90f;
+                Rect feedbackRect = new Rect(0f, feedbackY, Screen.width, 50f);
                 GameFont.OutlinedLabel(feedbackRect, _landingFeedbackText, _feedbackStyle, 2);
             }
         }

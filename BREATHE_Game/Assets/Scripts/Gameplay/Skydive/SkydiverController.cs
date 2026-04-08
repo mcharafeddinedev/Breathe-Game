@@ -9,19 +9,27 @@ namespace Breathe.Gameplay
         [Header("World Bounds")]
         [SerializeField] private float _groundY = -6f;
         [SerializeField] private float _spawnY = 8.5f;
-        [SerializeField] private float _xMin = -7f;
-        [SerializeField] private float _xMax = 7f;
+        private float _xMin = -7f;
+        private float _xMax = 7f;
 
         [Header("Fall")]
         [SerializeField] private float _fallSpeed = 0.42f;
 
         [Header("Wind — fixed per diver, scales with difficulty")]
-        [SerializeField] private float _windMinForce = 1.0f;
-        [SerializeField] private float _windMaxForce = 4.0f;
-        [SerializeField] private float _windForcePerDiver = 0.3f;
+        private const float _windMinForce = 1.8f;
+        private const float _windMaxForce = 4.5f;
+        private const float _windForcePerDiver = 0.3f;
 
         [Header("Breath Opposition")]
         [SerializeField] private float _breathForceMultiplier = 4.5f;
+        [SerializeField] private float _thrustBuildupRate = 0.6f;
+        [SerializeField] private float _thrustBuildupMax = 0.8f;
+        [SerializeField] private float _thrustDecayRate = 1.5f;
+
+        [Header("Wind Acceleration")]
+        [SerializeField] private float _windAccelRate = 0.25f;
+        [SerializeField] private float _windAccelMax = 0.6f;
+        [SerializeField] private float _windAccelResetTo = 0.05f;
 
         [Header("Target Drift")]
         [SerializeField] private float _targetDriftForce = 0.4f;
@@ -89,6 +97,8 @@ namespace Breathe.Gameplay
         private LineRenderer[] _flameLines;
         private float _lastBreathPower;
         private float _smoothBreathPower;
+        private float _thrustBuildup;
+        private float _windAccel;
 
         // Parallax scrolling
         private float _scrollOffset;
@@ -122,6 +132,10 @@ namespace Breathe.Gameplay
 
         public void Initialize()
         {
+            float camHalfWidth = Camera.main.orthographicSize * Camera.main.aspect;
+            _xMin = -camHalfWidth;
+            _xMax = camHalfWidth;
+
             EnsureMaterial();
             _circleTex = GenerateCircleTexture(64);
 
@@ -159,6 +173,8 @@ namespace Breathe.Gameplay
             _diverPos = new Vector2(spawnX, _spawnY);
             _state = DiverState.Falling;
             _prevWindSign = windDir;
+            _thrustBuildup = 0f;
+            _windAccel = 0f;
 
             _diverObj.SetActive(true);
             _landingFeedbackObj.SetActive(false);
@@ -181,18 +197,31 @@ namespace Breathe.Gameplay
             float dt = Time.deltaTime;
             WindChangedThisFrame = false;
 
-            _displayWindForce = Mathf.Lerp(_displayWindForce, _currentWindForce, dt * 4f);
+            bool thrusting = breathPower > 0.05f;
+            if (thrusting)
+            {
+                _thrustBuildup = Mathf.Min(_thrustBuildup + _thrustBuildupRate * dt, _thrustBuildupMax);
+                _windAccel = Mathf.Max(_windAccel - _windAccel * 3f * dt, _windAccelResetTo);
+            }
+            else
+            {
+                _thrustBuildup = Mathf.Max(_thrustBuildup - _thrustDecayRate * dt, 0f);
+                _windAccel = Mathf.Min(_windAccel + _windAccelRate * dt, _windAccelMax);
+            }
 
             float oppositionDir = -Mathf.Sign(_currentWindForce);
-            float breathForce = oppositionDir * breathPower * _breathForceMultiplier;
+            float breathForce = oppositionDir * breathPower * _breathForceMultiplier * (1f + _thrustBuildup);
+            float effectiveWind = _currentWindForce * (1f + _windAccel);
+            _displayWindForce = Mathf.Lerp(_displayWindForce, _currentWindForce, dt * 4f);
 
             float targetDiff = _targetX - _diverPos.x;
             float driftForce = Mathf.Sign(targetDiff)
                 * Mathf.Min(Mathf.Abs(targetDiff) * 0.15f, _targetDriftForce);
 
-            float totalXForce = _currentWindForce + breathForce + driftForce;
+            float totalXForce = effectiveWind + breathForce + driftForce;
             _diverPos.x += totalXForce * dt;
-            _diverPos.x = Mathf.Clamp(_diverPos.x, _xMin, _xMax);
+            float softEdge = 1.5f;
+            _diverPos.x = Mathf.Clamp(_diverPos.x, _xMin - softEdge, _xMax + softEdge);
             _diverPos.y -= _fallSpeed * dt;
 
             _lastBreathPower = breathPower;
@@ -277,8 +306,8 @@ namespace Breathe.Gameplay
         {
             if (_windStreaks == null) return;
 
-            float windDir = Mathf.Sign(_displayWindForce);
-            float windStrength = Mathf.Abs(_displayWindForce) / _windMaxForce;
+            float windDir = Mathf.Sign(_currentWindForce);
+            float windStrength = Mathf.Abs(_currentWindForce) / _windMaxForce;
             float range = _xMax - _xMin;
             float baseSpeed = 2f + windStrength * 4f;
 
@@ -290,11 +319,12 @@ namespace Breathe.Gameplay
                 float startX = windDir > 0
                     ? _xMin + phase
                     : _xMax - phase;
-                float length = 1.2f + windStrength * 2.5f;
+                float length = 1.4f + windStrength * 3f;
 
-                float alpha = 0.10f + windStrength * 0.45f;
-                Color streakColor = new Color(0.85f, 0.9f, 1f, alpha);
-                _windStreaks[i].startColor = new Color(streakColor.r, streakColor.g, streakColor.b, 0f);
+                float alpha = 0.25f + windStrength * 0.5f;
+                float tint = (i % 3) * 0.06f;
+                Color streakColor = new Color(0.82f + tint, 0.88f + tint * 0.5f, 1f, alpha);
+                _windStreaks[i].startColor = new Color(streakColor.r, streakColor.g, streakColor.b, alpha * 0.15f);
                 _windStreaks[i].endColor = streakColor;
 
                 _windStreaks[i].SetPosition(0, new Vector3(startX, streakY, 1f));
