@@ -14,8 +14,11 @@ namespace Breathe.Input
     /// Only one source runs at a time — switching shuts down the old and initializes the new.
     public sealed class BreathInputManager : MonoBehaviour
     {
+        /// <summary>PlayerPrefs key shared with SettingsManager for input mode persistence.</summary>
+        public const string PrefKeyInputMode = "Breathe_InputMode";
+
         [Header("Input Mode")]
-        [SerializeField, Tooltip("Which input source to use on startup.")]
+        [SerializeField, Tooltip("Fallback if no saved preference exists in PlayerPrefs.")]
         private InputMode currentMode = InputMode.Simulated;
 
         [Header("Input Sources")]
@@ -143,6 +146,16 @@ namespace Breathe.Input
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            if (PlayerPrefs.HasKey(PrefKeyInputMode))
+            {
+                var saved = (InputMode)PlayerPrefs.GetInt(PrefKeyInputMode);
+                if (saved != currentMode)
+                {
+                    Debug.Log($"[BreathInputManager] Restoring saved input mode: {saved} (was {currentMode})");
+                    currentMode = saved;
+                }
+            }
 
             _activeInput = ResolveInput(currentMode);
             _activeInput?.Initialize();

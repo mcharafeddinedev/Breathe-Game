@@ -3237,6 +3237,7 @@ GameObject:
   - component: {fileID: 2024353554}
   - component: {fileID: 2024353556}
   - component: {fileID: 2024353555}
+  - component: {fileID: 2024353557}
   m_Layer: 5
   m_Name: SettingsPanel
   m_TagString: Untagged
@@ -3303,6 +3304,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2024353553}
   m_CullTransparentMesh: 1
+--- !u!114 &2024353557
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2024353553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 149b922513e3124409d94badba59ec74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Breathe.UI::Breathe.UI.SettingsManager
 --- !u!1 &2046143660
 GameObject:
   m_ObjectHideFlags: 0
