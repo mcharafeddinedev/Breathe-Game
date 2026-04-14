@@ -12,15 +12,19 @@ namespace Breathe.Gameplay
         public static MinigameManager Instance => _instance;
 
         [Header("Minigame Roster")]
-        [SerializeField, Tooltip("All minigames in level select. Order matches the grid.")]
+        [SerializeField, Tooltip("Full minigame roster (includes hidden-from-menu entries for lookups and future content).")]
         private MinigameDefinition[] _availableMinigames = Array.Empty<MinigameDefinition>();
 
         private MinigameDefinition _selectedDefinition;
         private IMinigame _activeMinigame;
+        private MinigameDefinition[] _minigamesForLevelSelect;
 
         public MinigameDefinition SelectedDefinition => _selectedDefinition;
         public IMinigame ActiveMinigame => _activeMinigame;
+        /// <summary>Full roster (editor tests, tutorials matching by scene, GetDefinitionById).</summary>
         public MinigameDefinition[] AvailableMinigames => _availableMinigames;
+        /// <summary>Subset shown on level select (IncludeInLevelSelect).</summary>
+        public MinigameDefinition[] MinigamesForLevelSelect => _minigamesForLevelSelect;
 
         public event Action<MinigameDefinition> OnMinigameSelected;
         public event Action<IMinigame> OnActiveMinigameChanged;
@@ -30,8 +34,37 @@ namespace Breathe.Gameplay
             if (_instance != null && _instance != this) { Destroy(gameObject); return; }
             _instance = this;
             DontDestroyOnLoad(gameObject);
-            if (_availableMinigames.Length > 0 && _selectedDefinition == null)
-                _selectedDefinition = _availableMinigames[0];
+            RebuildLevelSelectCache();
+            if (_selectedDefinition == null)
+                _selectedDefinition = GetDefaultSelection();
+        }
+
+        private void RebuildLevelSelectCache()
+        {
+            int count = 0;
+            for (int i = 0; i < _availableMinigames.Length; i++)
+            {
+                var d = _availableMinigames[i];
+                if (d != null && d.IncludeInLevelSelect) count++;
+            }
+
+            _minigamesForLevelSelect = new MinigameDefinition[count];
+            int w = 0;
+            for (int i = 0; i < _availableMinigames.Length; i++)
+            {
+                var d = _availableMinigames[i];
+                if (d != null && d.IncludeInLevelSelect)
+                    _minigamesForLevelSelect[w++] = d;
+            }
+        }
+
+        private MinigameDefinition GetDefaultSelection()
+        {
+            if (_minigamesForLevelSelect != null && _minigamesForLevelSelect.Length > 0)
+                return _minigamesForLevelSelect[0];
+            foreach (var d in _availableMinigames)
+                if (d != null) return d;
+            return null;
         }
 
         private void OnDestroy()

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b5c337eede6b90449d2ae25a753cbd9, type: 3}
+  m_Name: BalloonSfxProfile
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
+  _gameplayStart: {fileID: 8300000, guid: 564124af93c8411badd78d5115d2c75e, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: f41bd6adf4134fd6800304d0c8a8516f, type: 3}
+  _timeWarning: {fileID: 8300000, guid: 1436b8453ea1434ea0d98cfa4d7ac19a, type: 3}
+  _success: {fileID: 8300000, guid: 2a6fed8d84ce46d39b10c28e95031e1c, type: 3}
+  _goalComplete: {fileID: 8300000, guid: 2c36cd3155604392bcac764dc6d6b5f3, type: 3}
+  _primaryAction: {fileID: 8300000, guid: 9a75d55614d749e88812f53f19746cfe, type: 3}
+  _secondaryAction: {fileID: 8300000, guid: 3a3f9b845a5440b5bf1666f715124f14, type: 3}
+  _tertiaryAction: {fileID: 8300000, guid: 375320e1f52f4c5ab9d5908ce8823d66, type: 3}
+  _specialEvent: {fileID: 8300000, guid: 778d7f2325d343be8cac41b43a28d40f, type: 3}

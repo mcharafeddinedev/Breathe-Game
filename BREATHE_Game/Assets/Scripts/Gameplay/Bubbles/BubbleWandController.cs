@@ -63,7 +63,10 @@ namespace Breathe.Gameplay
         private SpriteRenderer _wandFilm;
         private List<GameObject> _splashParticles = new();
         private float _splashAnimTimer;
-        private GameObject _backgroundObj;
+        private GameObject _bathBackdropRoot;
+
+        /// <summary>FIFO: one transform per sweet-spot bubble spawn, for score popups (dequeue in same order as score ticks).</summary>
+        private readonly Queue<Transform> _sweetSpotScoreAnchors = new();
 
         private static Material _spriteMat;
         private Texture2D _bubbleTex;
@@ -86,6 +89,13 @@ namespace Breathe.Gameplay
         public int LongestStreakBubbles => _longestStreakBubbles;
         public int CurrentStreakBubbles => _currentStreakBubbles;
 
+        /// <summary>Matches each new sweet-spot bubble to its world transform for UI (one dequeue per scored bubble).</summary>
+        public Transform TryTakeSweetSpotScoreAnchor()
+        {
+            if (_sweetSpotScoreAnchors.Count == 0) return null;
+            return _sweetSpotScoreAnchors.Dequeue();
+        }
+
         public void Initialize()
         {
             EnsureMaterial();
@@ -93,6 +103,14 @@ namespace Breathe.Gameplay
 
             BuildBackground();
             BuildWand();
+        }
+
+        private void BuildBackground()
+        {
+            var cam = Camera.main;
+            BathBackdropBuilder.Build(cam, out _bathBackdropRoot, BathBackdropBuilder.GameplayDefault);
+            if (cam != null)
+                cam.backgroundColor = new Color(0.06f, 0.20f, 0.30f);
         }
 
         public void Activate() => _active = true;
@@ -182,6 +200,7 @@ namespace Breathe.Gameplay
             _longestStreak = 0f;
             _currentStreakBubbles = 0;
             _longestStreakBubbles = 0;
+            _sweetSpotScoreAnchors.Clear();
         }
 
         private float RingWorldY => _cam != null ? _cam.transform.position.y + _ringLocalY : 0f;
@@ -266,6 +285,9 @@ namespace Breathe.Gameplay
                 IsSweetSpot = isSweetSpot,
                 BaseColor = color
             });
+
+            if (isSweetSpot)
+                _sweetSpotScoreAnchors.Enqueue(obj.transform);
         }
 
         private void UpdateBubbles()
@@ -388,25 +410,6 @@ namespace Breathe.Gameplay
             }
         }
 
-        private void BuildBackground()
-        {
-            var cam = Camera.main;
-            if (cam != null)
-                cam.backgroundColor = new Color(0.65f, 0.85f, 0.70f);
-
-            _backgroundObj = new GameObject("BubblesBackground");
-            var sr = _backgroundObj.AddComponent<SpriteRenderer>();
-            var bgTex = GenerateGradientTexture(4, 64,
-                new Color(0.55f, 0.80f, 0.60f),
-                new Color(0.45f, 0.70f, 0.85f));
-            sr.sprite = Sprite.Create(bgTex, new Rect(0, 0, bgTex.width, bgTex.height),
-                new Vector2(0.5f, 0.5f), 8f);
-            sr.sortingOrder = -20;
-            float bgZ = cam != null ? cam.transform.position.z + 20f : 10f;
-            _backgroundObj.transform.position = new Vector3(0f, 1f, bgZ);
-            _backgroundObj.transform.localScale = new Vector3(30f, 20f, 1f);
-        }
-
         private void BuildWand()
         {
             _cam = Camera.main;
@@ -486,19 +489,6 @@ namespace Breathe.Gameplay
                     float hl = Mathf.Clamp01(1f - hlDist / (radius * 0.4f)) * edge;
                     tex.SetPixel(x, y, new Color(1f, 1f, 1f, fill + hl * 0.5f));
                 }
-            }
-            tex.Apply();
-            tex.filterMode = FilterMode.Bilinear;
-            return tex;
-        }
-
-        private static Texture2D GenerateGradientTexture(int w, int h, Color bottom, Color top)
-        {
-            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-            for (int y = 0; y < h; y++)
-            {
-                Color c = Color.Lerp(bottom, top, (float)y / h);
-                for (int x = 0; x < w; x++) tex.SetPixel(x, y, c);
             }
             tex.Apply();
             tex.filterMode = FilterMode.Bilinear;

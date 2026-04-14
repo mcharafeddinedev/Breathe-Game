@@ -162,6 +162,7 @@ namespace Breathe.Gameplay
                     string conName = _controller.CaptionName?.ToUpper().Replace(" ", "  ") ?? "";
                     _discoveryText = $"{phrase}\nYOU  DISCOVERED  {conName}!";
                     _discoveryTimer = 3f;
+                    PlayMinigameSpecialEventSfx();
                 }
                 _lastPhase = curPhase;
             }

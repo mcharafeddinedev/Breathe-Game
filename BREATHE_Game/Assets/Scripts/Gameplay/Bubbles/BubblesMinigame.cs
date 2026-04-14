@@ -46,6 +46,9 @@ namespace Breathe.Gameplay
         private GUIStyle _zoneStyle;
         private GUIStyle _timerStyle;
         private Texture2D _headerBarTex;
+        private int _hudStylesBuiltForScreenH;
+
+        private readonly ScorePopupPresenter _scorePopups = new ScorePopupPresenter();
 
         protected override void Awake()
         {
@@ -90,6 +93,7 @@ namespace Breathe.Gameplay
             _postCountdownTimer = -1f;
             _newPBScore = false;
             _newPBTime = false;
+            _scorePopups.Clear();
             _wandController?.ResetTracking();
         }
 
@@ -114,6 +118,8 @@ namespace Breathe.Gameplay
 
             if (!_gameplayActive || _wandController == null) return;
 
+            _scorePopups.Tick(Time.deltaTime);
+
             _sessionTimer += Time.deltaTime;
 
             float breathPower = BreathPowerSystem.Instance != null
@@ -126,6 +132,7 @@ namespace Breathe.Gameplay
             if (currentBubbles > _lastKnownBubbles)
             {
                 int newBubbles = currentBubbles - _lastKnownBubbles;
+                Camera cam = Camera.main;
                 for (int i = 0; i < newBubbles; i++)
                 {
                     int basePoints = _pointsPerBubble;
@@ -134,7 +141,16 @@ namespace Breathe.Gameplay
                         _wandController.CurrentStreakBubbles > 1)
                         basePoints += _streakBonusPerBubble;
                     _totalScore += basePoints;
+
+                    Transform anchor = _wandController.TryTakeSweetSpotScoreAnchor();
+                    var popColor = new Color(0.45f, 1f, 0.65f);
+                    if (anchor != null && cam != null)
+                        _scorePopups.PushFollowing($"+{basePoints}", popColor, anchor, cam);
+                    else
+                        _scorePopups.Push($"+{basePoints}", popColor, null);
                 }
+                if (newBubbles > 0)
+                    TryPlayMinigamePrimaryActionSfx(0.14f);
                 _lastKnownBubbles = currentBubbles;
             }
 
@@ -247,33 +263,47 @@ namespace Breathe.Gameplay
 
             BuildHUDStyles();
 
+            float sc = HudUiScale();
+            _scorePopups.FontScale = Mathf.Clamp(sc * 1.12f, 1.05f, 1.65f);
+
+            float margin = 16f * sc;
+            float numW = 220f * sc;
+            float numH = 56f * sc;
+            float lblH = 32f * sc;
+            float rowGap = 6f * sc;
+            float barH = 102f * sc;
+            float yNum = 14f * sc;
+            float yLbl = yNum + numH + rowGap;
+
             // Header bar background
             if (_headerBarTex != null)
-                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, 90f), _headerBarTex, ScaleMode.StretchToFill);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, barH), _headerBarTex, ScaleMode.StretchToFill);
 
             int bubbles = _wandController != null ? _wandController.SweetSpotBubblesProduced : 0;
 
             // Bubble counter — top center
             string counterText = $"{bubbles}  /  {_bubbleGoal}";
-            Rect counterRect = new Rect(Screen.width * 0.5f - 100f, 20f, 200f, 45f);
+            float cx = (Screen.width - numW) * 0.5f;
+            Rect counterRect = new Rect(cx, yNum, numW, numH);
             GameFont.OutlinedLabel(counterRect, counterText, _counterStyle, 2);
 
-            Rect counterLabel = new Rect(Screen.width * 0.5f - 100f, 62f, 200f, 24f);
+            Rect counterLabel = new Rect(cx, yLbl, numW, lblH);
             GameFont.OutlinedLabel(counterLabel, "BUBBLES", _labelStyle);
 
             // Timer — top left
             string timeText = $"{_sessionTimer:F1}s";
-            Rect timeRect = new Rect(40f, 20f, 140f, 40f);
+            Rect timeRect = new Rect(margin, yNum, numW, numH);
             GameFont.OutlinedLabel(timeRect, timeText, _timerStyle, 2);
 
-            Rect timeLabel = new Rect(40f, 58f, 140f, 24f);
+            Rect timeLabel = new Rect(margin, yLbl, numW, lblH);
             GameFont.OutlinedLabel(timeLabel, "TIME", _labelStyle);
 
             // Score — top right
-            Rect scoreRect = new Rect(Screen.width - 180f, 20f, 140f, 40f);
+            float rx = Screen.width - margin - numW;
+            Rect scoreRect = new Rect(rx, yNum, numW, numH);
             GameFont.OutlinedLabel(scoreRect, $"{_totalScore}", _timerStyle, 2);
 
-            Rect scoreLabel = new Rect(Screen.width - 180f, 58f, 140f, 24f);
+            Rect scoreLabel = new Rect(rx, yLbl, numW, lblH);
             GameFont.OutlinedLabel(scoreLabel, "SCORE", _labelStyle);
 
             // Zone indicator — bottom center
@@ -298,20 +328,34 @@ namespace Breathe.Gameplay
                     };
                     _zoneStyle.normal.textColor = zoneColor;
 
-                    Rect zoneRect = new Rect(0f, Screen.height - 100f, Screen.width, 40f);
+                    float zoneH = 52f * sc;
+                    Rect zoneRect = new Rect(0f, Screen.height - 28f * sc - zoneH, Screen.width, zoneH);
                     GameFont.OutlinedLabel(zoneRect, zoneText, _zoneStyle, 2);
                 }
             }
+
+            _scorePopups.DrawOnGUI();
+        }
+
+        static float HudUiScale()
+        {
+            return Mathf.Clamp(Screen.height / 900f, 0.95f, 1.55f);
+        }
+
+        static int HudFont(int basePx)
+        {
+            return Mathf.Max(10, Mathf.RoundToInt(basePx * HudUiScale()));
         }
 
         private void BuildHUDStyles()
         {
-            if (_counterStyle != null) return;
+            if (_counterStyle != null && _hudStylesBuiltForScreenH == Screen.height) return;
+            _hudStylesBuiltForScreenH = Screen.height;
             Font f = GameFont.Get();
 
             _counterStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 48,
+                fontSize = HudFont(52),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -320,7 +364,7 @@ namespace Breathe.Gameplay
 
             _labelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 24,
+                fontSize = HudFont(28),
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -329,7 +373,7 @@ namespace Breathe.Gameplay
 
             _timerStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 40,
+                fontSize = HudFont(46),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -338,16 +382,19 @@ namespace Breathe.Gameplay
 
             _zoneStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 42,
+                fontSize = HudFont(48),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _zoneStyle.normal.textColor = Color.white;
             if (f != null) _zoneStyle.font = f;
 
-            _headerBarTex = new Texture2D(1, 1);
-            _headerBarTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.5f));
-            _headerBarTex.Apply();
+            if (_headerBarTex == null)
+            {
+                _headerBarTex = new Texture2D(1, 1);
+                _headerBarTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.5f));
+                _headerBarTex.Apply();
+            }
         }
 
         private static string FormatActivityGrade(float ratio)

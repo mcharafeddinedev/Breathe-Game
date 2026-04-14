@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Breathe.Audio;
 using Breathe.Data;
 using Breathe.Utility;
 
@@ -45,13 +46,16 @@ namespace Breathe.Gameplay
         private List<MinigameStat> _primaryStats = new();
         private List<MinigameStat> _secondaryStats = new();
 
-        // Styles (lazy-init)
+        // Styles (rebuilt when screen height changes so fonts track resolution)
         private bool _stylesReady;
+        private int _stylesBuiltForScreenH;
+        private GUIStyle _dimScrim;
         private GUIStyle _panelBg, _headerBar, _divider;
         private GUIStyle _titleStyle, _heroStatValue, _heroSubStyle;
         private GUIStyle _primaryStatValue, _primaryStatLabel;
         private GUIStyle _secondaryValue, _secondaryLabel;
         private GUIStyle _feedbackStyle, _quoteStyle;
+        private GUIStyle _sectionHeaderStyle;
         private GUIStyle _pbBadge, _pbBadgeSmall;
         private GUIStyle _btnPrimary, _btnSecondary;
 
@@ -210,8 +214,6 @@ namespace Breathe.Gameplay
         {
             if (_phase < Phase.PoppingIn || _phase == Phase.PostDelay) return;
 
-            BuildStyles();
-
             if (_scale < 0.001f) return;
 
             Color prevColor = GUI.color;
@@ -229,52 +231,51 @@ namespace Breathe.Gameplay
             GUI.color = prevColor;
         }
 
+        const int MaxPrimaryStatsDisplay = 9;
+        const int MaxSecondaryStatsDisplay = 6;
+
+        static float ResultUiScale()
+        {
+            return Mathf.Clamp(Screen.height / 900f, 0.9f, 1.55f);
+        }
+
         private void DrawPanel()
         {
-            float pw = Mathf.Min(Screen.width * 0.85f, 720f);
-            float ph = Mathf.Min(Screen.height * 0.94f, 820f);
+            EnsureResultStyles();
+            float sc = ResultUiScale();
+
+            float pw = Mathf.Min(Screen.width * 0.95f, 1500f);
+            float ph = Mathf.Min(Screen.height * 0.93f, 1050f);
             float px = (Screen.width - pw) * 0.5f;
             float py = (Screen.height - ph) * 0.5f;
-            float pad = 28f;
+            float pad = 26f * sc;
             float contentW = pw - pad * 2f;
 
+            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "", _dimScrim);
             GUI.Box(new Rect(px, py, pw, ph), "", _panelBg);
 
-            // Header bar (themed by minigame accent color)
-            float hdrH = 50f;
+            float hdrH = 54f * sc;
             var headerStyle = BoxStyle(_accentColor);
             GUI.Box(new Rect(px, py, pw, hdrH), "", headerStyle);
-            GameFont.OutlinedLabel(new Rect(px, py + 10f, pw, 34f),
+            float titleBarH = 38f * sc;
+            GameFont.OutlinedLabel(new Rect(px, py + (hdrH - titleBarH) * 0.5f, pw, titleBarH),
                 _resultTitle.ToUpper().Replace(" ", "  "), _titleStyle);
 
-            // Buttons pinned at bottom
-            float bh = 55f;
-            float bw = 210f;
-            float btnGap = 24f;
-            float btnMargin = 28f;
+            float bh = 58f * sc;
+            float bw = Mathf.Min(240f * sc, (pw - 80f * sc) * 0.45f);
+            float btnGap = 28f * sc;
+            float btnMargin = 22f * sc;
             float btnY = py + ph - bh - btnMargin;
             float bx = px + (pw - bw * 2f - btnGap) * 0.5f;
 
-            float zoneTop = py + hdrH;
-            float zoneBottom = btnY - 12f;
-            float zoneH = zoneBottom - zoneTop;
+            float zoneTop = py + hdrH + 10f * sc;
+            float gap = 12f * sc;
+            float cy = zoneTop;
 
-            // Compute layout heights based on content
-            float heroH = _heroStats.Count > 0 ? 55f : 0f;
-            float heroSubH = _heroStats.Count > 1 ? 40f : 0f;
-            float celebH = 40f;
-            float quoteH = 30f;
-            float primaryH = _primaryStats.Count > 0 ? 60f : 0f;
-            float feedbackH = !string.IsNullOrEmpty(_personalBestMessage) ? 50f : 0f;
-            int secondaryRows = Mathf.CeilToInt(_secondaryStats.Count / 3f);
-            float secondaryH = secondaryRows * 48f;
+            float heroH = _heroStats.Count > 0 ? 62f * sc : 0f;
+            float heroSubH = _heroStats.Count > 1 ? 44f * sc : 0f;
 
-            float totalH = heroH + heroSubH + celebH + quoteH + primaryH + feedbackH + secondaryH;
-            float gap = Mathf.Max(8f, (zoneH - totalH) / 8f);
-
-            float cy = zoneTop + gap;
-
-            // Hero stats (displayed very large)
+            // --- Hero: main outcome numbers ---
             if (_heroStats.Count > 0)
             {
                 var hero = _heroStats[0];
@@ -288,13 +289,12 @@ namespace Breathe.Gameplay
                 if (hero.IsPersonalBest)
                 {
                     float valW = _heroStatValue.CalcSize(new GUIContent(heroText)).x;
-                    float badgeX = (Screen.width + valW) * 0.5f + 8f;
-                    GameFont.OutlinedLabel(new Rect(badgeX, cy + 6f, 80f, 24f), "NEW  PB", _pbBadge);
+                    float badgeX = (Screen.width + valW) * 0.5f + 8f * sc;
+                    GameFont.OutlinedLabel(new Rect(badgeX, cy + 6f * sc, 90f * sc, 28f * sc), "NEW  PB", _pbBadge);
                 }
-                cy += heroH + gap * 0.3f;
+                cy += heroH + gap * 0.35f;
             }
 
-            // Hero sub-stat (second hero if present, e.g., time under placement)
             if (_heroStats.Count > 1)
             {
                 var sub = _heroStats[1];
@@ -303,88 +303,109 @@ namespace Breathe.Gameplay
                 if (sub.IsPersonalBest)
                 {
                     float valW = _heroSubStyle.CalcSize(new GUIContent(subText)).x;
-                    float badgeX = (Screen.width + valW) * 0.5f + 8f;
-                    GameFont.OutlinedLabel(new Rect(badgeX, cy + 6f, 80f, 24f), "NEW  PB", _pbBadge);
+                    float badgeX = (Screen.width + valW) * 0.5f + 8f * sc;
+                    GameFont.OutlinedLabel(new Rect(badgeX, cy + 6f * sc, 90f * sc, 28f * sc), "NEW  PB", _pbBadge);
                 }
                 cy += heroSubH + gap * 0.5f;
             }
 
-            // Celebration title
-            string celebText = _celebrationTitle.ToUpper().Replace(" ", "  ");
-            GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, celebH),
-                $"\"{celebText}\"", _quoteStyle);
-            cy += celebH + gap * 0.5f;
-
-            // Encouraging quote
-            string quoteText = _encouragingQuote.ToUpper().Replace(" ", "  ");
-            var quoteSmall = new GUIStyle(_quoteStyle) { fontSize = 20 };
-            GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, quoteH), quoteText, quoteSmall);
-            cy += quoteH + gap;
-
-            // Primary stats (3-column layout)
-            if (_primaryStats.Count > 0)
+            // --- Primary: scores & key metrics (emphasis) ---
+            int pShow = Mathf.Min(_primaryStats.Count, MaxPrimaryStatsDisplay);
+            if (pShow > 0)
             {
-                DrawDivider(px + pad, cy, contentW);
-                cy += gap * 0.5f;
+                GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, 26f * sc),
+                    "YOUR  RESULTS", _sectionHeaderStyle);
+                cy += 28f * sc;
 
-                int cols = Mathf.Min(_primaryStats.Count, 3);
-                float colW = contentW / cols;
-                for (int i = 0; i < _primaryStats.Count && i < 3; i++)
+                float colW = contentW / 3f;
+                float rowH = 72f * sc;
+                int rows = Mathf.CeilToInt(pShow / 3f);
+                for (int r = 0; r < rows; r++)
                 {
-                    var stat = _primaryStats[i];
-                    string val = stat.Value.ToUpper().Replace(" ", "  ");
-                    string lbl = stat.Label.ToUpper().Replace(" ", "  ");
-                    DrawCenteredStat(px + pad + colW * i, cy, colW, val, lbl, stat.IsPersonalBest);
-                }
-                cy += primaryH + gap;
-
-                // Overflow primary stats into a second row
-                if (_primaryStats.Count > 3)
-                {
-                    int extra = _primaryStats.Count - 3;
-                    int extraCols = Mathf.Min(extra, 3);
-                    float extraColW = contentW / extraCols;
-                    for (int i = 3; i < _primaryStats.Count && i < 6; i++)
+                    for (int c = 0; c < 3; c++)
                     {
+                        int i = r * 3 + c;
+                        if (i >= pShow) break;
                         var stat = _primaryStats[i];
-                        string val = stat.Value.ToUpper().Replace(" ", "  ");
-                        string lbl = stat.Label.ToUpper().Replace(" ", "  ");
-                        DrawCenteredStat(px + pad + extraColW * (i - 3), cy, extraColW,
-                            val, lbl, stat.IsPersonalBest);
+                        DrawCenteredStat(px + pad + colW * c, cy, colW, stat.Value, stat.Label,
+                            stat.IsPersonalBest, sc);
                     }
-                    cy += primaryH + gap;
+                    cy += rowH;
                 }
+                cy += gap;
             }
 
-            // Feedback / personal best message
+            // --- Personal-best / feedback (single flowing block, height from content) ---
             if (!string.IsNullOrEmpty(_personalBestMessage))
             {
-                DrawDivider(px + pad, cy, contentW);
-                cy += gap * 0.5f;
-
                 string fbText = _personalBestMessage.ToUpper().Replace(" ", "  ");
                 var fbStyle = new GUIStyle(_feedbackStyle) { wordWrap = true };
-                GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, feedbackH), fbText, fbStyle);
-                cy += feedbackH + gap;
+                float fbH = fbStyle.CalcHeight(new GUIContent(fbText), contentW);
+                fbH = Mathf.Clamp(fbH, 28f * sc, 120f * sc);
+                GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, fbH), fbText, fbStyle);
+                cy += fbH + gap;
             }
 
-            // Secondary stats (3-column rows)
-            if (_secondaryStats.Count > 0)
+            // --- Secondary: session details (capped; avoid stat wall) ---
+            int sShow = Mathf.Min(_secondaryStats.Count, MaxSecondaryStatsDisplay);
+            if (sShow > 0)
             {
-                DrawDivider(px + pad, cy, contentW);
-                cy += gap * 0.5f;
+                GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, 24f * sc),
+                    "SESSION  DETAILS", _sectionHeaderStyle);
+                cy += 26f * sc;
 
                 float detailColW = contentW / 3f;
-                for (int i = 0; i < _secondaryStats.Count; i++)
+                float smallRowH = 52f * sc;
+                int sRows = Mathf.CeilToInt(sShow / 3f);
+                for (int r = 0; r < sRows; r++)
                 {
-                    int col = i % 3;
-                    if (col == 0 && i > 0) cy += 48f + gap * 0.3f;
-
-                    var stat = _secondaryStats[i];
-                    string val = stat.Value.ToUpper().Replace(" ", "  ");
-                    string lbl = stat.Label.ToUpper().Replace(" ", "  ");
-                    DrawSmallStat(px + pad + detailColW * col, cy, detailColW, val, lbl);
+                    for (int c = 0; c < 3; c++)
+                    {
+                        int i = r * 3 + c;
+                        if (i >= sShow) break;
+                        var stat = _secondaryStats[i];
+                        DrawSmallStat(px + pad + detailColW * c, cy, detailColW,
+                            stat.Value, stat.Label, sc);
+                    }
+                    cy += smallRowH;
                 }
+                cy += gap;
+
+                int hidden = _secondaryStats.Count - MaxSecondaryStatsDisplay;
+                if (hidden > 0)
+                {
+                    var moreStyle = new GUIStyle(_secondaryLabel)
+                    {
+                        fontSize = Mathf.Max(12, _secondaryLabel.fontSize),
+                        fontStyle = FontStyle.Italic
+                    };
+                    GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, 22f * sc),
+                        $"+  {hidden}  MORE  STATS", moreStyle);
+                    cy += 24f * sc;
+                }
+                cy += gap * 0.5f;
+            }
+
+            // --- Closing flavor (celebration + quote) — one compact block; clamp to space above buttons ---
+            float maxFlavorBottom = btnY - 14f * sc;
+            float availForFlavor = maxFlavorBottom - cy;
+            if (availForFlavor > 36f * sc)
+            {
+                string celebText = _celebrationTitle.ToUpper().Replace(" ", "  ");
+                string quoteText = string.IsNullOrEmpty(_encouragingQuote)
+                    ? ""
+                    : _encouragingQuote.ToUpper().Replace(" ", "  ");
+                string flavorBody = string.IsNullOrEmpty(quoteText)
+                    ? $"\"{celebText}\""
+                    : $"\"{celebText}\"\n{quoteText}";
+                var flavorStyle = new GUIStyle(_quoteStyle)
+                {
+                    wordWrap = true,
+                    alignment = TextAnchor.UpperCenter
+                };
+                float flavorH = flavorStyle.CalcHeight(new GUIContent(flavorBody), contentW);
+                flavorH = Mathf.Clamp(flavorH, 32f * sc, Mathf.Min(96f * sc, availForFlavor - 4f * sc));
+                GameFont.OutlinedLabel(new Rect(px + pad, cy, contentW, flavorH), flavorBody, flavorStyle);
             }
 
             // Buttons
@@ -393,83 +414,102 @@ namespace Breathe.Gameplay
             if (interactive && Event.current.type == EventType.KeyDown
                 && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter))
             {
+                SfxPlayer.Instance?.PlayUiMenuClick();
                 BeginPopOut(() => SceneLoader.ReloadCurrentScene());
                 Event.current.Use();
             }
 
             if (GUI.Button(new Rect(bx, btnY, bw, bh), "PLAY  AGAIN", _btnPrimary) && interactive)
+            {
+                SfxPlayer.Instance?.PlayUiMenuClick();
                 BeginPopOut(() => SceneLoader.ReloadCurrentScene());
+            }
 
             if (GUI.Button(new Rect(bx + bw + btnGap, btnY, bw, bh), "MAIN  MENU", _btnSecondary) && interactive)
-                BeginPopOut(() => SceneLoader.LoadMainMenu());
-        }
-
-        private void DrawCenteredStat(float x, float y, float w, string value, string label, bool isPB)
-        {
-            GameFont.OutlinedLabel(new Rect(x, y, w, 36f), value, _primaryStatValue);
-            GameFont.OutlinedLabel(new Rect(x, y + 34f, w, 22f), label, _primaryStatLabel);
-
-            if (isPB)
             {
-                float valW = _primaryStatValue.CalcSize(new GUIContent(value)).x;
-                float badgeX = x + (w + valW) * 0.5f + 4f;
-                GameFont.OutlinedLabel(new Rect(badgeX, y + 4f, 50f, 16f), "PB", _pbBadgeSmall);
+                SfxPlayer.Instance?.PlayUiMenuClick();
+                BeginPopOut(() => SceneLoader.LoadMainMenu());
             }
         }
 
-        private void DrawSmallStat(float x, float y, float w, string value, string label)
+        private void DrawCenteredStat(float x, float y, float w, string value, string label, bool isPB, float sc)
         {
-            GameFont.OutlinedLabel(new Rect(x, y, w, 26f), value, _secondaryValue);
-            GameFont.OutlinedLabel(new Rect(x, y + 24f, w, 20f), label, _secondaryLabel);
+            string val = value.ToUpper().Replace(" ", "  ");
+            string lbl = label.ToUpper().Replace(" ", "  ");
+            float vh = 40f * sc;
+            float lh = 24f * sc;
+            GameFont.OutlinedLabel(new Rect(x, y, w, vh), val, _primaryStatValue);
+            GameFont.OutlinedLabel(new Rect(x, y + vh - 6f * sc, w, lh), lbl, _primaryStatLabel);
+
+            if (isPB)
+            {
+                float valW = _primaryStatValue.CalcSize(new GUIContent(val)).x;
+                float badgeX = x + (w + valW) * 0.5f + 4f * sc;
+                GameFont.OutlinedLabel(new Rect(badgeX, y + 4f * sc, 56f * sc, 20f * sc), "PB", _pbBadgeSmall);
+            }
         }
 
-        private void DrawDivider(float x, float y, float w)
+        private void DrawSmallStat(float x, float y, float w, string value, string label, float sc)
         {
-            GUI.Box(new Rect(x, y, w, 1f), "", _divider);
+            string val = value.ToUpper().Replace(" ", "  ");
+            string lbl = label.ToUpper().Replace(" ", "  ");
+            float vh = 30f * sc;
+            float lh = 20f * sc;
+            GameFont.OutlinedLabel(new Rect(x, y, w, vh), val, _secondaryValue);
+            GameFont.OutlinedLabel(new Rect(x, y + vh - 4f * sc, w, lh), lbl, _secondaryLabel);
         }
 
-        private void BuildStyles()
+        private void EnsureResultStyles()
         {
-            if (_stylesReady) return;
+            if (_stylesReady && _stylesBuiltForScreenH == Screen.height) return;
             _stylesReady = true;
+            _stylesBuiltForScreenH = Screen.height;
+
+            float sc = ResultUiScale();
+            int S(int px) => Mathf.Max(10, Mathf.RoundToInt(px * sc));
+
+            _dimScrim = BoxStyle(new Color(0f, 0f, 0f, 0.52f));
 
             _panelBg = BoxStyle(new Color(0.02f, 0.04f, 0.10f, 0.97f));
             _headerBar = BoxStyle(new Color(0.12f, 0.45f, 0.75f, 1f));
             _divider = new GUIStyle { normal = { background = Tex(new Color(1f, 1f, 1f, 0.1f)) } };
 
-            _titleStyle = Lbl(36, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
-            _heroStatValue = Lbl(58, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
-            _heroSubStyle = Lbl(40, FontStyle.Bold, TextAnchor.MiddleCenter,
+            _titleStyle = Lbl(S(38), FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _heroStatValue = Lbl(S(60), FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _heroSubStyle = Lbl(S(42), FontStyle.Bold, TextAnchor.MiddleCenter,
                 new Color(0.9f, 0.95f, 1f));
 
-            _primaryStatValue = Lbl(28, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            _primaryStatValue = Lbl(S(30), FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
             _primaryStatValue.clipping = TextClipping.Overflow;
-            _primaryStatLabel = Lbl(18, FontStyle.Normal, TextAnchor.MiddleCenter,
+            _primaryStatLabel = Lbl(S(19), FontStyle.Normal, TextAnchor.MiddleCenter,
                 new Color(0.55f, 0.6f, 0.7f));
             _primaryStatLabel.clipping = TextClipping.Overflow;
 
-            _secondaryValue = Lbl(22, FontStyle.Bold, TextAnchor.MiddleCenter,
+            _secondaryValue = Lbl(S(23), FontStyle.Bold, TextAnchor.MiddleCenter,
                 new Color(0.75f, 0.78f, 0.85f));
             _secondaryValue.clipping = TextClipping.Overflow;
-            _secondaryLabel = Lbl(16, FontStyle.Normal, TextAnchor.MiddleCenter,
+            _secondaryLabel = Lbl(S(17), FontStyle.Normal, TextAnchor.MiddleCenter,
                 new Color(0.50f, 0.53f, 0.60f));
             _secondaryLabel.clipping = TextClipping.Overflow;
 
-            _feedbackStyle = Lbl(24, FontStyle.Normal, TextAnchor.MiddleCenter,
+            _feedbackStyle = Lbl(S(25), FontStyle.Normal, TextAnchor.MiddleCenter,
                 new Color(0.8f, 0.83f, 0.9f));
-            _quoteStyle = Lbl(24, FontStyle.Italic, TextAnchor.MiddleCenter,
+            _quoteStyle = Lbl(S(22), FontStyle.Italic, TextAnchor.MiddleCenter,
                 new Color(0.5f, 0.78f, 0.62f));
 
-            _pbBadge = Lbl(18, FontStyle.Bold, TextAnchor.MiddleLeft,
+            _sectionHeaderStyle = Lbl(S(19), FontStyle.Bold, TextAnchor.MiddleCenter,
+                new Color(0.62f, 0.68f, 0.8f));
+
+            _pbBadge = Lbl(S(19), FontStyle.Bold, TextAnchor.MiddleLeft,
                 new Color(1f, 0.85f, 0.2f));
-            _pbBadgeSmall = Lbl(16, FontStyle.Bold, TextAnchor.MiddleLeft,
+            _pbBadgeSmall = Lbl(S(17), FontStyle.Bold, TextAnchor.MiddleLeft,
                 new Color(1f, 0.85f, 0.2f));
 
             _btnPrimary = BtnStyle(Tex(new Color(0.18f, 0.5f, 0.85f, 1f)),
-                Tex(new Color(0.22f, 0.58f, 0.95f, 1f)), Color.white);
+                Tex(new Color(0.22f, 0.58f, 0.95f, 1f)), Color.white, S(30));
             _btnSecondary = BtnStyle(Tex(new Color(0.15f, 0.15f, 0.22f, 1f)),
                 Tex(new Color(0.22f, 0.22f, 0.32f, 1f)),
-                new Color(0.75f, 0.75f, 0.82f));
+                new Color(0.75f, 0.75f, 0.82f), S(28));
 
             Font f = GameFont.Get();
             if (f != null)
@@ -478,7 +518,7 @@ namespace Breathe.Gameplay
                     _titleStyle, _heroStatValue, _heroSubStyle,
                     _primaryStatValue, _primaryStatLabel,
                     _secondaryValue, _secondaryLabel, _feedbackStyle,
-                    _pbBadge, _pbBadgeSmall, _quoteStyle,
+                    _pbBadge, _pbBadgeSmall, _quoteStyle, _sectionHeaderStyle,
                     _btnPrimary, _btnSecondary
                 };
                 foreach (var s in all)
@@ -503,11 +543,11 @@ namespace Breathe.Gameplay
             return s;
         }
 
-        private static GUIStyle BtnStyle(Texture2D normal, Texture2D hover, Color textColor)
+        private static GUIStyle BtnStyle(Texture2D normal, Texture2D hover, Color textColor, int fontSize)
         {
             var s = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 28,
+                fontSize = fontSize,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };

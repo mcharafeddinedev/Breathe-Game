@@ -23,14 +23,10 @@ MonoBehaviour:
   _sceneName: SKYDIVE
   _countdownGoText: DIVE!
   _postCountdownBuffer: 0
+  _minigameSfxProfile: {fileID: 11400000, guid: fac8d657efe9442fa59befb7e7690e87, type: 2}
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: "A    crosswind    pushes    each    skydiver    sideways   
-    as    they    fall.    Blow    to    push    them    the    opposite    direction!\n\nControl   
-    your    breath    intensity    to    guide    the    skydiver    onto    the   
-    target    pad.    Light    breath    nudges    gently    \u2014    hard    breath   
-    pushes    fast."
-  _tutorialTip: Watch    the    wind    direction    arrow    and    match    your   
-    effort    to    steer!
+  _tutorialInstruction: "Crosswind drifts each skydiver sideways as they fall\u2014steer them onto the landing pads.\n\nBreathe into or blow onto the device (light breath for small nudges, strong breath for fast corrections) to play the game!"
+  _tutorialTip: "Use the wind arrow and pad positions to judge how hard to blow."
   _spinDownThreshold: 0.12
   _spinDownWindow: 1
   _spinDownResumeDelta: 0.06

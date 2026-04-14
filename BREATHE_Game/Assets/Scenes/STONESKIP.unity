@@ -531,8 +531,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.TutorialPopup
   _fallbackTitle: HOW  TO  PLAY
-  _fallbackInstruction: BLOW  STEADILY  INTO  THE  DEVICE  TO  CONTROL  THE  GAME
-  _fallbackTip: LONGER  STEADY  BREATHS  WORK  BEST
+  _fallbackInstruction: "Follow the on-screen goal for this activity.\n\nBreathe into or blow onto the device (match a steady, controlled breath to what the game asks) to play the game!"
+  _fallbackTip: Use the pattern in parentheses as your breath exercise for this round.
   _fadeInDuration: 0.3
   _fadeOutDuration: 0.2
 --- !u!1 &1659215927

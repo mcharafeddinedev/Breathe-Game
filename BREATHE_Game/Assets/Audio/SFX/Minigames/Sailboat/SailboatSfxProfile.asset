@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b5c337eede6b90449d2ae25a753cbd9, type: 3}
+  m_Name: SailboatSfxProfile
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
+  _gameplayStart: {fileID: 8300000, guid: 760a1f52646f42098a572332b1801fd3, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: 2aabb02ae2bc423189b142fef6d148ca, type: 3}
+  _timeWarning: {fileID: 8300000, guid: 40f9555e20b14733940d893314dd3282, type: 3}
+  _success: {fileID: 8300000, guid: 0ee01738574b4e43b0fe17772f3d6655, type: 3}
+  _goalComplete: {fileID: 8300000, guid: 8e3690f2ad554f3ab7702b46c0a3a052, type: 3}
+  _primaryAction: {fileID: 8300000, guid: ae1ab50e21f7490f8da60f7e1b8fba95, type: 3}
+  _secondaryAction: {fileID: 8300000, guid: 59ad2e37acac4e36bbfe8d5a2eabab61, type: 3}
+  _tertiaryAction: {fileID: 8300000, guid: 0fc2784c286d4d588c9acb12e8754096, type: 3}
+  _specialEvent: {fileID: 8300000, guid: 95eee8fa8f8d4e35ba01c7e9e1539a49, type: 3}

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97586fe9160506a4b85a8ba2f354fb49, type: 3}
+  m_Name: SfxLibrary
+  m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Audio.SfxLibrary
+  _uiButtonConfirm: {fileID: 8300000, guid: bbc542458d1cfb2439b8a2ebfccafbe3, type: 3}
+  _uiButtonCancel: {fileID: 8300000, guid: 98654daacee6cec47b7a33509f6e5b29, type: 3}
+  _uiButtonHover: {fileID: 8300000, guid: 6f9dd05d575dc75419d352b17c510686, type: 3}
+  _uiPanelOpen: {fileID: 8300000, guid: 3246ac16f58b9d5418f3684be61baa2b, type: 3}
+  _uiPanelClose: {fileID: 8300000, guid: 83e01a9374d29c14fb527afa7f4ac003, type: 3}
+  _countdownTickNumber: {fileID: 8300000, guid: c8ba981dfc56b324798e09ff3a91e45e, type: 3}
+  _countdownGo: {fileID: 8300000, guid: 95c5a5e1089ad0b4f8756eaaf5d818d9, type: 3}
+  _tutorialPopupOpen: {fileID: 8300000, guid: 4e900bc027a7a794fbebb3c6158787d8, type: 3}
+  _tutorialPopupContinue: {fileID: 8300000, guid: 05922314214d1894a8c0c4a1a6122185, type: 3}
+  _calibrationStart: {fileID: 8300000, guid: 675ddba9bcbe4724f9c3f804553f8ce6, type: 3}
+  _calibrationComplete: {fileID: 8300000, guid: 4a336e576a816f44db56ddada997e813, type: 3}
+  _resultScreenAppear: {fileID: 8300000, guid: d6e6582aeb5459a4ea1b868aa3ea6075, type: 3}
+  _resultPersonalBest: {fileID: 8300000, guid: 2671d11b189eacb4aa86d01986ca2c2b, type: 3}
+  _celebrationStinger: {fileID: 8300000, guid: 47a368ef5ff76e346913faef3b6a2fdd, type: 3}
+  _resultContinue: {fileID: 8300000, guid: 794da931a70caa84fbcbf2568ee89ce3, type: 3}

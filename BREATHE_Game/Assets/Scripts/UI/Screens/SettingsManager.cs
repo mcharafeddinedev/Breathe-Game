@@ -1,7 +1,12 @@
 using System.Collections.Generic;
+using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityEngine.TextCore;
 using UnityEngine.UI;
 using TMPro;
+using Breathe.Audio;
+using Breathe.Gameplay;
 using Breathe.Input;
 
 namespace Breathe.UI
@@ -32,13 +37,29 @@ namespace Breathe.UI
         static readonly Color ColHandle    = new(0.90f, 0.93f, 0.97f);
         static readonly Color ColBtn       = new(0.28f, 0.35f, 0.48f);
         static readonly Color ColBtnHi     = new(0.38f, 0.48f, 0.62f);
-        static readonly Color ColOverlayBg = new(0.12f, 0.15f, 0.22f, 1.00f);
+        /// <summary>Light frame for panels and buttons (reads clean on dark UI).</summary>
+        static readonly Color ColBorder = new(0.88f, 0.91f, 0.96f, 1f);
+        /// <summary>Opaque How to Play inner fill — black for contrast vs settings chrome.</summary>
+        static readonly Color ColHowToPlayPanelBg = new(0f, 0f, 0f, 1f);
+        /// <summary>Settings content area behind rows (subtle vs pure black HTP overlay).</summary>
+        static readonly Color ColSettingsContentFill = new(0.04f, 0.05f, 0.08f, 1f);
+
+        const float BtnBorderPx = 2f;
+        const float PanelBorderPx = 2f;
+        const float HtpPanelBorderPx = 3f;
+        const float SliderTrackBorderPx = 2f;
         #endregion
+
+        /// <summary>How to Play: this pixel font reads tight — use positive tracking + extra inter-word spaces in the string.</summary>
+        const float HtpCharacterSpacing = 12f;
+        const float HtpWordSpacing = 8f;
+        const float HtpLineSpacing = 6f;
 
         #region Runtime State
         float _masterVol = 1f;
         float _musicVol  = 0.8f;
         float _sfxVol    = 0.8f;
+        bool _debugOverlayEnabled = true;
         Resolution[] _resolutions;
         int _resIdx;
         #endregion
@@ -49,6 +70,7 @@ namespace Breathe.UI
         Slider _masterSlider, _musicSlider, _sfxSlider;
         TextMeshProUGUI _masterPct, _musicPct, _sfxPct;
         Toggle _fullscreenToggle;
+        Toggle _debugOverlayToggle;
         TextMeshProUGUI _resLabel;
         GameObject _howToPlayOverlay;
         Button _backBtn;
@@ -70,6 +92,7 @@ namespace Breathe.UI
             FindBackButton();
             DestroyAllExceptBack();
             CacheResolutions();
+            _debugOverlayEnabled = PlayerPrefs.GetInt(DebugOverlay.PlayerPrefsKey, 1) != 0;
             BuildUI();
         }
 
@@ -147,11 +170,15 @@ namespace Breathe.UI
             AddHeader("Display");
             BuildFullscreenRow();
             BuildResolutionRow();
+            BuildDebugOverlayRow();
             AddSpacer(4);
             BuildHowToPlayBtn();
 
             PositionBack();
+            StyleBackButtonBorder();
             BuildHowToPlayOverlay();
+
+            MenuClickSoundHook.RegisterHierarchy(transform);
         }
 
         void BuildTitle()
@@ -181,27 +208,42 @@ namespace Breathe.UI
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(24, 44);
-            rt.offsetMax = new Vector2(-24, -46);
+            // Symmetric margins so the block reads centered (was visually left-heavy with uneven Y).
+            rt.offsetMin = new Vector2(28, 46);
+            rt.offsetMax = new Vector2(-28, -46);
+            AddInsetPanelFrame(rt, ColBorder, ColSettingsContentFill, PanelBorderPx);
             return rt;
         }
 
         void PositionBack()
         {
             if (_backBtn == null) return;
+            // Center on the panel (same axis as Content when horizontal margins match). Width is derived
+            // from the content band so BACK lines up with the card, not a narrower 30–70% strip.
             var rt = _backBtn.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.30f, 0);
-            rt.anchorMax = new Vector2(0.70f, 0);
-            rt.pivot = new Vector2(0.5f, 0);
-            rt.anchoredPosition = new Vector2(0, 6);
-            rt.sizeDelta = new Vector2(0, 32);
+            float parentW = ((RectTransform)transform).rect.width;
+            float left = _content != null ? _content.offsetMin.x : 28f;
+            float right = _content != null ? -_content.offsetMax.x : 28f;
+            float contentW = Mathf.Max(120f, parentW - left - right);
+            float btnW = Mathf.Min(320f, Mathf.Max(200f, contentW * 0.42f));
+
+            rt.anchorMin = new Vector2(0.5f, 0f);
+            rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.sizeDelta = new Vector2(btnW, 34f);
+            rt.anchoredPosition = new Vector2(0f, 6f);
             _backBtn.transform.SetAsLastSibling();
+        }
+
+        void StyleBackButtonBorder()
+        {
+            if (_backBtn == null) return;
+            StyleBtn(_backBtn.gameObject);
         }
 
         // ================================================================
         //  Row builders — each appends a row at _nextY inside _content,
-        //  using top-anchored rects. Children are anchor-positioned.
-        //  Label region: left 0% to 32%.  Control region: 34% to 100%.
+        //  using top-anchored rects. Children are anchor-positioned (see LblL/CtlL/PctL).
         // ================================================================
 
         const float RowH = 26f;
@@ -237,6 +279,9 @@ namespace Breathe.UI
         void AddDivider()
         {
             var row = PlaceRow(DivH);
+            var rt = row.GetComponent<RectTransform>();
+            rt.offsetMin = new Vector2(10f, 0f);
+            rt.offsetMax = new Vector2(-10f, 0f);
             var img = row.gameObject.AddComponent<CanvasRenderer>();
             var image = row.gameObject.AddComponent<Image>();
             image.color = ColDivider;
@@ -302,6 +347,19 @@ namespace Breathe.UI
             PlayerPrefs.Save();
         }
 
+        void BuildDebugOverlayRow()
+        {
+            var row = PlaceRow(RowH);
+            AddLabel(row, "Debug overlay");
+            _debugOverlayToggle = AddToggle(row, _debugOverlayEnabled, OnDebugOverlay);
+        }
+
+        void OnDebugOverlay(bool enabled)
+        {
+            _debugOverlayEnabled = enabled;
+            DebugOverlay.SetEnabledAndSave(enabled);
+        }
+
         void BuildResolutionRow()
         {
             var row = PlaceRow(RowH);
@@ -355,57 +413,93 @@ namespace Breathe.UI
             _howToPlayOverlay = new GameObject("HowToPlayPanel",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             _howToPlayOverlay.transform.SetParent(transform, false);
-            Anchor(_howToPlayOverlay, new Vector2(0.06f, 0.05f), new Vector2(0.94f, 0.95f));
-            _howToPlayOverlay.GetComponent<Image>().color = ColOverlayBg;
+            Anchor(_howToPlayOverlay, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.98f));
+            var outerImg = _howToPlayOverlay.GetComponent<Image>();
+            outerImg.color = ColBorder;
+            outerImg.raycastTarget = true;
 
-            var titleTmp = AddTMP(_howToPlayOverlay.GetComponent<RectTransform>(),
-                "HTP_Title", new Vector2(0, 0.89f), new Vector2(1, 0.97f));
-            titleTmp.text = "H O W   T O   P L A Y";
-            titleTmp.fontSize = 20;
+            var innerGo = new GameObject("InnerFill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            innerGo.transform.SetParent(_howToPlayOverlay.transform, false);
+            var innerRT = innerGo.GetComponent<RectTransform>();
+            innerRT.anchorMin = Vector2.zero;
+            innerRT.anchorMax = Vector2.one;
+            float b = HtpPanelBorderPx;
+            innerRT.offsetMin = new Vector2(b, b);
+            innerRT.offsetMax = new Vector2(-b, -b);
+            var innerImg = innerGo.GetComponent<Image>();
+            innerImg.color = ColHowToPlayPanelBg;
+            innerImg.raycastTarget = false;
+            innerGo.transform.SetAsFirstSibling();
+
+            var titleTmp = AddTMP(innerRT,
+                "HTP_Title", new Vector2(0, 0.88f), new Vector2(1, 0.98f));
+            titleTmp.text = "HOW TO PLAY";
+            titleTmp.fontSize = 28;
             titleTmp.fontStyle = FontStyles.Bold;
             titleTmp.color = ColHeader;
             titleTmp.alignment = TextAlignmentOptions.Center;
+            DisableTmpKerning(titleTmp);
+            titleTmp.characterSpacing = HtpCharacterSpacing * 0.55f;
+            titleTmp.wordSpacing = HtpWordSpacing;
 
+            // Body: keep bottom well above Close; RectMask2D clips TMP so lines can't paint over the button.
             var bodyGo = new GameObject("HTP_Body", typeof(RectTransform));
-            bodyGo.transform.SetParent(_howToPlayOverlay.transform, false);
+            bodyGo.transform.SetParent(innerGo.transform, false);
             var bodyRT = bodyGo.GetComponent<RectTransform>();
-            bodyRT.anchorMin = new Vector2(0, 0.10f);
+            bodyRT.anchorMin = new Vector2(0, 0.12f);
             bodyRT.anchorMax = new Vector2(1, 0.87f);
-            bodyRT.offsetMin = new Vector2(24, 0);
-            bodyRT.offsetMax = new Vector2(-24, 0);
-            var bodyTmp = bodyGo.AddComponent<TextMeshProUGUI>();
-            bodyTmp.text = HowToPlayText();
-            bodyTmp.fontSize = 13;
+            bodyRT.offsetMin = new Vector2(28, 0);
+            bodyRT.offsetMax = new Vector2(-28, 0);
+            bodyGo.AddComponent<RectMask2D>();
+
+            var bodyTextGo = new GameObject("HTP_BodyText", typeof(RectTransform));
+            bodyTextGo.transform.SetParent(bodyGo.transform, false);
+            var bodyTextRt = bodyTextGo.GetComponent<RectTransform>();
+            bodyTextRt.anchorMin = Vector2.zero;
+            bodyTextRt.anchorMax = Vector2.one;
+            bodyTextRt.offsetMin = Vector2.zero;
+            bodyTextRt.offsetMax = Vector2.zero;
+
+            var bodyTmp = bodyTextGo.AddComponent<TextMeshProUGUI>();
+            bodyTmp.text = ExpandHowToPlayWordSpacing(HowToPlayTextRaw());
+            bodyTmp.fontSize = 19;
             bodyTmp.color = ColLabel;
             bodyTmp.alignment = TextAlignmentOptions.TopLeft;
             bodyTmp.textWrappingMode = TextWrappingModes.Normal;
-            bodyTmp.overflowMode = TextOverflowModes.Truncate;
+            bodyTmp.overflowMode = TextOverflowModes.Overflow;
             bodyTmp.raycastTarget = false;
+            DisableTmpKerning(bodyTmp);
+            bodyTmp.characterSpacing = HtpCharacterSpacing;
+            bodyTmp.wordSpacing = HtpWordSpacing;
+            bodyTmp.lineSpacing = HtpLineSpacing;
 
             var closeGo = new GameObject("BTN_Close",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            closeGo.transform.SetParent(_howToPlayOverlay.transform, false);
-            Anchor(closeGo, new Vector2(0.34f, 0.01f), new Vector2(0.66f, 0.08f));
+            closeGo.transform.SetParent(innerGo.transform, false);
+            Anchor(closeGo, new Vector2(0.32f, 0.02f), new Vector2(0.68f, 0.10f));
             StyleBtn(closeGo);
             closeGo.GetComponent<Button>().onClick.AddListener(HideHTP);
             var closeTmp = AddTMP(closeGo.GetComponent<RectTransform>(), "Label",
                 Vector2.zero, Vector2.one);
-            closeTmp.text = "C L O S E";
-            closeTmp.fontSize = 13;
+            closeTmp.text = "CLOSE";
+            closeTmp.fontSize = 17;
             closeTmp.color = ColValue;
             closeTmp.alignment = TextAlignmentOptions.Center;
+            DisableTmpKerning(closeTmp);
+            closeTmp.characterSpacing = HtpCharacterSpacing * 0.55f;
             closeGo.AddComponent<CardHoverEffect>().SetInteractable(true);
 
             _howToPlayOverlay.SetActive(false);
         }
 
-        static string HowToPlayText() =>
+        /// <summary>Plain + rich tags; <see cref="ExpandHowToPlayWordSpacing"/> doubles gaps between words outside tags.</summary>
+        static string HowToPlayTextRaw() =>
 @"<b>BREATHE</b> is a collection of breath-powered minigames
 designed to make breathing exercises fun and engaging.
 
 <b>HOW IT WORKS</b>
 Use your breath to control everything in gameplay.
-Blow into the fan controller, speak into a microphone,
+Blow into the fan controller, exhale into a microphone,
 or press <b>Space</b> to simulate breath input.
 
 <b>THE GAMES</b>
@@ -424,6 +518,28 @@ game from Level Select to jump in.
   - Take breaks between games
   - Have fun -- there's no way to lose!";
 
+        /// <summary>Doubles single spaces between word characters so TMP reads clearly with this font (tags preserved).</summary>
+        static string ExpandHowToPlayWordSpacing(string source)
+        {
+            var parts = Regex.Split(source, @"(<[^>]+>)");
+            var sb = new StringBuilder();
+            foreach (var part in parts)
+            {
+                if (part.Length == 0) continue;
+                if (part[0] == '<')
+                    sb.Append(part);
+                else
+                    sb.Append(Regex.Replace(part, @"(?<=\S) (?=\S)", "  "));
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>No OpenType layout features (including kerning) — better for bitmap/pixel fonts. Uses TMP fontFeatures instead of deprecated enableKerning.</summary>
+        static void DisableTmpKerning(TMP_Text tmp)
+        {
+            tmp.fontFeatures = new List<OTL_FeatureTag>();
+        }
+
         void ShowHTP() { if (_howToPlayOverlay != null) _howToPlayOverlay.SetActive(true); }
         void HideHTP() { if (_howToPlayOverlay != null) _howToPlayOverlay.SetActive(false); }
 
@@ -436,6 +552,7 @@ game from Level Select to jump in.
             _masterVol = PlayerPrefs.GetFloat(KeyMasterVol, 1f);
             _musicVol  = PlayerPrefs.GetFloat(KeyMusicVol, 0.8f);
             _sfxVol    = PlayerPrefs.GetFloat(KeySfxVol, 0.8f);
+            _debugOverlayEnabled = PlayerPrefs.GetInt(DebugOverlay.PlayerPrefsKey, 1) != 0;
             AudioListener.volume = _masterVol;
         }
 
@@ -454,6 +571,8 @@ game from Level Select to jump in.
                 _fullscreenToggle.SetIsOnWithoutNotify(Screen.fullScreen);
             if (_resLabel != null)
                 _resLabel.text = Cyc(CurrentResText());
+            if (_debugOverlayToggle != null)
+                _debugOverlayToggle.SetIsOnWithoutNotify(_debugOverlayEnabled);
         }
 
         static void RefreshSlider(Slider s, TextMeshProUGUI pct, float v)
@@ -470,14 +589,15 @@ game from Level Select to jump in.
 
         // ================================================================
         //  Row-level widget factories (anchor-based, no HLG)
-        //  Label:   right-aligned  0.06 – 0.28
-        //  Control: centered       0.30 – 0.72
-        //  Pct:     right edge     0.74 – 0.86
+        //  Balanced margins: label left, slider center, % column uses the right side (no 14% dead zone).
+        //  Label:   right-aligned  0.08 – 0.26
+        //  Control: 0.30 – 0.70
+        //  Pct:     0.74 – 0.94 (centered text in column)
         // ================================================================
 
-        const float LblL = 0.06f, LblR = 0.28f;
-        const float CtlL = 0.30f, CtlR = 0.72f;
-        const float PctL = 0.74f, PctR = 0.86f;
+        const float LblL = 0.08f, LblR = 0.26f;
+        const float CtlL = 0.30f, CtlR = 0.70f;
+        const float PctL = 0.74f, PctR = 0.94f;
 
         static void AddLabel(RectTransform row, string text)
         {
@@ -517,9 +637,20 @@ game from Level Select to jump in.
             var row = PlaceRow(RowH);
             AddLabel(row, label);
 
+            var borderGo = new GameObject("SliderBorder", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            borderGo.transform.SetParent(row, false);
+            Anchor(borderGo, new Vector2(CtlL, 0.18f), new Vector2(CtlR, 0.82f));
+            borderGo.GetComponent<Image>().color = ColBorder;
+            borderGo.GetComponent<Image>().raycastTarget = false;
+
             var sliderGo = new GameObject("Slider", typeof(RectTransform));
-            sliderGo.transform.SetParent(row, false);
-            Anchor(sliderGo, new Vector2(CtlL, 0.18f), new Vector2(CtlR, 0.82f));
+            sliderGo.transform.SetParent(borderGo.transform, false);
+            var srt = sliderGo.GetComponent<RectTransform>();
+            srt.anchorMin = Vector2.zero;
+            srt.anchorMax = Vector2.one;
+            float sb = SliderTrackBorderPx;
+            srt.offsetMin = new Vector2(sb, sb);
+            srt.offsetMax = new Vector2(-sb, -sb);
 
             MakeImg(sliderGo.transform, "Bg", Vector2.zero, Vector2.one, ColSliderBg);
 
@@ -537,7 +668,7 @@ game from Level Select to jump in.
             var hRT = handleGo.GetComponent<RectTransform>();
             hRT.sizeDelta = new Vector2(8, 0);
 
-            var slider = sliderGo.AddComponent<Slider>();
+            var slider = sliderGo.AddComponent<MenuSlider>();
             slider.fillRect = fillRT;
             slider.handleRect = hRT;
             slider.targetGraphic = handleGo.GetComponent<Image>();
@@ -551,7 +682,7 @@ game from Level Select to jump in.
             pct.text = Pct(initial);
             pct.fontSize = 12;
             pct.color = ColValue;
-            pct.alignment = TextAlignmentOptions.MidlineLeft;
+            pct.alignment = TextAlignmentOptions.MidlineRight;
 
             return (slider, pct);
         }
@@ -559,10 +690,19 @@ game from Level Select to jump in.
         Toggle AddToggle(RectTransform row, bool initial,
             UnityEngine.Events.UnityAction<bool> onChange)
         {
-            var bgGo = MakeImg(row, "ToggleBg",
-                new Vector2(CtlL, 0.15f), new Vector2(CtlL, 0.85f), ColSliderBg);
+            var frameGo = new GameObject("ToggleFrame", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            frameGo.transform.SetParent(row, false);
+            Anchor(frameGo, new Vector2(CtlL, 0.15f), new Vector2(CtlL, 0.85f));
+            var frameRT = frameGo.GetComponent<RectTransform>();
+            frameRT.sizeDelta = new Vector2(24, 0);
+            frameGo.GetComponent<Image>().color = ColBorder;
+            frameGo.GetComponent<Image>().raycastTarget = false;
+
+            var bgGo = MakeImg(frameGo.transform, "ToggleBg", Vector2.zero, Vector2.one, ColSliderBg);
             var bgRT = bgGo.GetComponent<RectTransform>();
-            bgRT.sizeDelta = new Vector2(20, 0);
+            float tb = 2f;
+            bgRT.offsetMin = new Vector2(tb, tb);
+            bgRT.offsetMax = new Vector2(-tb, -tb);
             var bgImg = bgGo.GetComponent<Image>();
 
             var chkGo = MakeImg(bgGo.transform, "Check",
@@ -595,6 +735,34 @@ game from Level Select to jump in.
         // ================================================================
         //  Primitives
         // ================================================================
+
+        /// <summary>Outer border color + inset fill; drawn first so rows stack on top.</summary>
+        static void AddInsetPanelFrame(RectTransform parent, Color borderColor, Color fillColor, float borderPx)
+        {
+            var frameGo = new GameObject("PanelFrame",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            frameGo.transform.SetParent(parent, false);
+            var fr = frameGo.GetComponent<RectTransform>();
+            fr.anchorMin = Vector2.zero;
+            fr.anchorMax = Vector2.one;
+            fr.offsetMin = Vector2.zero;
+            fr.offsetMax = Vector2.zero;
+            var outer = frameGo.GetComponent<Image>();
+            outer.color = borderColor;
+            outer.raycastTarget = false;
+
+            var fillGo = new GameObject("InnerFill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            fillGo.transform.SetParent(frameGo.transform, false);
+            var fillRt = fillGo.GetComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = Vector2.one;
+            fillRt.offsetMin = new Vector2(borderPx, borderPx);
+            fillRt.offsetMax = new Vector2(-borderPx, -borderPx);
+            fillGo.GetComponent<Image>().color = fillColor;
+            fillGo.GetComponent<Image>().raycastTarget = false;
+
+            frameGo.transform.SetAsFirstSibling();
+        }
 
         static void Anchor(GameObject go, Vector2 min, Vector2 max)
         {
@@ -629,15 +797,40 @@ game from Level Select to jump in.
 
         static void StyleBtn(GameObject go)
         {
-            var img = go.GetComponent<Image>();
-            if (img != null) img.color = ColBtn;
+            var outer = go.GetComponent<Image>();
+            if (outer == null) return;
+            outer.color = ColBorder;
+            outer.raycastTarget = false;
+
+            Image fillImg;
+            var fillT = go.transform.Find("Fill");
+            if (fillT == null)
+            {
+                var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                fillGo.transform.SetParent(go.transform, false);
+                var fillRt = fillGo.GetComponent<RectTransform>();
+                fillRt.anchorMin = Vector2.zero;
+                fillRt.anchorMax = Vector2.one;
+                float px = BtnBorderPx;
+                fillRt.offsetMin = new Vector2(px, px);
+                fillRt.offsetMax = new Vector2(-px, -px);
+                fillImg = fillGo.GetComponent<Image>();
+                fillImg.raycastTarget = true;
+                fillGo.transform.SetAsFirstSibling();
+            }
+            else
+                fillImg = fillT.GetComponent<Image>();
+
+            fillImg.color = ColBtn;
             var btn = go.GetComponent<Button>();
             if (btn == null) return;
+            btn.targetGraphic = fillImg;
             var c = btn.colors;
             c.normalColor = ColBtn;
             c.highlightedColor = ColBtnHi;
             c.pressedColor = ColBtnHi;
             c.selectedColor = ColBtn;
+            c.disabledColor = ColBtn;
             btn.colors = c;
         }
 

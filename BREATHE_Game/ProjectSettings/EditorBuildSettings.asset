@@ -15,9 +15,6 @@ EditorBuildSettings:
     path: Assets/Scenes/BALLOON.unity
     guid: 810bf0568e174da4f948b20ef1b9c56c
   - enabled: 1
-    path: Assets/Scenes/STONESKIP.unity
-    guid: f3240f961e0ae394b8ca201eef9766a3
-  - enabled: 1
     path: Assets/Scenes/BUBBLES.unity
     guid: 91cdda54c82c9b04589e169450ebf9ff
   - enabled: 1

@@ -23,11 +23,7 @@ MonoBehaviour:
   _sceneName: SAILBOAT
   _countdownGoText: GO
   _postCountdownBuffer: 0
+  _minigameSfxProfile: {fileID: 11400000, guid: a6847aa837a5475ba78710e9d9b3b9e1, type: 2}
   _tutorialTitle: HOW   TO   PLAY
-  _tutorialInstruction: 'Blow    steadily    into    the    device    to    fill   
-    your    sails    and    move    your    boat    forward!
-
-
-    Longer,    steady   
-    breaths    are    more     effective    than    quick    puffs.'
+  _tutorialInstruction: "Race to the finish by filling your sails with steady breath.\n\nBreathe into or blow onto the device.\n(Long, steady exhales\u2014not quick puffs) to play the game!"
   _tutorialTip: Keep    breathing    to    maintain    your    speed!

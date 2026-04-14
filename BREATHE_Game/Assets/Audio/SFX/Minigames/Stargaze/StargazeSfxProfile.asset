@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b5c337eede6b90449d2ae25a753cbd9, type: 3}
+  m_Name: StargazeSfxProfile
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
+  _gameplayStart: {fileID: 8300000, guid: f9359bf5e5e64652b1a935ef19c6f76b, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: 3cc3b1c87dd243f09d50a7ac880b26d9, type: 3}
+  _timeWarning: {fileID: 8300000, guid: a1571954be3c473e857719b454876b34, type: 3}
+  _success: {fileID: 8300000, guid: 7e49572aff14422daf2dbfc61d0f8d4d, type: 3}
+  _goalComplete: {fileID: 8300000, guid: 299c3fba0b904d869007549e15e12e0e, type: 3}
+  _primaryAction: {fileID: 8300000, guid: 2ff0276183334dd59e6e7cfe04e2485f, type: 3}
+  _secondaryAction: {fileID: 8300000, guid: 327dcb6068004a26b4ee434dec6008be, type: 3}
+  _tertiaryAction: {fileID: 8300000, guid: 0482c24fa46c4604b9f73fc1a4a88c67, type: 3}
+  _specialEvent: {fileID: 8300000, guid: fec7ec20ed1c4740af1e73a8f13a0a86, type: 3}

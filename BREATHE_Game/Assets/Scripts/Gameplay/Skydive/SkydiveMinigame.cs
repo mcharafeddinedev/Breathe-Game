@@ -51,14 +51,12 @@ namespace Breathe.Gameplay
         private GUIStyle _hudStyle;
         private GUIStyle _labelStyle;
         private GUIStyle _windStyle;
-        private GUIStyle _feedbackStyle;
 
-        private string _landingFeedbackText;
-        private float _landingFeedbackTimer;
-        private Color _landingFeedbackColor;
+        private readonly ScorePopupPresenter _scorePopups = new ScorePopupPresenter();
 
         private float _windChangeTimer;
         private GUIStyle _windChangeStyle;
+        private int _hudStylesBuiltForScreenH;
 
         protected override void Awake()
         {
@@ -107,6 +105,7 @@ namespace Breathe.Gameplay
             _newPBScore = false;
             _newPBPerfects = false;
             _phase = Phase.WaitingForStart;
+            _scorePopups.Clear();
         }
 
         private void Update()
@@ -130,12 +129,10 @@ namespace Breathe.Gameplay
 
             if (!_gameplayActive || _controller == null) return;
 
+            _scorePopups.Tick(Time.deltaTime);
+
             float breathPower = BreathPowerSystem.Instance != null
                 ? BreathPowerSystem.Instance.CurrentBreathPower : 0f;
-
-            // Landing feedback fade
-            if (_landingFeedbackTimer > 0f)
-                _landingFeedbackTimer -= Time.deltaTime;
 
             switch (_phase)
             {
@@ -217,8 +214,7 @@ namespace Breathe.Gameplay
             if (quality == SkydiverController.LandingQuality.OffTarget)
             {
                 _offTargetCount++;
-                _landingFeedbackText = "OFF  TARGET";
-                _landingFeedbackColor = new Color(1f, 0.4f, 0.3f);
+                _scorePopups.Push("OFF  TARGET", new Color(1f, 0.4f, 0.3f));
             }
             else
             {
@@ -226,21 +222,22 @@ namespace Breathe.Gameplay
                 if (quality == SkydiverController.LandingQuality.Perfect)
                     _perfectCount++;
 
-                _landingFeedbackText = quality switch
+                string feedback = quality switch
                 {
                     SkydiverController.LandingQuality.Perfect => $"PERFECT!  +{points}",
                     SkydiverController.LandingQuality.Good => $"GOOD!  +{points}",
                     _ => $"CLOSE!  +{points}"
                 };
-                _landingFeedbackColor = quality switch
+                Color feedbackColor = quality switch
                 {
                     SkydiverController.LandingQuality.Perfect => new Color(0.2f, 1f, 0.4f),
                     SkydiverController.LandingQuality.Good => new Color(0.5f, 0.9f, 0.3f),
                     _ => new Color(1f, 0.8f, 0.2f)
                 };
+                _scorePopups.Push(feedback, feedbackColor);
             }
 
-            _landingFeedbackTimer = 1.5f;
+            TryPlayMinigamePrimaryActionSfx(0f);
         }
 
         private void LoadPersonalBests()
@@ -330,17 +327,29 @@ namespace Breathe.Gameplay
 
             BuildHUDStyles();
 
+            float sc = HudUiScale();
+            float margin = 18f * sc;
+            float numW = 240f * sc;
+            float numH = 58f * sc;
+            float lblH = 34f * sc;
+            float rowGap = 6f * sc;
+            float yNum = margin;
+            float yLbl = yNum + numH + rowGap;
+
+            _scorePopups.FontScale = Mathf.Clamp(sc * 1.18f, 1.1f, 1.75f);
+
             // Score — top left
-            Rect scoreRect = new Rect(40f, 20f, 160f, 40f);
+            Rect scoreRect = new Rect(margin, yNum, numW, numH);
             GameFont.OutlinedLabel(scoreRect, $"{_totalScore}", _hudStyle, 2);
-            Rect scoreLabelRect = new Rect(40f, 58f, 160f, 24f);
+            Rect scoreLabelRect = new Rect(margin, yLbl, numW, lblH);
             GameFont.OutlinedLabel(scoreLabelRect, "SCORE", _labelStyle);
 
             // On-target counter — top center
             string targetText = $"{_onTargetCount}  /  {_successTarget}";
-            Rect targetRect = new Rect(Screen.width * 0.5f - 80f, 20f, 160f, 40f);
+            float cx = (Screen.width - numW) * 0.5f;
+            Rect targetRect = new Rect(cx, yNum, numW, numH);
             GameFont.OutlinedLabel(targetRect, targetText, _hudStyle, 2);
-            Rect targetLabelRect = new Rect(Screen.width * 0.5f - 80f, 58f, 160f, 24f);
+            Rect targetLabelRect = new Rect(cx, yLbl, numW, lblH);
             GameFont.OutlinedLabel(targetLabelRect, "LANDINGS", _labelStyle);
 
             // Misses — top right
@@ -349,10 +358,11 @@ namespace Breathe.Gameplay
                 ? Color.Lerp(Color.red, Color.white, Mathf.PingPong(Time.time * 3f, 1f))
                 : Color.white;
             _hudStyle.normal.textColor = missColor;
-            Rect missRect = new Rect(Screen.width - 200f, 20f, 160f, 40f);
+            float rx = Screen.width - margin - numW;
+            Rect missRect = new Rect(rx, yNum, numW, numH);
             GameFont.OutlinedLabel(missRect, missText, _hudStyle, 2);
             _hudStyle.normal.textColor = Color.white;
-            Rect missLabelRect = new Rect(Screen.width - 200f, 58f, 160f, 24f);
+            Rect missLabelRect = new Rect(rx, yLbl, numW, lblH);
             GameFont.OutlinedLabel(missLabelRect, "MISSES", _labelStyle);
 
             // Wind direction indicator
@@ -365,7 +375,9 @@ namespace Breathe.Gameplay
                     windArrows.Replace('>', '<') : "---";
                 float windAlpha = Mathf.Clamp01(Mathf.Abs(wind) / 2f);
                 _windStyle.normal.textColor = new Color(0.8f, 0.85f, 1f, 0.5f + windAlpha * 0.5f);
-                Rect windRect = new Rect(0f, Screen.height - 70f, Screen.width, 40f);
+                float windH = 52f * sc;
+                float windBottomPad = 22f * sc;
+                Rect windRect = new Rect(0f, Screen.height - windBottomPad - windH, Screen.width, windH);
                 GameFont.OutlinedLabel(windRect, $"WIND  {windDir}", _windStyle);
             }
 
@@ -373,81 +385,84 @@ namespace Breathe.Gameplay
             // Wind change popup
             if (_windChangeTimer > 0f)
             {
-                if (_windChangeStyle == null)
-                {
-                    Font wf = GameFont.Get();
-                    _windChangeStyle = new GUIStyle(GUI.skin.label)
-                    {
-                        fontSize = 38,
-                        fontStyle = FontStyle.Bold,
-                        alignment = TextAnchor.MiddleCenter
-                    };
-                    if (wf != null) _windChangeStyle.font = wf;
-                }
-
                 float pulse = 0.92f + 0.08f * Mathf.Sin(Time.time * 5f);
                 float fade = _windChangeTimer < 0.6f
                     ? _windChangeTimer / 0.6f
                     : 1f;
                 float wAlpha = fade * pulse;
                 _windChangeStyle.normal.textColor = new Color(1f, 0.85f, 0.3f, wAlpha);
-                float windY = 90f;
-                Rect wcRect = new Rect(0f, windY, Screen.width, 50f);
+                _windChangeStyle.hover.textColor = _windChangeStyle.normal.textColor;
+                float windY = 124f * sc;
+                float wcH = 62f * sc;
+                Rect wcRect = new Rect(0f, windY, Screen.width, wcH);
                 GameFont.OutlinedLabel(wcRect, "WIND  SHIFT", _windChangeStyle, 3);
             }
 
-            // Landing feedback text
-            if (_landingFeedbackTimer > 0f && !string.IsNullOrEmpty(_landingFeedbackText))
-            {
-                float alpha = Mathf.Clamp01(_landingFeedbackTimer / 0.8f);
-                _feedbackStyle.normal.textColor = new Color(
-                    _landingFeedbackColor.r, _landingFeedbackColor.g, _landingFeedbackColor.b, alpha);
-                float feedbackY = _windChangeTimer > 0f ? 145f : 90f;
-                Rect feedbackRect = new Rect(0f, feedbackY, Screen.width, 50f);
-                GameFont.OutlinedLabel(feedbackRect, _landingFeedbackText, _feedbackStyle, 2);
-            }
+            _scorePopups.DrawOnGUI();
+        }
+
+        static float HudUiScale()
+        {
+            return Mathf.Clamp(Screen.height / 900f, 0.95f, 1.55f);
+        }
+
+        static int HudFont(int basePx)
+        {
+            return Mathf.Max(10, Mathf.RoundToInt(basePx * HudUiScale()));
         }
 
         private void BuildHUDStyles()
         {
-            if (_hudStyle != null) return;
+            if (_hudStyle != null && _hudStylesBuiltForScreenH == Screen.height) return;
+            _hudStylesBuiltForScreenH = Screen.height;
             Font f = GameFont.Get();
 
             _hudStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 36,
+                fontSize = HudFont(48),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _hudStyle.normal.textColor = Color.white;
             if (f != null) _hudStyle.font = f;
+            FlattenHudStyle(_hudStyle);
 
             _labelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 18,
+                fontSize = HudFont(26),
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.MiddleCenter
             };
             _labelStyle.normal.textColor = new Color(0.8f, 0.85f, 0.9f);
             if (f != null) _labelStyle.font = f;
+            FlattenHudStyle(_labelStyle);
 
             _windStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 30,
+                fontSize = HudFont(42),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _windStyle.normal.textColor = Color.white;
             if (f != null) _windStyle.font = f;
+            FlattenHudStyle(_windStyle);
 
-            _feedbackStyle = new GUIStyle(GUI.skin.label)
+            _windChangeStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 42,
+                fontSize = HudFont(52),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
-            _feedbackStyle.normal.textColor = Color.white;
-            if (f != null) _feedbackStyle.font = f;
+            _windChangeStyle.normal.textColor = new Color(1f, 0.85f, 0.3f, 1f);
+            if (f != null) _windChangeStyle.font = f;
+            FlattenHudStyle(_windChangeStyle);
+        }
+
+        static void FlattenHudStyle(GUIStyle s)
+        {
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
         }
 
         private static string FormatActivityGrade(float ratio)

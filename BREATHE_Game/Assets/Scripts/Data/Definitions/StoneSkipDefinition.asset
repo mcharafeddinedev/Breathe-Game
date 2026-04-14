@@ -19,21 +19,15 @@ MonoBehaviour:
   _thumbnail: {fileID: 0}
   _breathPattern: Burst  Calibration
   _isUnlocked: 1
+  _includeInLevelSelect: 0
   _cardColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
   _sceneName: STONESKIP
   _countdownGoText: MAXIMUM POWER!
   _postCountdownBuffer: 0.2
+  _minigameSfxProfile: {fileID: 11400000, guid: b2fd0e88936d424f83ff0d65e7d1f673, type: 2}
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: 'Give    one    strong    blow    to    throw    a    stone!    
-    The     harder     you     blow,     the     farther     it     skips     across    
-    the     water.
-
-
-    After     the     stone     slows     and     sinks,    
-    a     new     one     appears.     Skip     as     many     stones     as    
-    you     can     before     time     runs     out!'
-  _tutorialTip: "One     big     puff     per     stone     \u2014     make     it    
-    count!"
+  _tutorialInstruction: "One strong blow throws each stone; harder blows skip farther. When a stone sinks, a new one appears\u2014skip as many as you can before time runs out.\n\nBreathe into or blow onto the device (one sharp burst per throw) to play the game!"
+  _tutorialTip: "One big puff per stone\u2014make it count."
   _spinDownThreshold: 0.12
   _spinDownWindow: 1
   _spinDownResumeDelta: 0.06

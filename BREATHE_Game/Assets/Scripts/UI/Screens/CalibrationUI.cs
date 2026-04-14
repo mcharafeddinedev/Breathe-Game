@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Breathe.Audio;
 using Breathe.Input;
 using Breathe.Gameplay;
 
@@ -111,6 +112,7 @@ namespace Breathe.UI
 
         private void OnSkip()
         {
+            SfxPlayer.Instance?.PlayUiMenuClick();
             if (_calibrationRoutine != null)
             {
                 StopCoroutine(_calibrationRoutine);
@@ -122,6 +124,7 @@ namespace Breathe.UI
 
         private void TransitionToPlaying()
         {
+            SfxPlayer.Instance?.PlayCalibrationComplete();
             GameStateManager gsm = GameStateManager.Instance;
             if (gsm != null)
                 gsm.TransitionTo(GameState.Playing);

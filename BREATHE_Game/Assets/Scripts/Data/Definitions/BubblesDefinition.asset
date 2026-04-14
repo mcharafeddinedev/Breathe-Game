@@ -22,12 +22,7 @@ MonoBehaviour:
   _sceneName: BUBBLES
   _countdownGoText: FIND THE SWEET SPOT!
   _postCountdownBuffer: 0
+  _minigameSfxProfile: {fileID: 11400000, guid: 830e50050474470897d9bb980dc9b5d7, type: 2}
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: "Blow    short,     rhythmic     puffs     to     create    
-    bubbles!     Each     puff     makes     one     bubble     that     floats    
-    upward.\n\nKeep     a     steady     rhythm     to     build     your     streak    
-    \u2014     evenly-paced     puffs     score     more     points.     Hold    
-    a     long     steady    breath     to     create     a     giant     bubble   
-    chain!"
-  _tutorialTip: Watch     the     bubble     wand     effects     and    text   
-    to    find    the    sweet    spot!
+  _tutorialInstruction: "Spawn bubbles, build streaks with rhythm, and hold a long steady breath for giant bubble chains.\n\nBreathe into or blow onto the device (short, evenly spaced puffs; one sustained breath for a chain) to play the game!"
+  _tutorialTip: "Watch the wand and on-screen cues to find the sweet spot."

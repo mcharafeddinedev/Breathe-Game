@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Breathe.Data;
 using Breathe.Input;
 using Breathe.Utility;
+using Breathe.Audio;
 
 namespace Breathe.Gameplay
 {
@@ -14,8 +16,8 @@ namespace Breathe.Gameplay
     {
         [Header("Fallback Content (used if no MinigameDefinition)")]
         [SerializeField] private string _fallbackTitle = "HOW  TO  PLAY";
-        [SerializeField, TextArea(2, 4)] private string _fallbackInstruction = "BLOW  STEADILY  INTO  THE  DEVICE  TO  CONTROL  THE  GAME";
-        [SerializeField, TextArea(1, 2)] private string _fallbackTip = "LONGER  STEADY  BREATHS  WORK  BEST";
+        [SerializeField, TextArea(2, 4)] private string _fallbackInstruction = "Follow the on-screen goal for this activity.\n\nBreathe into or blow onto the device (match a steady, controlled breath to what the game asks) to play the game!";
+        [SerializeField, TextArea(1, 2)] private string _fallbackTip = "Use the pattern in parentheses as your breath exercise for this round.";
 
         [Header("Animation")]
         [SerializeField] private float _fadeInDuration = 0.3f;
@@ -34,6 +36,7 @@ namespace Breathe.Gameplay
         private int _selectedInput;
 
         private bool _stylesReady;
+        private int _stylesBuiltForScreenH;
         private GUIStyle _overlayBg;
         private GUIStyle _panelBg;
         private GUIStyle _titleStyle;
@@ -164,6 +167,7 @@ namespace Breathe.Gameplay
         private void OnContinueClicked()
         {
             if (_phase != Phase.Visible) return;
+            SfxPlayer.Instance?.PlayUiMenuClick();
             _phase = Phase.FadingOut;
             _timer = 0f;
         }
@@ -178,23 +182,25 @@ namespace Breathe.Gameplay
             Color prevColor = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, _alpha);
 
+            float sc = UiScale();
             GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "", _overlayBg);
 
-            float pw = Mathf.Min(Screen.width * 0.85f, 780f);
-            float ph = Mathf.Min(Screen.height * 0.92f, 760f);
+            // Near-fullscreen card so gameplay is mostly hidden until Continue (suspense + readability).
+            float pw = Mathf.Min(Screen.width * 0.96f, 1600f);
+            float ph = Mathf.Min(Screen.height * 0.94f, 1100f);
             float px = (Screen.width - pw) * 0.5f;
             float py = (Screen.height - ph) * 0.5f;
 
             GUI.Box(new Rect(px, py, pw, ph), "", _panelBg);
 
-            float pad = 35f;
+            float pad = 32f * sc;
             float contentW = pw - pad * 2f;
 
-            float titleH = 65f;
-            float btnHeight = 55f;
-            float btnWidth = 220f;
-            float inputH = 75f;
-            float margin = 30f;
+            float titleH = 72f * sc;
+            float btnHeight = 58f * sc;
+            float btnWidth = Mathf.Min(280f * sc, pw * 0.45f);
+            float inputH = 88f * sc;
+            float margin = 22f * sc;
 
             // Title — top of panel
             float titleY = py + margin;
@@ -206,12 +212,14 @@ namespace Breathe.Gameplay
             _buttonRect = new Rect(btnX, btnY, btnWidth, btnHeight);
 
             // Calculate instruction and tip heights
-            float instrHeight = _instructionStyle.CalcHeight(new GUIContent(_instruction), contentW) + 8f;
+            float lineGap = 1.34f;
+            float paraGap = 20f * sc;
+            float instrHeight = MeasureWrappedBlockHeight(_instruction, contentW, _instructionStyle, lineGap, paraGap) + 6f * sc;
 
             bool hasTip = !string.IsNullOrEmpty(_tip);
             float tipHeight = 0f;
             if (hasTip)
-                tipHeight = _tipStyle.CalcHeight(new GUIContent(_tip), contentW);
+                tipHeight = MeasureWrappedBlockHeight(_tip, contentW, _tipStyle, lineGap * 0.98f, paraGap * 0.9f) + 4f * sc;
 
             // Zone between title bottom and button top
             float zoneTop = titleY + titleH;
@@ -224,12 +232,12 @@ namespace Breathe.Gameplay
             float gap = totalGap / (hasTip ? 4f : 3f);
 
             float instrY = zoneTop + gap;
-            GameFont.OutlinedLabel(new Rect(px + pad, instrY, contentW, instrHeight), _instruction, _instructionStyle);
+            DrawOutlinedWrappedBlock(new Rect(px + pad, instrY, contentW, instrHeight), _instruction, _instructionStyle, lineGap, paraGap);
 
             float tipY = instrY + instrHeight + gap;
             if (hasTip)
             {
-                GameFont.OutlinedLabel(new Rect(px + pad, tipY, contentW, tipHeight), _tip, _tipStyle);
+                DrawOutlinedWrappedBlock(new Rect(px + pad, tipY, contentW, tipHeight), _tip, _tipStyle, lineGap * 0.98f, paraGap * 0.9f);
                 tipY += tipHeight + gap;
             }
 
@@ -260,12 +268,13 @@ namespace Breathe.Gameplay
 
         private void DrawInputOptions(float panelX, float topY, float panelWidth)
         {
-            GameFont.OutlinedLabel(new Rect(panelX, topY, panelWidth, 36f), "INPUT  OPTIONS", _inputHeaderStyle);
-            float sectionTop = topY + 42f;
+            float sc = UiScale();
+            GameFont.OutlinedLabel(new Rect(panelX, topY, panelWidth, 40f * sc), "INPUT  OPTIONS", _inputHeaderStyle);
+            float sectionTop = topY + 44f * sc;
 
-            float radioSize = 28f;
-            float spacing = 8f;
-            float gapBetweenItems = 50f;
+            float radioSize = 30f * sc;
+            float spacing = 10f * sc;
+            float gapBetweenItems = 44f * sc;
             string[] labels = { "SIMULATED", "MICROPHONE", "FAN" };
 
             // Pre-calculate total width for proper centering
@@ -290,7 +299,7 @@ namespace Breathe.Gameplay
                 if (GUI.Button(boxRect, marker, boxStyle))
                     SelectInput(i);
 
-                Rect labelRect = new Rect(cx + radioSize + spacing, sectionTop - 2f, labelWidths[i], 34f);
+                Rect labelRect = new Rect(cx + radioSize + spacing, sectionTop - 2f, labelWidths[i], 36f * sc);
                 GameFont.OutlinedLabel(labelRect, labels[i], _checkboxLabelStyle);
 
                 if (Event.current.type == EventType.MouseDown && labelRect.Contains(Event.current.mousePosition))
@@ -307,27 +316,119 @@ namespace Breathe.Gameplay
         {
             if (index == _selectedInput) return;
 
+            SfxPlayer.Instance?.PlayUiMenuClick();
             _selectedInput = index;
             var bim = BreathInputManager.Instance;
             if (bim != null)
                 bim.SetInputMode((InputMode)index);
         }
 
+        static float UiScale()
+        {
+            return Mathf.Clamp(Screen.height / 900f, 0.95f, 1.5f);
+        }
+
+        static int ScaledFont(int basePx)
+        {
+            return Mathf.Max(10, Mathf.RoundToInt(basePx * UiScale()));
+        }
+
+        /// <summary>
+        /// IMGUI has no reliable line-spacing control; we wrap manually and add vertical rhythm + paragraph gaps.
+        /// </summary>
+        static List<string> BuildWrappedLines(string text, float maxWidth, GUIStyle style)
+        {
+            var result = new List<string>();
+            if (string.IsNullOrEmpty(text)) return result;
+
+            var paragraphs = text.Split(new[] { "\n\n" }, StringSplitOptions.None);
+            for (int p = 0; p < paragraphs.Length; p++)
+            {
+                if (p > 0) result.Add(null);
+                string para = paragraphs[p].Replace("\r", "");
+                if (string.IsNullOrEmpty(para.Trim())) continue;
+
+                // Single newlines inside a paragraph become hard line breaks before word-wrap.
+                var hardLines = para.Split(new[] { '\n' }, StringSplitOptions.None);
+                foreach (var rawLine in hardLines)
+                {
+                    string hl = rawLine.Trim();
+                    if (string.IsNullOrEmpty(hl)) continue;
+                    WrapWordsToWidth(hl, maxWidth, style, result);
+                }
+            }
+            return result;
+        }
+
+        static void WrapWordsToWidth(string paragraph, float maxWidth, GUIStyle style, List<string> result)
+        {
+            var words = paragraph.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string line = "";
+            foreach (var word in words)
+            {
+                // Slightly wider word spacing than a single space for readability.
+                string test = string.IsNullOrEmpty(line) ? word : line + "  " + word;
+                if (style.CalcSize(new GUIContent(test)).x <= maxWidth)
+                    line = test;
+                else
+                {
+                    if (!string.IsNullOrEmpty(line)) result.Add(line);
+                    line = word;
+                }
+            }
+            if (!string.IsNullOrEmpty(line)) result.Add(line);
+        }
+
+        static float MeasureWrappedBlockHeight(string text, float areaWidth, GUIStyle style, float lineSpacingMult, float paragraphGap)
+        {
+            float innerW = Mathf.Max(1f, areaWidth - style.padding.horizontal);
+            var lines = BuildWrappedLines(text, innerW, style);
+            float lineH = Mathf.Max(style.fontSize * 1.22f, style.CalcHeight(new GUIContent("Ag"), innerW)) * lineSpacingMult;
+            float h = style.padding.vertical;
+            foreach (var line in lines)
+            {
+                if (line == null) h += paragraphGap;
+                else h += lineH;
+            }
+            return h;
+        }
+
+        static void DrawOutlinedWrappedBlock(Rect area, string text, GUIStyle style, float lineSpacingMult, float paragraphGap)
+        {
+            float innerW = Mathf.Max(1f, area.width - style.padding.horizontal);
+            var lines = BuildWrappedLines(text, innerW, style);
+            float lineH = Mathf.Max(style.fontSize * 1.22f, style.CalcHeight(new GUIContent("Ag"), innerW)) * lineSpacingMult;
+            float x = area.x + style.padding.left;
+            float y = area.y + style.padding.top;
+            foreach (var line in lines)
+            {
+                if (line == null)
+                {
+                    y += paragraphGap;
+                    continue;
+                }
+                GameFont.OutlinedLabel(new Rect(x, y, innerW, lineH), line, style, 2);
+                y += lineH;
+            }
+        }
+
         // ─── Style building ─────────────────────────────────────────────
         private void BuildStyles()
         {
-            if (_stylesReady) return;
+            if (_stylesReady && _stylesBuiltForScreenH == Screen.height) return;
             _stylesReady = true;
+            _stylesBuiltForScreenH = Screen.height;
 
             _overlayBg = new GUIStyle();
-            _overlayBg.normal.background = MakeTex(new Color(0f, 0f, 0f, 0.75f));
+            // Strong dimmer so the running scene reads as "behind" the briefing until Continue.
+            _overlayBg.normal.background = MakeTex(new Color(0f, 0f, 0f, 0.9f));
 
             _panelBg = new GUIStyle();
-            _panelBg.normal.background = MakeTex(new Color(0.04f, 0.10f, 0.22f, 0.97f));
+            _panelBg.normal.background = MakeTex(new Color(0.02f, 0.06f, 0.14f, 0.98f));
 
             _titleStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 50,
+                fontSize = ScaledFont(52),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -336,28 +437,29 @@ namespace Breathe.Gameplay
 
             _instructionStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 30,
+                fontSize = ScaledFont(32),
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.UpperCenter,
-                wordWrap = true,
-                padding = new RectOffset(10, 10, 0, 0)
+                wordWrap = false,
+                padding = new RectOffset(14, 14, 4, 4)
             };
             _instructionStyle.normal.textColor = Color.white;
             FlattenStyle(_instructionStyle);
 
             _tipStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 28,
+                fontSize = ScaledFont(28),
                 fontStyle = FontStyle.Italic,
                 alignment = TextAnchor.UpperCenter,
-                wordWrap = true
+                wordWrap = false,
+                padding = new RectOffset(14, 14, 2, 2)
             };
             _tipStyle.normal.textColor = new Color(0.65f, 0.85f, 0.65f);
             FlattenStyle(_tipStyle);
 
             _buttonStyle = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 30,
+                fontSize = ScaledFont(32),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(20, 20, 10, 10)
@@ -371,7 +473,7 @@ namespace Breathe.Gameplay
 
             _buttonHoverStyle = new GUIStyle(_buttonStyle);
             _buttonHoverStyle.normal.background = MakeTex(new Color(0.2f, 0.6f, 1f, 1f));
-            _buttonHoverStyle.fontSize = 32;
+            _buttonHoverStyle.fontSize = ScaledFont(34);
 
             _buttonTextStyle = new GUIStyle(GUI.skin.label)
             {
@@ -390,7 +492,7 @@ namespace Breathe.Gameplay
 
             _inputHeaderStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 32,
+                fontSize = ScaledFont(34),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -399,7 +501,7 @@ namespace Breathe.Gameplay
 
             _checkboxLabelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 26,
+                fontSize = ScaledFont(28),
                 alignment = TextAnchor.MiddleLeft
             };
             _checkboxLabelStyle.normal.textColor = new Color(0.9f, 0.95f, 1f);
@@ -407,7 +509,7 @@ namespace Breathe.Gameplay
 
             _checkboxBoxStyle = new GUIStyle(GUI.skin.button)
             {
-                fontSize = 19,
+                fontSize = ScaledFont(22),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(0, 0, 0, 2)

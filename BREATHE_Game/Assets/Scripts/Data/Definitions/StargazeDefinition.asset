@@ -23,12 +23,7 @@ MonoBehaviour:
   _sceneName: STARGAZE
   _countdownGoText: CLEAR THE SKIES!
   _postCountdownBuffer: 0
+  _minigameSfxProfile: {fileID: 11400000, guid: f53a76a51cdf47109dd64052ac96477e, type: 2}
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: 'Blow    steadily    to    push    clouds    aside    and   
-    uncover    the    stars    hiding    beneath!
-
-
-    Reveal    enough    stars   
-    in    a    group    to    discover    a    constellation!'
-  _tutorialTip: "Clouds    drift    back    slowly    \u2014    keep    blowing   
-    to    hold    areas    clear!"
+  _tutorialInstruction: "Clear clouds to reveal stars and complete constellations.\n\nBreathe into or blow onto the device (steady breaths to push clouds aside; short bursts when you need extra punch) to play the game!"
+  _tutorialTip: "Clouds drift back slowly\u2014keep blowing to hold areas clear!"

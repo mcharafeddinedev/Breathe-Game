@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b5c337eede6b90449d2ae25a753cbd9, type: 3}
+  m_Name: StoneSkipSfxProfile
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
+  _gameplayStart: {fileID: 8300000, guid: f6d668e8a1054c8092bcf55ac713a27c, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: a39ae36823f84c0a8f94e847df31d34a, type: 3}
+  _timeWarning: {fileID: 8300000, guid: 78c8765c01bc4c209085c19bec4f833b, type: 3}
+  _success: {fileID: 8300000, guid: a86d57fd36f84ec880bcec2b87d3f999, type: 3}
+  _goalComplete: {fileID: 8300000, guid: 4cdd6d1b8f284cb98ddcd4dabce2a563, type: 3}
+  _primaryAction: {fileID: 8300000, guid: a52cb9770fc544b0aa64af47bc5e2cbe, type: 3}
+  _secondaryAction: {fileID: 8300000, guid: bc92a3b3d2694c1ea23c31004d7adb86, type: 3}
+  _tertiaryAction: {fileID: 8300000, guid: 1b2737388896433eb85e6729ed80522c, type: 3}
+  _specialEvent: {fileID: 8300000, guid: fedf9570ede04cfdb2483e9466ebae2e, type: 3}

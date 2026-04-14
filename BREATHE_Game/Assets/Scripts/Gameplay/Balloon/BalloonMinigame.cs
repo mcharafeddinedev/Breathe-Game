@@ -42,6 +42,8 @@ namespace Breathe.Gameplay
         private GUIStyle _labelStyle;
         private Texture2D _hudBgTex;
 
+        private readonly ScorePopupPresenter _scorePopups = new ScorePopupPresenter();
+
         protected override void Awake()
         {
             base.Awake();
@@ -89,6 +91,7 @@ namespace Breathe.Gameplay
             _postCountdownTimer = -1f;
             _newPBScore = false;
             _newPBBalloons = false;
+            _scorePopups.Clear();
         }
 
         private void Update()
@@ -113,6 +116,8 @@ namespace Breathe.Gameplay
             }
 
             if (!_gameplayActive) return;
+
+            _scorePopups.Tick(Time.deltaTime);
 
             // Timer countdown
             _sessionTimer -= Time.deltaTime;
@@ -140,6 +145,8 @@ namespace Breathe.Gameplay
             {
                 _balloonsCompleted++;
                 _totalScore = _balloonsCompleted * _pointsPerBalloon;
+                _scorePopups.Push($"+{_pointsPerBalloon}", new Color(1f, 0.88f, 0.35f));
+                TryPlayMinigamePrimaryActionSfx(0f);
             }
         }
 
@@ -283,6 +290,8 @@ namespace Breathe.Gameplay
 
             GUI.DrawTexture(new Rect(barX - 2, barY - 2, barWidth + 4, barHeight + 4), _hudBgTex);
             GUI.DrawTexture(new Rect(barX, barY, barWidth * progress, barHeight), Texture2D.whiteTexture);
+
+            _scorePopups.DrawOnGUI();
         }
 
         private void BuildHUDStyles()

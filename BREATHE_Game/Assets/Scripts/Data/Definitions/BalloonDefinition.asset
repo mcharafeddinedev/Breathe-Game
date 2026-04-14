@@ -23,11 +23,7 @@ MonoBehaviour:
   _sceneName: BALLOON
   _countdownGoText: BALLOONS!
   _postCountdownBuffer: 0
+  _minigameSfxProfile: {fileID: 11400000, guid: b5058cd7a8c74ce8aeb9320a01e51669, type: 2}
   _tutorialTitle: HOW TO PLAY
-  _tutorialInstruction: "Blow    to    inflate    the    balloon!\n\nYour    breath   
-    fills    it    gradually    \u2014    blow    harder    to    inflate    faster.
-    \n\nWhen    the    balloon    is    full,    it    ties    off    and    floats   
-    away.    A    new    one    appears     immediately      \u2014      inflate     
-    as       many      as      you      can!"
-  _tutorialTip: You      can      puff      in      bursts      or      blow     
-    steadily.      Every      breath      adds      up!
+  _tutorialInstruction: "Inflate as many balloons as you can before 45 seconds run out\u2014each full balloon ties off and floats away, then a new one appears.\n\nBreathe into or blow onto the device (vary how hard you blow\u2014stronger breath inflates faster) to play the game!"
+  _tutorialTip: "Bursts or long exhales both work; every breath adds air."

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Breathe.Audio;
 using Breathe.Data;
 
 namespace Breathe.Gameplay
@@ -14,6 +15,7 @@ namespace Breathe.Gameplay
         [SerializeField] protected BreathAnalytics _breathAnalytics;
 
         private MinigameDefinition _cachedDefinition;
+        private float _nextPrimarySfxUnscaledTime;
 
         public abstract string MinigameId { get; }
         public abstract bool IsComplete { get; }
@@ -46,6 +48,13 @@ namespace Breathe.Gameplay
         {
             if (_breathAnalytics != null) _breathAnalytics.ResetAll();
             ApplySpinDownConfig();
+
+            var sfx = Definition?.MinigameSfxProfile;
+            if (SfxPlayer.Instance != null && sfx != null)
+            {
+                SfxPlayer.Instance.PlayMinigameGameplayStart(sfx);
+                SfxPlayer.Instance.SetAmbienceLoop(sfx);
+            }
         }
 
         private void ApplySpinDownConfig()
@@ -61,8 +70,28 @@ namespace Breathe.Gameplay
 
         public virtual void OnMinigameEnd()
         {
+            SfxPlayer.Instance?.StopAmbienceLoop();
             if (_breathAnalytics != null) _breathAnalytics.StopTracking();
             LogSession();
+        }
+
+        /// <summary>Uses MinigameSfxProfile.PrimaryAction (e.g. chiptune hit). Optional cooldown avoids spam (e.g. bubbles).</summary>
+        protected void TryPlayMinigamePrimaryActionSfx(float minSecondsBetween = 0f)
+        {
+            var clip = Definition?.MinigameSfxProfile?.PrimaryAction;
+            if (clip == null || SfxPlayer.Instance == null) return;
+            if (minSecondsBetween > 0f && Time.unscaledTime < _nextPrimarySfxUnscaledTime) return;
+            if (minSecondsBetween > 0f)
+                _nextPrimarySfxUnscaledTime = Time.unscaledTime + minSecondsBetween;
+            SfxPlayer.Instance.PlayClip(clip, 0.88f);
+        }
+
+        /// <summary>Uses MinigameSfxProfile.SpecialEvent (e.g. constellation reveal).</summary>
+        protected void PlayMinigameSpecialEventSfx()
+        {
+            var clip = Definition?.MinigameSfxProfile?.SpecialEvent;
+            if (clip != null && SfxPlayer.Instance != null)
+                SfxPlayer.Instance.PlayClip(clip, 0.92f);
         }
 
         public abstract MinigameStat[] GetEndStats();

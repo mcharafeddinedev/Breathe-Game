@@ -65,6 +65,8 @@ namespace Breathe.Gameplay
         private GUIStyle _bigInfoStyle;
         private GUIStyle _promptStyle;
 
+        private readonly ScorePopupPresenter _scorePopups = new ScorePopupPresenter();
+
         protected override void Awake()
         {
             base.Awake();
@@ -112,6 +114,7 @@ namespace Breathe.Gameplay
             _postCountdownTimer = -1f;
             _newPBScore = false;
             _newPBSkips = false;
+            _scorePopups.Clear();
         }
 
         private void Update()
@@ -135,6 +138,8 @@ namespace Breathe.Gameplay
             }
 
             if (!_gameplayActive) return;
+
+            _scorePopups.Tick(Time.deltaTime);
 
             float breathPower = BreathPowerSystem.Instance != null
                 ? BreathPowerSystem.Instance.CurrentBreathPower : 0f;
@@ -170,6 +175,7 @@ namespace Breathe.Gameplay
                         // ~3 seconds at full power = max throw
                         float throwPower = Mathf.Clamp01(avgIntensity * _windUpDuration / 3f);
                         _controller?.LaunchStone(throwPower);
+                        TryPlayMinigamePrimaryActionSfx(0f);
                         _roundPhase = RoundPhase.StoneFlying;
                     }
                     break;
@@ -188,6 +194,8 @@ namespace Breathe.Gameplay
                         _distancePerRound[roundIdx] = distance;
                         _scorePerRound[roundIdx] = roundScore;
                         _totalScore += roundScore;
+                        if (roundScore > 0)
+                            _scorePopups.Push($"+{roundScore}", new Color(1f, 0.88f, 0.35f));
 
                         if (skips > _bestSkips) _bestSkips = skips;
                         if (distance > _bestDistance) _bestDistance = distance;
@@ -362,6 +370,7 @@ namespace Breathe.Gameplay
                 _bigInfoStyle.normal.textColor = Color.white;
             }
 
+            _scorePopups.DrawOnGUI();
         }
 
         private void BuildHUDStyles()

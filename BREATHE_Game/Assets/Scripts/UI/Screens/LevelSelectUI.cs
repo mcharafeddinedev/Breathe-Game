@@ -1,13 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Breathe.Audio;
 using Breathe.Data;
 using Breathe.Input;
 using Breathe.Gameplay;
 
 namespace Breathe.UI
 {
-    // Minigame grid (2x3). Each cell shows name, breath-pattern tag, and thumbnail.
+    // Minigame grid. Each cell shows name, breath-pattern tag, and thumbnail.
     // Locked minigames are greyed out. Selecting one transitions to Calibration or Playing.
     public sealed class LevelSelectUI : MonoBehaviour
     {
@@ -36,6 +37,8 @@ namespace Breathe.UI
                 _backButton.onClick.AddListener(OnBack);
 
             PopulateGrid();
+
+            MenuClickSoundHook.RegisterHierarchy(transform);
         }
 
         private void OnDestroy()
@@ -54,7 +57,7 @@ namespace Breathe.UI
                 return;
             }
 
-            MinigameDefinition[] defs = _minigameManager.AvailableMinigames;
+            MinigameDefinition[] defs = _minigameManager.MinigamesForLevelSelect;
             if (defs == null || defs.Length == 0) return;
 
             if (_cardPrefab != null && _gridParent != null)

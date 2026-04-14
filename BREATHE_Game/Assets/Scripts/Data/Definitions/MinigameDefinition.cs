@@ -15,6 +15,8 @@ namespace Breathe.Data
         [SerializeField] private Sprite _thumbnail;
         [SerializeField] private string _breathPattern = "SUSTAINED  BLOW";
         [SerializeField] private bool _isUnlocked = true;
+        [SerializeField, Tooltip("If false, this minigame stays in the roster for lookups but is hidden from level select.")]
+        private bool _includeInLevelSelect = true;
 
         [Header("Level Select Card")]
         [SerializeField, Tooltip("Placeholder card color shown when no thumbnail sprite is assigned.")]
@@ -31,9 +33,13 @@ namespace Breathe.Data
             "Prevents false reads from device startup lag.")]
         private float _postCountdownBuffer = 0f;
 
+        [Header("Audio (optional)")]
+        [SerializeField, Tooltip("Per-mode SFX; assign clips in Assets/Audio/SFX/Minigames/<YourGame>/.")]
+        private MinigameSfxProfile _minigameSfxProfile;
+
         [Header("Tutorial")]
         [SerializeField] private string _tutorialTitle = "HOW  TO  PLAY";
-        [SerializeField, TextArea(3, 6)] private string _tutorialInstruction = "BLOW  STEADILY  INTO  THE  DEVICE  TO  FILL  YOUR  SAILS  AND  MOVE  YOUR  BOAT  FORWARD\n\nLONGER  STEADY  BREATHS  ARE  MORE  EFFECTIVE  THAN  QUICK  PUFFS";
+        [SerializeField, TextArea(3, 6)] private string _tutorialInstruction = "Race to the finish by filling your sails with steady breath.\n\nBreathe into or blow onto the device (long, steady exhales\u2014not quick puffs) to play the game!";
         [SerializeField, TextArea(1, 3)] private string _tutorialTip = "KEEP  BREATHING  TO  MAINTAIN  YOUR  SPEED";
 
         [Header("Spin-Down Detection")]
@@ -52,6 +58,7 @@ namespace Breathe.Data
         public Sprite Thumbnail => _thumbnail;
         public string BreathPattern => _breathPattern;
         public bool IsUnlocked => _isUnlocked;
+        public bool IncludeInLevelSelect => _includeInLevelSelect;
         public Color CardColor => _cardColor;
         public string SceneName => _sceneName;
         public string CountdownGoText => _countdownGoText;
@@ -62,5 +69,6 @@ namespace Breathe.Data
         public float SpinDownThreshold => _spinDownThreshold;
         public float SpinDownWindow => _spinDownWindow;
         public float SpinDownResumeDelta => _spinDownResumeDelta;
+        public MinigameSfxProfile MinigameSfxProfile => _minigameSfxProfile;
     }
 }

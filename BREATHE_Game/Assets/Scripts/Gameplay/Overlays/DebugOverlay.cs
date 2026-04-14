@@ -10,9 +10,12 @@ namespace Breathe.Gameplay
     // session time) are always present. Per-minigame sections are read from
     // IMinigame.GetDebugInfo(). Sailboat-specific telemetry (boats, AI, course) is
     // discovered automatically if those objects exist in the scene.
-    // Toggle with backtick (`), Tab cycles display modes.
+    // Toggle with backtick (`), Tab cycles display modes. Default visibility is also controlled from
+    // Settings (PlayerPrefs) so players can disable the overlay without using the keyboard.
     public class DebugOverlay : MonoBehaviour
     {
+        public const string PlayerPrefsKey = "Breathe_DebugOverlay";
+
         [Header("Display Settings")]
         [SerializeField] private bool _visible = true;
         [SerializeField, Tooltip("Margin from top-left corner in pixels.")]
@@ -42,8 +45,21 @@ namespace Breathe.Gameplay
 
         public bool Visible => _visible;
 
+        /// <summary>Applies preference, persists it, and updates any active DebugOverlay in loaded scenes.</summary>
+        public static void SetEnabledAndSave(bool enabled)
+        {
+            PlayerPrefs.SetInt(PlayerPrefsKey, enabled ? 1 : 0);
+            PlayerPrefs.Save();
+            foreach (var o in Object.FindObjectsByType<DebugOverlay>(FindObjectsSortMode.None))
+                o.SetVisible(enabled);
+        }
+
+        void SetVisible(bool value) => _visible = value;
+
         private void Start()
         {
+            _visible = PlayerPrefs.GetInt(PlayerPrefsKey, 1) != 0;
+
             _breathPowerSystem = FindAnyObjectByType<BreathPowerSystem>();
             _gameStateManager = FindAnyObjectByType<GameStateManager>();
 
@@ -59,7 +75,11 @@ namespace Breathe.Gameplay
             if (Keyboard.current == null) return;
 
             if (Keyboard.current.backquoteKey.wasPressedThisFrame)
+            {
                 _visible = !_visible;
+                PlayerPrefs.SetInt(PlayerPrefsKey, _visible ? 1 : 0);
+                PlayerPrefs.Save();
+            }
 
             if (Keyboard.current.tabKey.wasPressedThisFrame && _visible)
                 _displayMode = (DisplayMode)(((int)_displayMode + 1) % 3);

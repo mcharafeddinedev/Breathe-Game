@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b5c337eede6b90449d2ae25a753cbd9, type: 3}
+  m_Name: BubblesSfxProfile
+  m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
+  _gameplayStart: {fileID: 8300000, guid: e416ec535b0c405ab36c1195a1b7b418, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: ac846c1754504861b69af5cb5733e70c, type: 3}
+  _timeWarning: {fileID: 8300000, guid: 6469fb7a3bc047ed923049e6889ddb0c, type: 3}
+  _success: {fileID: 8300000, guid: a54de6c85aef49688ff02c0b50fed876, type: 3}
+  _goalComplete: {fileID: 8300000, guid: 1969778e5d8c4786922890c84f061b7f, type: 3}
+  _primaryAction: {fileID: 8300000, guid: c91dad554f664853aedcd351703ff023, type: 3}
+  _secondaryAction: {fileID: 8300000, guid: 2b014bbdb89a418f9ffaa987ff66657e, type: 3}
+  _tertiaryAction: {fileID: 8300000, guid: 46ed5dc63ab84cbbbf4ec5b568ceb30f, type: 3}
+  _specialEvent: {fileID: 8300000, guid: 30deca8fa63a40f8a9e877c2544b5031, type: 3}

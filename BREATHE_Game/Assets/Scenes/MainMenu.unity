@@ -432,7 +432,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.1303745, g: 0.24125847, b: 0.40251565, a: 1}
+  m_Color: {r: 0.1303745, g: 0.24125847, b: 0.40251565, a: 0.42}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1561,6 +1561,9 @@ MonoBehaviour:
   _settingsBackButton: {fileID: 753759982}
   _creditsBackButton: {fileID: 210052085}
   _gameGridParent: {fileID: 1961663927}
+  _spawnBathCausticsBackdrop: 1
+  _homeScreenRoot: {fileID: 0}
+  _subPanelTint: {r: 0.08, g: 0.11, b: 0.18, a: 0.78}
 --- !u!4 &777737346
 Transform:
   m_ObjectHideFlags: 0
@@ -2098,6 +2101,56 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 292.32303, y: 150.2096, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1184401708
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1184401710}
+  - component: {fileID: 1184401709}
+  m_Layer: 0
+  m_Name: SfxPlayer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1184401709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1184401708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1782d4e6358b8e34a8862861cd4063b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Audio.SfxPlayer
+  _library: {fileID: 11400000, guid: 3e324f43686233c4cba9bccd07343b78, type: 2}
+  _oneShot: {fileID: 0}
+  _loop: {fileID: 0}
+  _uiVolume: 0.85
+  _countdownVolume: 0.9
+  _resultVolume: 0.9
+--- !u!4 &1184401710
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1184401708}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 347.23758, y: 245.22401, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3175,7 +3228,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1961663927}
-  - component: {fileID: 1961663928}
   m_Layer: 5
   m_Name: GameGrid
   m_TagString: Untagged
@@ -3202,30 +3254,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1961663928
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1961663926}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a8695521f0d02e499659fee002a26c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.GridLayoutGroup
-  m_Padding:
-    m_Left: 25
-    m_Right: 25
-    m_Top: 25
-    m_Bottom: 45
-  m_ChildAlignment: 1
-  m_StartCorner: 0
-  m_StartAxis: 0
-  m_CellSize: {x: 180, y: 160}
-  m_Spacing: {x: 30, y: 16}
-  m_Constraint: 1
-  m_ConstraintCount: 3
 --- !u!1 &2024353553
 GameObject:
   m_ObjectHideFlags: 0
@@ -3403,3 +3431,4 @@ SceneRoots:
   - {fileID: 777737346}
   - {fileID: 1109110909}
   - {fileID: 75435598}
+  - {fileID: 1184401710}
