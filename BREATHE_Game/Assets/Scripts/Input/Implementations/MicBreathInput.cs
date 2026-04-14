@@ -12,13 +12,17 @@ namespace Breathe.Input
         [SerializeField] private BreathConfig breathConfig;
 
         [Header("Microphone")]
+#if !UNITY_WEBGL
         [SerializeField] private int sampleRate = 44100;
         [SerializeField] private int sampleWindow = 1024;
+#endif
 
         [Header("Low-Frequency Bias")]
         [SerializeField, Tooltip("How many low FFT bins count as 'breath band'.")]
         private int lowFreqBinCount = 8;
+#if !UNITY_WEBGL
         [SerializeField] private int spectrumSize = 64; // must be power of two
+#endif
         [SerializeField, Tooltip("1.0 = no bias, higher = prefer low freqs more.")]
         private float lowFreqWeight = 2f;
 
@@ -49,6 +53,12 @@ namespace Breathe.Input
 
         public void Initialize()
         {
+#if UNITY_WEBGL
+            // UnityEngine.Microphone is not in the WebGL scripting API; builds fail if referenced.
+            Debug.LogWarning("[BreathInput] Microphone input is not supported on WebGL. Use Simulated input, or play a desktop/mobile build.");
+            _active = false;
+            return;
+#else
             if (Microphone.devices.Length == 0)
             {
                 Debug.LogError("[BreathInput] Microphone input FAILED — no microphone detected on this system. " +
@@ -81,13 +91,16 @@ namespace Breathe.Input
             int deviceCount = Microphone.devices.Length;
             Debug.Log($"[BreathInput] Microphone input ENABLED — using default device: \"{_deviceName}\" @ {sampleRate}Hz " +
                 $"({deviceCount} device{(deviceCount > 1 ? "s" : "")} available)");
+#endif
         }
 
         public void Shutdown()
         {
             _active = false;
+#if !UNITY_WEBGL
             if (Microphone.IsRecording(null))
                 Microphone.End(null);
+#endif
 
             string deviceInfo = !string.IsNullOrEmpty(_deviceName) ? $" (\"{_deviceName}\")" : "";
             _micClip = null;
@@ -146,6 +159,9 @@ namespace Breathe.Input
 
         private float ComputeRms()
         {
+#if UNITY_WEBGL
+            return 0f;
+#else
             int micPosition = Microphone.GetPosition(null);
             if (micPosition < sampleWindow) return 0f;
 
@@ -156,6 +172,7 @@ namespace Breathe.Input
                 sum += _sampleBuffer[i] * _sampleBuffer[i];
 
             return Mathf.Sqrt(sum / _sampleBuffer.Length);
+#endif
         }
 
         // Multiplier that goes up when most energy is in low-freq bins (breath-like).
