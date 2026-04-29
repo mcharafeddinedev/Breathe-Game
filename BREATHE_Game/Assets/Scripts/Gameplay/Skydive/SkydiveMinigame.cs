@@ -2,19 +2,24 @@ using System.Collections.Generic;
 using UnityEngine;
 using Breathe.Data;
 using Breathe.Utility;
+using Breathe.Audio;
 
 namespace Breathe.Gameplay
 {
     // Skydive minigame: guide skydivers onto bullseye targets by opposing wind with breath.
     // Wind pushes the skydiver left/right on a sine-wave cycle; breath pushes the opposite direction.
-    // Session ends at 10 on-target landings or 3 off-target landings.
+    // Session ends at N on-target landings or 3 off-target landings.
     public class SkydiveMinigame : MinigameBase
     {
         [Header("Skydive References")]
         [SerializeField] private SkydiverController _controller;
 
+        [Header("Landing audio")]
+        [SerializeField, Tooltip("Constellation-success chime on any on-target landing; descending miss sting on off-target.")]
+        private bool _enableLandingStingers = true;
+
         [Header("Session")]
-        [SerializeField] private int _successTarget = 10;
+        [SerializeField] private int _successTarget = 5;
         [SerializeField] private int _missLimit = 3;
 
         [Header("Scoring")]
@@ -51,8 +56,12 @@ namespace Breathe.Gameplay
         private GUIStyle _hudStyle;
         private GUIStyle _labelStyle;
         private GUIStyle _windStyle;
+        private Texture2D _topHudBandTex;
 
         private readonly ScorePopupPresenter _scorePopups = new ScorePopupPresenter();
+
+        private ProceduralConstellationChimeBurst _procLandingSuccessChime;
+        private ProceduralSkydiveMissStingerBurst _procLandingMiss;
 
         private float _windChangeTimer;
         private GUIStyle _windChangeStyle;
@@ -64,8 +73,9 @@ namespace Breathe.Gameplay
             LoadPersonalBests();
         }
 
-        private void Start()
+        protected override void Start()
         {
+            base.Start();
             if (_controller == null)
                 _controller = FindAnyObjectByType<SkydiverController>();
 
@@ -106,6 +116,7 @@ namespace Breathe.Gameplay
             _newPBPerfects = false;
             _phase = Phase.WaitingForStart;
             _scorePopups.Clear();
+            _controller?.SetThrusterGameplayAllowed(false);
         }
 
         private void Update()
@@ -122,6 +133,7 @@ namespace Breathe.Gameplay
                 {
                     _gameplayActive = true;
                     if (_breathAnalytics != null) _breathAnalytics.StartTracking();
+                    _controller?.SetThrusterGameplayAllowed(true);
                     SpawnNextDiver();
                 }
                 return;
@@ -189,7 +201,7 @@ namespace Breathe.Gameplay
             _phase = Phase.DiverFalling;
             _totalDivers++;
 
-                _windChangeTimer = 1.8f;
+            _windChangeTimer = _controller.WindDirectionFlippedVersusPriorSpawn ? 1.8f : 0f;
         }
 
         private void ProcessLanding()
@@ -215,6 +227,7 @@ namespace Breathe.Gameplay
             {
                 _offTargetCount++;
                 _scorePopups.Push("OFF  TARGET", new Color(1f, 0.4f, 0.3f));
+                PlayLandingStinger(hitTarget: false);
             }
             else
             {
@@ -224,9 +237,9 @@ namespace Breathe.Gameplay
 
                 string feedback = quality switch
                 {
-                    SkydiverController.LandingQuality.Perfect => $"PERFECT!  +{points}",
-                    SkydiverController.LandingQuality.Good => $"GOOD!  +{points}",
-                    _ => $"CLOSE!  +{points}"
+                    SkydiverController.LandingQuality.Perfect => $"PERFECT!  {points}  PTS",
+                    SkydiverController.LandingQuality.Good => $"GOOD!  {points}  PTS",
+                    _ => $"CLOSE!  {points}  PTS"
                 };
                 Color feedbackColor = quality switch
                 {
@@ -235,9 +248,49 @@ namespace Breathe.Gameplay
                     _ => new Color(1f, 0.8f, 0.2f)
                 };
                 _scorePopups.Push(feedback, feedbackColor);
+                PlayLandingStinger(hitTarget: true);
+            }
+        }
+
+        private void PlayLandingStinger(bool hitTarget)
+        {
+            if (!_enableLandingStingers) return;
+            EnsureLandingStingers();
+            if (hitTarget)
+                _procLandingSuccessChime?.Trigger();
+            else
+                _procLandingMiss?.Trigger();
+        }
+
+        private void EnsureLandingStingers()
+        {
+            if (!_enableLandingStingers) return;
+            if (_procLandingSuccessChime != null && _procLandingMiss != null)
+                return;
+
+            if (_procLandingSuccessChime == null)
+            {
+                var goSucc = new GameObject("SkydiveLandingSuccessChime");
+                goSucc.transform.SetParent(transform, false);
+                goSucc.transform.localPosition = Vector3.zero;
+                var srcS = goSucc.AddComponent<AudioSource>();
+                srcS.playOnAwake = false;
+                srcS.loop = false;
+                srcS.spatialBlend = 0f;
+                _procLandingSuccessChime = goSucc.AddComponent<ProceduralConstellationChimeBurst>();
             }
 
-            TryPlayMinigamePrimaryActionSfx(0f);
+            if (_procLandingMiss == null)
+            {
+                var goMiss = new GameObject("SkydiveLandingMissStinger");
+                goMiss.transform.SetParent(transform, false);
+                goMiss.transform.localPosition = Vector3.zero;
+                var srcM = goMiss.AddComponent<AudioSource>();
+                srcM.playOnAwake = false;
+                srcM.loop = false;
+                srcM.spatialBlend = 0f;
+                _procLandingMiss = goMiss.AddComponent<ProceduralSkydiveMissStingerBurst>();
+            }
         }
 
         private void LoadPersonalBests()
@@ -295,7 +348,7 @@ namespace Breathe.Gameplay
             return new[]
             {
                 new MinigameStat("Score", $"{_totalScore}", _newPBScore, StatTier.Hero),
-                new MinigameStat("On Target", $"{_onTargetCount}  /  {_totalDivers}",
+                new MinigameStat("On Target", GameFont.FormatResultsCountOfTotal(_onTargetCount, _totalDivers),
                     false, StatTier.Hero),
                 new MinigameStat("Perfect", $"{_perfectCount}", _newPBPerfects, StatTier.Primary),
                 new MinigameStat("Accuracy", $"{accuracy:F0}%", false, StatTier.Primary),
@@ -312,7 +365,7 @@ namespace Breathe.Gameplay
             return new Dictionary<string, string>
             {
                 ["Score"] = $"{_totalScore}",
-                ["On/Off"] = $"{_onTargetCount}/{_offTargetCount}",
+                ["On/Off"] = $"{_onTargetCount}  ON  {_offTargetCount}  OFF",
                 ["Perfects"] = $"{_perfectCount}",
                 ["Wind"] = $"{wind:F2}",
                 ["Phase"] = _phase.ToString()
@@ -321,6 +374,7 @@ namespace Breathe.Gameplay
 
         private void OnGUI()
         {
+            if (Time.timeScale == 0f) return; // Don't draw HUD when paused
             if (!_gameplayActive) return;
             if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Playing)
                 return;
@@ -337,6 +391,11 @@ namespace Breathe.Gameplay
             float yLbl = yNum + numH + rowGap;
 
             _scorePopups.FontScale = Mathf.Clamp(sc * 1.18f, 1.1f, 1.75f);
+            _scorePopups.DefaultYFraction = 0.72f; // Lower on screen, near the tree line
+
+            EnsureTopHudBandTex();
+            float topBandH = yLbl + lblH + margin;
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, topBandH), _topHudBandTex, ScaleMode.StretchToFill);
 
             // Score — top left
             Rect scoreRect = new Rect(margin, yNum, numW, numH);
@@ -345,7 +404,7 @@ namespace Breathe.Gameplay
             GameFont.OutlinedLabel(scoreLabelRect, "SCORE", _labelStyle);
 
             // On-target counter — top center
-            string targetText = $"{_onTargetCount}  /  {_successTarget}";
+            string targetText = GameFont.FormatHudCountOfTotal(_onTargetCount, _successTarget);
             float cx = (Screen.width - numW) * 0.5f;
             Rect targetRect = new Rect(cx, yNum, numW, numH);
             GameFont.OutlinedLabel(targetRect, targetText, _hudStyle, 2);
@@ -353,15 +412,15 @@ namespace Breathe.Gameplay
             GameFont.OutlinedLabel(targetLabelRect, "LANDINGS", _labelStyle);
 
             // Misses — top right
-            string missText = $"{_offTargetCount}  /  {_missLimit}";
+            string missText = GameFont.FormatHudCountOfTotal(_offTargetCount, _missLimit);
             Color missColor = _offTargetCount >= _missLimit - 1
                 ? Color.Lerp(Color.red, Color.white, Mathf.PingPong(Time.time * 3f, 1f))
                 : Color.white;
-            _hudStyle.normal.textColor = missColor;
+            SetStyleColor(_hudStyle, missColor);
             float rx = Screen.width - margin - numW;
             Rect missRect = new Rect(rx, yNum, numW, numH);
             GameFont.OutlinedLabel(missRect, missText, _hudStyle, 2);
-            _hudStyle.normal.textColor = Color.white;
+            SetStyleColor(_hudStyle, Color.white);
             Rect missLabelRect = new Rect(rx, yLbl, numW, lblH);
             GameFont.OutlinedLabel(missLabelRect, "MISSES", _labelStyle);
 
@@ -374,11 +433,11 @@ namespace Breathe.Gameplay
                 string windDir = wind > 0.3f ? windArrows : wind < -0.3f ?
                     windArrows.Replace('>', '<') : "---";
                 float windAlpha = Mathf.Clamp01(Mathf.Abs(wind) / 2f);
-                _windStyle.normal.textColor = new Color(0.8f, 0.85f, 1f, 0.5f + windAlpha * 0.5f);
+                SetStyleColor(_windStyle, new Color(0.8f, 0.85f, 1f, 0.5f + windAlpha * 0.5f));
                 float windH = 52f * sc;
                 float windBottomPad = 22f * sc;
                 Rect windRect = new Rect(0f, Screen.height - windBottomPad - windH, Screen.width, windH);
-                GameFont.OutlinedLabel(windRect, $"WIND  {windDir}", _windStyle);
+                GameFont.OutlinedLabel(windRect, windDir, _windStyle);
             }
 
 
@@ -390,11 +449,10 @@ namespace Breathe.Gameplay
                     ? _windChangeTimer / 0.6f
                     : 1f;
                 float wAlpha = fade * pulse;
-                _windChangeStyle.normal.textColor = new Color(1f, 0.85f, 0.3f, wAlpha);
-                _windChangeStyle.hover.textColor = _windChangeStyle.normal.textColor;
-                float windY = 124f * sc;
-                float wcH = 62f * sc;
-                Rect wcRect = new Rect(0f, windY, Screen.width, wcH);
+                SetStyleColor(_windChangeStyle, new Color(1f, 0.85f, 0.3f, wAlpha));
+                float wcTop = topBandH + 52f * sc;
+                float wcH = 80f * sc;
+                Rect wcRect = new Rect(0f, wcTop, Screen.width, wcH);
                 GameFont.OutlinedLabel(wcRect, "WIND  SHIFT", _windChangeStyle, 3);
             }
 
@@ -449,7 +507,7 @@ namespace Breathe.Gameplay
 
             _windChangeStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = HudFont(52),
+                fontSize = HudFont(62),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -458,11 +516,28 @@ namespace Breathe.Gameplay
             FlattenHudStyle(_windChangeStyle);
         }
 
+        void EnsureTopHudBandTex()
+        {
+            if (_topHudBandTex != null) return;
+            _topHudBandTex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            _topHudBandTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.5f));
+            _topHudBandTex.Apply();
+        }
+
         static void FlattenHudStyle(GUIStyle s)
         {
             s.hover = s.normal;
             s.active = s.normal;
             s.focused = s.normal;
+        }
+
+        static void SetStyleColor(GUIStyle s, Color c)
+        {
+            if (s == null) return;
+            s.normal.textColor = c;
+            s.hover.textColor = c;
+            s.active.textColor = c;
+            s.focused.textColor = c;
         }
 
         private static string FormatActivityGrade(float ratio)

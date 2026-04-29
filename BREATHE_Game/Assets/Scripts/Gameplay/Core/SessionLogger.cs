@@ -20,6 +20,10 @@ namespace Breathe.Gameplay
         {
             if (_instance != null && _instance != this) { Destroy(gameObject); return; }
             _instance = this;
+            
+            // DontDestroyOnLoad requires root GameObject - detach if parented
+            if (transform.parent != null)
+                transform.SetParent(null);
             DontDestroyOnLoad(gameObject);
 
             _sessionDir = Path.Combine(Application.persistentDataPath, "sessions");

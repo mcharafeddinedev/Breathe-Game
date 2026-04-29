@@ -20,7 +20,7 @@ MonoBehaviour:
   _breathPattern: Burst  Calibration
   _isUnlocked: 1
   _includeInLevelSelect: 0
-  _cardColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  _cardColor: {r: 0.48, g: 0.62, b: 0.72, a: 1}
   _sceneName: STONESKIP
   _countdownGoText: MAXIMUM POWER!
   _postCountdownBuffer: 0.2

@@ -16,8 +16,8 @@ namespace Breathe.Gameplay
         [Header("Session")]
         [SerializeField] private int _totalRounds = 3;
         [SerializeField] private int _pointsPerSkip = 200;
-        [SerializeField] private float _launchThreshold = 0.10f;
-        [SerializeField] private float _windUpStartThreshold = 0.08f;
+        [SerializeField] private float _launchThreshold = 0.12f;
+        [SerializeField] private float _windUpStartThreshold = 0.06f;
         [SerializeField] private float _delayBetweenRounds = 2f;
 
         private enum RoundPhase { WaitingForBlow, WindingUp, StoneFlying, RoundDelay }
@@ -76,8 +76,9 @@ namespace Breathe.Gameplay
             LoadPersonalBests();
         }
 
-        private void Start()
+        protected override void Start()
         {
+            base.Start();
             if (_controller == null)
                 _controller = FindAnyObjectByType<StoneSkipController>();
 
@@ -296,7 +297,7 @@ namespace Breathe.Gameplay
                 new MinigameStat("Throw 1", $"{_skipsPerRound[0]}  skips", false, StatTier.Primary),
                 new MinigameStat("Throw 2", $"{_skipsPerRound[1]}  skips", false, StatTier.Primary),
                 new MinigameStat("Throw 3", $"{_skipsPerRound[2]}  skips", false, StatTier.Primary),
-                new MinigameStat("Best Distance", $"{_bestDistance:F1}m", false, StatTier.Primary),
+                new MinigameStat("Best Distance", $"{Mathf.RoundToInt(_bestDistance)}M", false, StatTier.Primary),
                 new MinigameStat("Avg Power", $"{avgIntensity * 100f:F0}%", false, StatTier.Secondary),
                 new MinigameStat("Pattern", pattern, false, StatTier.Secondary),
                 new MinigameStat("Activity", FormatActivityGrade(activity), false, StatTier.Secondary)
@@ -307,17 +308,18 @@ namespace Breathe.Gameplay
         {
             return new Dictionary<string, string>
             {
-                ["Round"] = $"{Mathf.Min(_currentRound + 1, _totalRounds)}/{_totalRounds}",
+                ["Round"] = GameFont.FormatHudCountOfTotal(Mathf.Min(_currentRound + 1, _totalRounds), _totalRounds),
                 ["Phase"] = _roundPhase.ToString(),
                 ["Score"] = $"{_totalScore}",
                 ["Best Skips"] = $"{_bestSkips}",
                 ["Wind-Up"] = _roundPhase == RoundPhase.WindingUp
-                    ? $"{_windUpDuration:F1}s" : "—"
+                    ? GameFont.FormatHudSecondsWhole(_windUpDuration) : "—"
             };
         }
 
         private void OnGUI()
         {
+            if (Time.timeScale == 0f) return; // Don't draw HUD when paused
             if (!_gameplayActive) return;
             if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Playing)
                 return;
@@ -326,7 +328,7 @@ namespace Breathe.Gameplay
 
             // Round indicator — top center
             int displayRound = Mathf.Min(_currentRound + 1, _totalRounds);
-            string roundText = $"THROW  {displayRound}  /  {_totalRounds}";
+            string roundText = $"THROW  {GameFont.FormatHudCountOfTotal(displayRound, _totalRounds)}";
             Rect roundRect = new Rect(Screen.width * 0.5f - 120f, 20f, 240f, 40f);
             GameFont.OutlinedLabel(roundRect, roundText, _roundStyle, 2);
 
@@ -342,7 +344,7 @@ namespace Breathe.Gameplay
                 string prompt = "BLOW  TO  WIND  UP!";
                 Rect promptRect = new Rect(0f, Screen.height * 0.3f, Screen.width, 60f);
                 float pulse = 0.7f + 0.3f * Mathf.Sin(Time.time * 4f);
-                _promptStyle.normal.textColor = new Color(1f, 1f, 0.4f, pulse);
+                SetStyleColor(_promptStyle, new Color(1f, 1f, 0.4f, pulse));
                 GameFont.OutlinedLabel(promptRect, prompt, _promptStyle, 2);
             }
 
@@ -354,7 +356,7 @@ namespace Breathe.Gameplay
                 string powerText = $"POWER  {power * 100f:F0}%";
                 Rect powerRect = new Rect(0f, Screen.height * 0.3f, Screen.width, 50f);
                 Color powerColor = Color.Lerp(Color.yellow, Color.green, power);
-                _promptStyle.normal.textColor = powerColor;
+                SetStyleColor(_promptStyle, powerColor);
                 GameFont.OutlinedLabel(powerRect, powerText, _promptStyle, 2);
             }
 
@@ -365,9 +367,8 @@ namespace Breathe.Gameplay
                 string resultText = $"{_skipsPerRound[lastIdx]}  SKIPS!  +{_scorePerRound[lastIdx]}";
                 Rect resultRect = new Rect(0f, Screen.height * 0.4f, Screen.width, 50f);
                 float fadeIn = Mathf.Clamp01((_delayBetweenRounds - _roundDelayTimer) / 0.5f);
-                _bigInfoStyle.normal.textColor = new Color(1f, 1f, 1f, fadeIn);
+                SetStyleColor(_bigInfoStyle, new Color(1f, 1f, 1f, fadeIn));
                 GameFont.OutlinedLabel(resultRect, resultText, _bigInfoStyle, 2);
-                _bigInfoStyle.normal.textColor = Color.white;
             }
 
             _scorePopups.DrawOnGUI();
@@ -413,6 +414,12 @@ namespace Breathe.Gameplay
             };
             _promptStyle.normal.textColor = Color.yellow;
             if (f != null) _promptStyle.font = f;
+
+            // Flatten all states so text doesn't highlight on hover
+            FlattenHudStyle(_roundStyle);
+            FlattenHudStyle(_infoStyle);
+            FlattenHudStyle(_bigInfoStyle);
+            FlattenHudStyle(_promptStyle);
         }
 
         private static string FormatActivityGrade(float ratio)
@@ -421,6 +428,23 @@ namespace Breathe.Gameplay
             if (ratio >= 0.5f) return "Good";
             if (ratio >= 0.3f) return "Fair";
             return "Low";
+        }
+
+        private static void FlattenHudStyle(GUIStyle s)
+        {
+            if (s == null) return;
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
+        }
+
+        private static void SetStyleColor(GUIStyle s, Color c)
+        {
+            if (s == null) return;
+            s.normal.textColor = c;
+            s.hover.textColor = c;
+            s.active.textColor = c;
+            s.focused.textColor = c;
         }
     }
 }

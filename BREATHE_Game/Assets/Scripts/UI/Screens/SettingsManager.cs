@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -8,6 +9,7 @@ using TMPro;
 using Breathe.Audio;
 using Breathe.Gameplay;
 using Breathe.Input;
+using Breathe.Utility;
 
 namespace Breathe.UI
 {
@@ -19,33 +21,28 @@ namespace Breathe.UI
     /// </summary>
     public sealed class SettingsManager : MonoBehaviour
     {
-        #region PlayerPrefs Keys
-        const string KeyMasterVol  = "Breathe_MasterVolume";
-        const string KeyMusicVol   = "Breathe_MusicVolume";
-        const string KeySfxVol     = "Breathe_SfxVolume";
+        #region PlayerPrefs Keys (display; volume keys: <see cref="AudioPrefsKeys"/>)
         const string KeyFullscreen = "Breathe_Fullscreen";
-        const string KeyResIdx     = "Breathe_ResolutionIndex";
+        const string KeyResIdx = "Breathe_ResolutionIndex";
+        const string KeyWebGlResMigration = "Breathe_WebGLResIdxCleared";
         #endregion
 
-        #region Palette
-        static readonly Color ColHeader    = new(0.82f, 0.90f, 1.00f);
-        static readonly Color ColLabel     = new(0.72f, 0.78f, 0.86f);
-        static readonly Color ColValue     = Color.white;
-        static readonly Color ColDivider   = new(0.35f, 0.40f, 0.52f);
-        static readonly Color ColSliderBg  = new(0.22f, 0.27f, 0.36f);
-        static readonly Color ColSliderFill= new(0.30f, 0.62f, 0.78f);
-        static readonly Color ColHandle    = new(0.90f, 0.93f, 0.97f);
-        static readonly Color ColBtn       = new(0.28f, 0.35f, 0.48f);
-        static readonly Color ColBtnHi     = new(0.38f, 0.48f, 0.62f);
-        /// <summary>Light frame for panels and buttons (reads clean on dark UI).</summary>
-        static readonly Color ColBorder = new(0.88f, 0.91f, 0.96f, 1f);
-        /// <summary>Opaque How to Play inner fill — black for contrast vs settings chrome.</summary>
-        static readonly Color ColHowToPlayPanelBg = new(0f, 0f, 0f, 1f);
-        /// <summary>Settings content area behind rows (subtle vs pure black HTP overlay).</summary>
-        static readonly Color ColSettingsContentFill = new(0.04f, 0.05f, 0.08f, 1f);
+        static bool IsWebGlPlayer => Application.platform == RuntimePlatform.WebGLPlayer;
 
-        const float BtnBorderPx = 2f;
-        const float PanelBorderPx = 2f;
+        #region Palette
+        static readonly Color ColHeader = MenuVisualTheme.ChromeHeader;
+        static readonly Color ColLabel = MenuVisualTheme.ChromeLabel;
+        static readonly Color ColValue = MenuVisualTheme.ChromeHeader;
+        static readonly Color ColDivider = MenuVisualTheme.ChromeDivider;
+        static readonly Color ColSliderBg = MenuVisualTheme.SliderTrack;
+        static readonly Color ColSliderFill = MenuVisualTheme.SliderFill;
+        static readonly Color ColHandle = MenuVisualTheme.SliderHandle;
+        static readonly Color ColBtn = MenuVisualTheme.ButtonBase;
+        static readonly Color ColBtnHi = MenuVisualTheme.ButtonHighlight;
+        static readonly Color ColBorder = MenuVisualTheme.PanelBorder;
+        static readonly Color ColHowToPlayPanelBg = MenuVisualTheme.HowToPlayFill;
+        static readonly Color ColSettingsContentFill = MenuVisualTheme.SettingsContentFill;
+
         const float HtpPanelBorderPx = 3f;
         const float SliderTrackBorderPx = 2f;
         #endregion
@@ -53,20 +50,25 @@ namespace Breathe.UI
         /// <summary>How to Play: this pixel font reads tight — use positive tracking + extra inter-word spaces in the string.</summary>
         const float HtpCharacterSpacing = 12f;
         const float HtpWordSpacing = 8f;
-        const float HtpLineSpacing = 6f;
+        const float HtpLineSpacing = 9f;
 
         #region Runtime State
-        float _masterVol = 1f;
-        float _musicVol  = 0.8f;
-        float _sfxVol    = 0.8f;
-        bool _debugOverlayEnabled = true;
+        float _masterVol = AudioMixDefaults.MasterLinear;
+        float _musicVol  = AudioMixDefaults.MusicLinear;
+        float _sfxVol    = AudioMixDefaults.SfxLinear;
+        bool _debugOverlayEnabled = false;
         Resolution[] _resolutions;
         int _resIdx;
+        string[] _availableComPorts = Array.Empty<string>();
+        int _comPortIdx;
+        ComPortMode _comPortMode = ComPortMode.Auto;
         #endregion
 
         #region UI Refs
         RectTransform _content;
         TextMeshProUGUI _inputModeLabel;
+        TextMeshProUGUI _comPortLabel;
+        TextMeshProUGUI _comPortStatusLabel;
         Slider _masterSlider, _musicSlider, _sfxSlider;
         TextMeshProUGUI _masterPct, _musicPct, _sfxPct;
         Toggle _fullscreenToggle;
@@ -78,9 +80,10 @@ namespace Breathe.UI
         #endregion
 
         #region Static Volume API
-        public static float MasterVolume => PlayerPrefs.GetFloat(KeyMasterVol, 1f);
-        public static float MusicVolume  => PlayerPrefs.GetFloat(KeyMusicVol, 0.8f);
-        public static float SfxVolume    => PlayerPrefs.GetFloat(KeySfxVol, 0.8f);
+        /// <summary>Raw persisted Master slider (0 … <see cref="MasterVolume.SliderNormalizedMax"/>).</summary>
+        public static float MasterGainLinear => PlayerPrefs.GetFloat(AudioPrefsKeys.MasterVolume, AudioMixDefaults.MasterLinear);
+        public static float MusicVolume  => PlayerPrefs.GetFloat(AudioPrefsKeys.MusicVolume, AudioMixDefaults.MusicLinear);
+        public static float SfxVolume    => PlayerPrefs.GetFloat(AudioPrefsKeys.SfxVolume, AudioMixDefaults.SfxLinear);
         #endregion
 
         // ================================================================
@@ -92,7 +95,7 @@ namespace Breathe.UI
             FindBackButton();
             DestroyAllExceptBack();
             CacheResolutions();
-            _debugOverlayEnabled = PlayerPrefs.GetInt(DebugOverlay.PlayerPrefsKey, 1) != 0;
+            _debugOverlayEnabled = PlayerPrefs.GetInt(DebugOverlay.PlayerPrefsKey, 0) != 0;
             BuildUI();
         }
 
@@ -135,6 +138,19 @@ namespace Breathe.UI
 
         void CacheResolutions()
         {
+            if (IsWebGlPlayer)
+            {
+                _resolutions = Array.Empty<Resolution>();
+                _resIdx = 0;
+                if (PlayerPrefs.GetInt(KeyWebGlResMigration, 0) == 0)
+                {
+                    PlayerPrefs.DeleteKey(KeyResIdx);
+                    PlayerPrefs.SetInt(KeyWebGlResMigration, 1);
+                    PlayerPrefs.Save();
+                }
+                return;
+            }
+
             var raw = Screen.resolutions;
             var unique = new List<Resolution>();
             var seen = new HashSet<string>();
@@ -161,23 +177,30 @@ namespace Breathe.UI
 
             AddHeader("Input");
             BuildInputRow();
+            if (!IsWebGlPlayer)
+                BuildComPortRow();
             AddDivider();
             AddHeader("Audio");
-            (_masterSlider, _masterPct) = AddSliderRow("Master", _masterVol, OnMasterVol);
+            (_masterSlider, _masterPct) = AddSliderRow("Master",
+                MasterVolume.ClampStoredPreference(_masterVol), OnMasterVol, MasterVolume.SliderNormalizedMax);
             (_musicSlider,  _musicPct)  = AddSliderRow("Music",  _musicVol,  OnMusicVol);
             (_sfxSlider,    _sfxPct)    = AddSliderRow("SFX",    _sfxVol,    OnSfxVol);
             AddDivider();
             AddHeader("Display");
             BuildFullscreenRow();
-            BuildResolutionRow();
+            if (IsWebGlPlayer)
+                BuildWebResolutionInfoRow();
+            else
+                BuildResolutionRow();
             BuildDebugOverlayRow();
-            AddSpacer(4);
+            AddSpacer(2);
             BuildHowToPlayBtn();
 
             PositionBack();
             StyleBackButtonBorder();
             BuildHowToPlayOverlay();
 
+            MenuTextLegibility.TryApplyToPanelNonButtonText(transform);
             MenuClickSoundHook.RegisterHierarchy(transform);
         }
 
@@ -208,10 +231,10 @@ namespace Breathe.UI
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
-            // Symmetric margins so the block reads centered (was visually left-heavy with uneven Y).
-            rt.offsetMin = new Vector2(28, 46);
-            rt.offsetMax = new Vector2(-28, -46);
-            AddInsetPanelFrame(rt, ColBorder, ColSettingsContentFill, PanelBorderPx);
+            // Insets leave room for title + BACK; tighter vertical inset so stacked rows fill the framed area (esp. pause menu).
+            rt.offsetMin = new Vector2(22, 32);
+            rt.offsetMax = new Vector2(-22, -36);
+            MenuUiChrome.AddInsetPanelFrame(rt);
             return rt;
         }
 
@@ -238,7 +261,8 @@ namespace Breathe.UI
         void StyleBackButtonBorder()
         {
             if (_backBtn == null) return;
-            StyleBtn(_backBtn.gameObject);
+            MenuUiChrome.StyleButtonLikeSettings(_backBtn.gameObject);
+            MenuUiChrome.AttachStandardButtonHover(_backBtn.gameObject, _backBtn.interactable);
         }
 
         // ================================================================
@@ -296,39 +320,184 @@ namespace Breathe.UI
         {
             var row = PlaceRow(RowH);
             AddLabel(row, "Input Mode");
-            _inputModeLabel = AddCycleBtn(row, "", CycleInputMode);
+            if (BreathInputManager.InputModeCyclingSupported)
+            {
+                _inputModeLabel = AddCycleBtn(row,
+                    BreathInputManager.InputModeSettingsLabel(InputMode.Simulated), CycleInputMode);
+                _inputModeLabel.fontSize = 12;
+                _inputModeLabel.enableAutoSizing = true;
+                _inputModeLabel.fontSizeMin = 9;
+                _inputModeLabel.fontSizeMax = 12;
+            }
+            else
+            {
+                _inputModeLabel = AddTMP(row, "InputModeValue", new Vector2(CtlL, 0.08f), new Vector2(CtlR, 0.92f));
+                _inputModeLabel.text = BreathInputManager.InputModeSettingsLabel(InputMode.Simulated);
+                _inputModeLabel.fontSize = 12;
+                _inputModeLabel.enableAutoSizing = true;
+                _inputModeLabel.fontSizeMin = 9;
+                _inputModeLabel.fontSizeMax = 12;
+                _inputModeLabel.color = ColValue;
+                _inputModeLabel.alignment = TextAlignmentOptions.Center;
+            }
         }
 
         void CycleInputMode()
         {
+            if (!BreathInputManager.InputModeCyclingSupported) return;
             var mgr = BreathInputManager.Instance;
             if (mgr == null) return;
-            InputMode next = mgr.CurrentMode switch
-            {
-                InputMode.Simulated  => InputMode.Microphone,
-                InputMode.Microphone => InputMode.Fan,
-                _                    => InputMode.Simulated
-            };
+            InputMode next = BreathInputManager.GetNextCycledInputMode(mgr.CurrentMode);
             mgr.SetInputMode(next);
-            _inputModeLabel.text = Cyc(next.ToString());
+            _inputModeLabel.text = Cyc(BreathInputManager.InputModeSettingsLabel(next));
             PlayerPrefs.SetInt(BreathInputManager.PrefKeyInputMode, (int)next);
             PlayerPrefs.Save();
+        }
+
+        // ----- COM Port (Fan Hardware) -----
+
+        void BuildComPortRow()
+        {
+            RefreshAvailableComPorts();
+
+            var row = PlaceRow(RowH);
+            AddLabel(row, "COM Port");
+            _comPortLabel = AddCycleBtn(row, GetComPortDisplayText(), CycleComPort);
+            _comPortLabel.fontSize = 11;
+            _comPortLabel.enableAutoSizing = true;
+            _comPortLabel.fontSizeMin = 8;
+            _comPortLabel.fontSizeMax = 11;
+
+            var statusRow = PlaceRow(RowH);
+            var statusLabelTmp = AddTMP(statusRow, "ComStatusLabel", new Vector2(LblL, 0), new Vector2(LblR, 1));
+            statusLabelTmp.text = "Status";
+            statusLabelTmp.fontSize = 11;
+            statusLabelTmp.fontStyle = FontStyles.Italic;
+            statusLabelTmp.color = ColLabel;
+            statusLabelTmp.alignment = TextAlignmentOptions.MidlineRight;
+
+            _comPortStatusLabel = AddTMP(statusRow, "ComStatusValue", new Vector2(CtlL, 0), new Vector2(PctR, 1));
+            _comPortStatusLabel.fontSize = 10;
+            _comPortStatusLabel.enableAutoSizing = true;
+            _comPortStatusLabel.fontSizeMin = 8;
+            _comPortStatusLabel.fontSizeMax = 10;
+            _comPortStatusLabel.color = ColLabel;
+            _comPortStatusLabel.alignment = TextAlignmentOptions.MidlineLeft;
+            RefreshComPortStatus();
+        }
+
+        void RefreshAvailableComPorts()
+        {
+            _availableComPorts = FanBreathInput.GetAvailablePorts(forceRefresh: true);
+            _comPortMode = FanBreathInput.GetSavedPortMode();
+
+            if (_comPortMode == ComPortMode.Manual)
+            {
+                string savedPort = FanBreathInput.GetSavedManualPort();
+                _comPortIdx = Array.FindIndex(_availableComPorts,
+                    p => string.Equals(p, savedPort, StringComparison.OrdinalIgnoreCase));
+                if (_comPortIdx < 0) _comPortIdx = 0;
+            }
+            else
+            {
+                _comPortIdx = -1;
+            }
+        }
+
+        string GetComPortDisplayText()
+        {
+            if (_comPortMode == ComPortMode.Auto)
+                return "Auto";
+
+            if (_availableComPorts.Length == 0)
+                return "No ports";
+
+            if (_comPortIdx >= 0 && _comPortIdx < _availableComPorts.Length)
+                return _availableComPorts[_comPortIdx];
+
+            return "Auto";
+        }
+
+        void CycleComPort()
+        {
+            RefreshAvailableComPorts();
+
+            if (_comPortMode == ComPortMode.Auto)
+            {
+                if (_availableComPorts.Length > 0)
+                {
+                    _comPortMode = ComPortMode.Manual;
+                    _comPortIdx = 0;
+                    FanBreathInput.SetPortMode(ComPortMode.Manual);
+                    FanBreathInput.SetManualPort(_availableComPorts[0]);
+                }
+            }
+            else
+            {
+                _comPortIdx++;
+                if (_comPortIdx >= _availableComPorts.Length)
+                {
+                    _comPortMode = ComPortMode.Auto;
+                    _comPortIdx = -1;
+                    FanBreathInput.SetPortMode(ComPortMode.Auto);
+                }
+                else
+                {
+                    FanBreathInput.SetManualPort(_availableComPorts[_comPortIdx]);
+                }
+            }
+
+            _comPortLabel.text = Cyc(GetComPortDisplayText());
+
+            var mgr = BreathInputManager.Instance;
+            if (mgr != null && mgr.CurrentMode == InputMode.Fan)
+            {
+                var fanInput = mgr.ActiveInput as FanBreathInput;
+                fanInput?.Reinitialize();
+            }
+
+            RefreshComPortStatus();
+        }
+
+        void RefreshComPortStatus()
+        {
+            if (_comPortStatusLabel == null) return;
+
+            var status = FanBreathInput.ConnectionStatus;
+            string msg = FanBreathInput.StatusMessage;
+
+            Color statusColor = status switch
+            {
+                FanConnectionStatus.Connected => new Color(0.4f, 0.8f, 0.4f),
+                FanConnectionStatus.Connecting => ColLabel,
+                FanConnectionStatus.Failed => new Color(0.9f, 0.5f, 0.4f),
+                _ => ColLabel
+            };
+
+            _comPortStatusLabel.text = msg;
+            _comPortStatusLabel.color = statusColor;
         }
 
         // ----- Audio -----
 
         void OnMasterVol(float v)
         {
-            _masterVol = v; _masterPct.text = Pct(v);
-            AudioListener.volume = v; Save(KeyMasterVol, v);
+            v = MasterVolume.ClampStoredPreference(v);
+            _masterVol = v;
+            _masterPct.text = MasterVolume.FormatPercent(v);
+            MasterVolume.ApplyListenerFromStoredPreference(v);
+            Save(AudioPrefsKeys.MasterVolume, v);
         }
         void OnMusicVol(float v)
         {
-            _musicVol = v; _musicPct.text = Pct(v); Save(KeyMusicVol, v);
+            _musicVol = v; _musicPct.text = Pct(v); Save(AudioPrefsKeys.MusicVolume, v);
+
+            Breathe.Audio.SceneMusicDirector.Instance?.RefreshFromMusicSlider();
+
         }
         void OnSfxVol(float v)
         {
-            _sfxVol = v; _sfxPct.text = Pct(v); Save(KeySfxVol, v);
+            _sfxVol = v; _sfxPct.text = Pct(v); Save(AudioPrefsKeys.SfxVolume, v);
         }
 
         // ----- Display -----
@@ -367,8 +536,24 @@ namespace Breathe.UI
             _resLabel = AddCycleBtn(row, CurrentResText(), CycleResolution);
         }
 
+        void BuildWebResolutionInfoRow()
+        {
+            var row = PlaceRow(RowH);
+            AddLabel(row, "Size");
+            _resLabel = AddTMP(row, "WebResInfo", new Vector2(CtlL, 0), new Vector2(CtlR, 1));
+            _resLabel.text = WebResSummaryText();
+            _resLabel.fontSize = 11;
+            _resLabel.fontStyle = FontStyles.Italic;
+            _resLabel.color = ColLabel;
+            _resLabel.alignment = TextAlignmentOptions.Center;
+        }
+
+        static string WebResSummaryText() =>
+            $"{Screen.width} x {Screen.height} (browser)";
+
         void CycleResolution()
         {
+            if (IsWebGlPlayer) return;
             if (_resolutions.Length == 0) return;
             _resIdx = (_resIdx + 1) % _resolutions.Length;
             var r = _resolutions[_resIdx];
@@ -395,17 +580,20 @@ namespace Breathe.UI
             btnGo.transform.SetParent(row, false);
             Anchor(btnGo, new Vector2(CtlL, 0.05f), new Vector2(CtlR, 0.95f));
 
-            StyleBtn(btnGo);
+            MenuUiChrome.StyleButtonLikeSettings(btnGo);
             btnGo.GetComponent<Button>().onClick.AddListener(ShowHTP);
 
             var tmp = AddTMP(btnGo.GetComponent<RectTransform>(), "Label",
                 Vector2.zero, Vector2.one);
-            tmp.text = "How to Play";
+            tmp.text = "HOW  TO  PLAY";
             tmp.fontSize = 12;
             tmp.color = ColValue;
             tmp.alignment = TextAlignmentOptions.Center;
+            DisableTmpKerning(tmp);
+            tmp.characterSpacing = HtpCharacterSpacing * 0.4f;
+            tmp.wordSpacing = 6f;
 
-            btnGo.AddComponent<CardHoverEffect>().SetInteractable(true);
+            MenuUiChrome.AttachStandardButtonHover(btnGo);
         }
 
         void BuildHowToPlayOverlay()
@@ -432,9 +620,9 @@ namespace Breathe.UI
             innerGo.transform.SetAsFirstSibling();
 
             var titleTmp = AddTMP(innerRT,
-                "HTP_Title", new Vector2(0, 0.88f), new Vector2(1, 0.98f));
+                "HTP_Title", new Vector2(0, 0.86f), new Vector2(1, 0.98f));
             titleTmp.text = "HOW TO PLAY";
-            titleTmp.fontSize = 28;
+            titleTmp.fontSize = 32;
             titleTmp.fontStyle = FontStyles.Bold;
             titleTmp.color = ColHeader;
             titleTmp.alignment = TextAlignmentOptions.Center;
@@ -442,14 +630,14 @@ namespace Breathe.UI
             titleTmp.characterSpacing = HtpCharacterSpacing * 0.55f;
             titleTmp.wordSpacing = HtpWordSpacing;
 
-            // Body: keep bottom well above Close; RectMask2D clips TMP so lines can't paint over the button.
+            // Body: centered copy, bottom kept well above Close; RectMask2D clips TMP.
             var bodyGo = new GameObject("HTP_Body", typeof(RectTransform));
             bodyGo.transform.SetParent(innerGo.transform, false);
             var bodyRT = bodyGo.GetComponent<RectTransform>();
-            bodyRT.anchorMin = new Vector2(0, 0.12f);
-            bodyRT.anchorMax = new Vector2(1, 0.87f);
-            bodyRT.offsetMin = new Vector2(28, 0);
-            bodyRT.offsetMax = new Vector2(-28, 0);
+            bodyRT.anchorMin = new Vector2(0, 0.13f);
+            bodyRT.anchorMax = new Vector2(1, 0.88f);
+            bodyRT.offsetMin = new Vector2(32, 0);
+            bodyRT.offsetMax = new Vector2(-32, 0);
             bodyGo.AddComponent<RectMask2D>();
 
             var bodyTextGo = new GameObject("HTP_BodyText", typeof(RectTransform));
@@ -461,23 +649,24 @@ namespace Breathe.UI
             bodyTextRt.offsetMax = Vector2.zero;
 
             var bodyTmp = bodyTextGo.AddComponent<TextMeshProUGUI>();
-            bodyTmp.text = ExpandHowToPlayWordSpacing(HowToPlayTextRaw());
-            bodyTmp.fontSize = 19;
+            bodyTmp.text = GameFont.SanitizeForPixelFont(ExpandHowToPlayWordSpacing(HowToPlayTextRaw()));
+            bodyTmp.richText = true;
+            bodyTmp.fontSize = 15;
             bodyTmp.color = ColLabel;
-            bodyTmp.alignment = TextAlignmentOptions.TopLeft;
+            bodyTmp.alignment = TextAlignmentOptions.Center;
             bodyTmp.textWrappingMode = TextWrappingModes.Normal;
             bodyTmp.overflowMode = TextOverflowModes.Overflow;
             bodyTmp.raycastTarget = false;
             DisableTmpKerning(bodyTmp);
-            bodyTmp.characterSpacing = HtpCharacterSpacing;
+            bodyTmp.characterSpacing = HtpCharacterSpacing * 0.85f;
             bodyTmp.wordSpacing = HtpWordSpacing;
             bodyTmp.lineSpacing = HtpLineSpacing;
 
             var closeGo = new GameObject("BTN_Close",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
             closeGo.transform.SetParent(innerGo.transform, false);
-            Anchor(closeGo, new Vector2(0.32f, 0.02f), new Vector2(0.68f, 0.10f));
-            StyleBtn(closeGo);
+            Anchor(closeGo, new Vector2(0.32f, 0.03f), new Vector2(0.68f, 0.11f));
+            MenuUiChrome.StyleButtonLikeSettings(closeGo);
             closeGo.GetComponent<Button>().onClick.AddListener(HideHTP);
             var closeTmp = AddTMP(closeGo.GetComponent<RectTransform>(), "Label",
                 Vector2.zero, Vector2.one);
@@ -487,36 +676,24 @@ namespace Breathe.UI
             closeTmp.alignment = TextAlignmentOptions.Center;
             DisableTmpKerning(closeTmp);
             closeTmp.characterSpacing = HtpCharacterSpacing * 0.55f;
-            closeGo.AddComponent<CardHoverEffect>().SetInteractable(true);
+            MenuUiChrome.AttachStandardButtonHover(closeGo);
 
             _howToPlayOverlay.SetActive(false);
         }
 
         /// <summary>Plain + rich tags; <see cref="ExpandHowToPlayWordSpacing"/> doubles gaps between words outside tags.</summary>
         static string HowToPlayTextRaw() =>
-@"<b>BREATHE</b> is a collection of breath-powered minigames
-designed to make breathing exercises fun and engaging.
+@"<b>BREATHE</b> is a breath-controlled minigame arcade: easygoing play, not a test.
 
-<b>HOW IT WORKS</b>
-Use your breath to control everything in gameplay.
-Blow into the fan controller, exhale into a microphone,
-or press <b>Space</b> to simulate breath input.
 
-<b>THE GAMES</b>
-Each minigame uses your breath in a different way --
-from gentle sustained blows to quick puffs. Select any
-game from Level Select to jump in.
+<size=150%><b>INPUT</b></size>
+Fan, microphone, or <b>Space</b> for simulated breath. Choose the mode in Settings.
 
-<b>CONTROLS</b>
-  - Menus: Mouse click to navigate
-  - Gameplay: Breath is your only input
-  - Blow steadily for sustained power
-  - Blow in short bursts for pulsed actions
 
-<b>TIPS</b>
-  - Start with gentle breaths and build up
-  - Take breaks between games
-  - Have fun -- there's no way to lose!";
+<size=150%><b>PLAY</b></size>
+Open  <b>Level Select</b> and pick a game. Steady exhales and short puffs do different things in each one.
+
+Mouse in menus. Breath in games. Pause or rest whenever you like.";
 
         /// <summary>Doubles single spaces between word characters so TMP reads clearly with this font (tags preserved).</summary>
         static string ExpandHowToPlayWordSpacing(string source)
@@ -549,36 +726,48 @@ game from Level Select to jump in.
 
         void LoadFromPrefs()
         {
-            _masterVol = PlayerPrefs.GetFloat(KeyMasterVol, 1f);
-            _musicVol  = PlayerPrefs.GetFloat(KeyMusicVol, 0.8f);
-            _sfxVol    = PlayerPrefs.GetFloat(KeySfxVol, 0.8f);
-            _debugOverlayEnabled = PlayerPrefs.GetInt(DebugOverlay.PlayerPrefsKey, 1) != 0;
-            AudioListener.volume = _masterVol;
+            _masterVol = MasterVolume.ClampStoredPreference(PlayerPrefs.GetFloat(AudioPrefsKeys.MasterVolume, AudioMixDefaults.MasterLinear));
+            _musicVol  = PlayerPrefs.GetFloat(AudioPrefsKeys.MusicVolume, AudioMixDefaults.MusicLinear);
+            _sfxVol    = PlayerPrefs.GetFloat(AudioPrefsKeys.SfxVolume, AudioMixDefaults.SfxLinear);
+            _debugOverlayEnabled = PlayerPrefs.GetInt(DebugOverlay.PlayerPrefsKey, 0) != 0;
+            MasterVolume.ApplyListenerFromStoredPreference(_masterVol);
+
+            SceneMusicDirector.Instance?.RefreshFromMusicSlider();
         }
 
         void RefreshAll()
         {
             if (_inputModeLabel != null)
             {
-                string mode = BreathInputManager.Instance != null
-                    ? BreathInputManager.Instance.CurrentMode.ToString() : "Simulated";
-                _inputModeLabel.text = Cyc(mode);
+                InputMode m = BreathInputManager.Instance != null
+                    ? BreathInputManager.Instance.CurrentMode
+                    : InputMode.Simulated;
+                string text = BreathInputManager.InputModeSettingsLabel(m);
+                _inputModeLabel.text = BreathInputManager.InputModeCyclingSupported ? Cyc(text) : text;
             }
-            RefreshSlider(_masterSlider, _masterPct, _masterVol);
+            if (_comPortLabel != null)
+            {
+                RefreshAvailableComPorts();
+                _comPortLabel.text = Cyc(GetComPortDisplayText());
+                RefreshComPortStatus();
+            }
+            RefreshSlider(_masterSlider, _masterPct, _masterVol, MasterVolume.SliderNormalizedMax);
             RefreshSlider(_musicSlider,  _musicPct,  _musicVol);
             RefreshSlider(_sfxSlider,    _sfxPct,    _sfxVol);
             if (_fullscreenToggle != null)
                 _fullscreenToggle.SetIsOnWithoutNotify(Screen.fullScreen);
             if (_resLabel != null)
-                _resLabel.text = Cyc(CurrentResText());
+                _resLabel.text = IsWebGlPlayer ? WebResSummaryText() : Cyc(CurrentResText());
             if (_debugOverlayToggle != null)
                 _debugOverlayToggle.SetIsOnWithoutNotify(_debugOverlayEnabled);
         }
 
-        static void RefreshSlider(Slider s, TextMeshProUGUI pct, float v)
+        static void RefreshSlider(Slider s, TextMeshProUGUI pct, float v, float sliderMax = 1f)
         {
-            if (s != null) s.SetValueWithoutNotify(v);
-            if (pct != null) pct.text = Pct(v);
+            float clamped = Mathf.Clamp(v, 0f, sliderMax);
+            if (s != null) s.SetValueWithoutNotify(clamped);
+            if (pct != null)
+                pct.text = sliderMax > 1f + 1e-4f ? MasterVolume.FormatPercent(clamped) : Pct(clamped);
         }
 
         static void Save(string key, float v)
@@ -589,15 +778,15 @@ game from Level Select to jump in.
 
         // ================================================================
         //  Row-level widget factories (anchor-based, no HLG)
-        //  Balanced margins: label left, slider center, % column uses the right side (no 14% dead zone).
-        //  Label:   right-aligned  0.08 – 0.26
-        //  Control: 0.30 – 0.70
-        //  Pct:     0.74 – 0.94 (centered text in column)
+        //  Symmetric row layout (8% margin each side) so Settings content looks centered.
+        //  Label:   0.08 – 0.22 (14% width, right-aligned)
+        //  Control: 0.24 – 0.72 (48% width, slider/cycle btn)
+        //  Pct:     0.74 – 0.92 (18% width, left-aligned number by slider end)
         // ================================================================
 
-        const float LblL = 0.08f, LblR = 0.26f;
-        const float CtlL = 0.30f, CtlR = 0.70f;
-        const float PctL = 0.74f, PctR = 0.94f;
+        const float LblL = 0.08f, LblR = 0.22f;
+        const float CtlL = 0.24f, CtlR = 0.72f;
+        const float PctL = 0.74f, PctR = 0.92f;
 
         static void AddLabel(RectTransform row, string text)
         {
@@ -617,7 +806,7 @@ game from Level Select to jump in.
             go.transform.SetParent(row, false);
             Anchor(go, new Vector2(CtlL, 0.08f), new Vector2(CtlR, 0.92f));
 
-            StyleBtn(go);
+            MenuUiChrome.StyleButtonLikeSettings(go);
             go.GetComponent<Button>().onClick.AddListener(onClick);
 
             var tmp = AddTMP(go.GetComponent<RectTransform>(), "Value",
@@ -627,12 +816,12 @@ game from Level Select to jump in.
             tmp.color = ColValue;
             tmp.alignment = TextAlignmentOptions.Center;
 
-            go.AddComponent<CardHoverEffect>().SetInteractable(true);
+            MenuUiChrome.AttachStandardButtonHover(go);
             return tmp;
         }
 
         (Slider, TextMeshProUGUI) AddSliderRow(string label, float initial,
-            UnityEngine.Events.UnityAction<float> onChange)
+            UnityEngine.Events.UnityAction<float> onChange, float sliderMax = 1f)
         {
             var row = PlaceRow(RowH);
             AddLabel(row, label);
@@ -674,15 +863,15 @@ game from Level Select to jump in.
             slider.targetGraphic = handleGo.GetComponent<Image>();
             slider.direction = Slider.Direction.LeftToRight;
             slider.minValue = 0;
-            slider.maxValue = 1;
-            slider.value = initial;
+            slider.maxValue = sliderMax;
+            slider.value = Mathf.Clamp(initial, 0f, sliderMax);
             slider.onValueChanged.AddListener(onChange);
 
             var pct = AddTMP(row, "Pct", new Vector2(PctL, 0), new Vector2(PctR, 1));
-            pct.text = Pct(initial);
-            pct.fontSize = 12;
+            pct.text = sliderMax > 1f + 1e-4f ? MasterVolume.FormatPercent(slider.value) : Pct(slider.value);
+            pct.fontSize = 13;
             pct.color = ColValue;
-            pct.alignment = TextAlignmentOptions.MidlineRight;
+            pct.alignment = TextAlignmentOptions.MidlineLeft;
 
             return (slider, pct);
         }
@@ -729,40 +918,14 @@ game from Level Select to jump in.
                 onChange(v);
             });
 
+            MenuUiChrome.AttachStandardButtonHover(bgGo);
+
             return toggle;
         }
 
         // ================================================================
-        //  Primitives
+        //  Primitives (see <see cref="MenuUiChrome"/> for shared SETTINGS-style buttons + inset panels)
         // ================================================================
-
-        /// <summary>Outer border color + inset fill; drawn first so rows stack on top.</summary>
-        static void AddInsetPanelFrame(RectTransform parent, Color borderColor, Color fillColor, float borderPx)
-        {
-            var frameGo = new GameObject("PanelFrame",
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            frameGo.transform.SetParent(parent, false);
-            var fr = frameGo.GetComponent<RectTransform>();
-            fr.anchorMin = Vector2.zero;
-            fr.anchorMax = Vector2.one;
-            fr.offsetMin = Vector2.zero;
-            fr.offsetMax = Vector2.zero;
-            var outer = frameGo.GetComponent<Image>();
-            outer.color = borderColor;
-            outer.raycastTarget = false;
-
-            var fillGo = new GameObject("InnerFill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            fillGo.transform.SetParent(frameGo.transform, false);
-            var fillRt = fillGo.GetComponent<RectTransform>();
-            fillRt.anchorMin = Vector2.zero;
-            fillRt.anchorMax = Vector2.one;
-            fillRt.offsetMin = new Vector2(borderPx, borderPx);
-            fillRt.offsetMax = new Vector2(-borderPx, -borderPx);
-            fillGo.GetComponent<Image>().color = fillColor;
-            fillGo.GetComponent<Image>().raycastTarget = false;
-
-            frameGo.transform.SetAsFirstSibling();
-        }
 
         static void Anchor(GameObject go, Vector2 min, Vector2 max)
         {
@@ -793,45 +956,6 @@ game from Level Select to jump in.
             Anchor(go, anchorMin, anchorMax);
             go.GetComponent<Image>().color = col;
             return go;
-        }
-
-        static void StyleBtn(GameObject go)
-        {
-            var outer = go.GetComponent<Image>();
-            if (outer == null) return;
-            outer.color = ColBorder;
-            outer.raycastTarget = false;
-
-            Image fillImg;
-            var fillT = go.transform.Find("Fill");
-            if (fillT == null)
-            {
-                var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                fillGo.transform.SetParent(go.transform, false);
-                var fillRt = fillGo.GetComponent<RectTransform>();
-                fillRt.anchorMin = Vector2.zero;
-                fillRt.anchorMax = Vector2.one;
-                float px = BtnBorderPx;
-                fillRt.offsetMin = new Vector2(px, px);
-                fillRt.offsetMax = new Vector2(-px, -px);
-                fillImg = fillGo.GetComponent<Image>();
-                fillImg.raycastTarget = true;
-                fillGo.transform.SetAsFirstSibling();
-            }
-            else
-                fillImg = fillT.GetComponent<Image>();
-
-            fillImg.color = ColBtn;
-            var btn = go.GetComponent<Button>();
-            if (btn == null) return;
-            btn.targetGraphic = fillImg;
-            var c = btn.colors;
-            c.normalColor = ColBtn;
-            c.highlightedColor = ColBtnHi;
-            c.pressedColor = ColBtnHi;
-            c.selectedColor = ColBtn;
-            c.disabledColor = ColBtn;
-            btn.colors = c;
         }
 
         static string Cyc(string v) => $"<  {v}  >";

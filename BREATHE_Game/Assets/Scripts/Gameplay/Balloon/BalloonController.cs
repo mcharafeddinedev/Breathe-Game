@@ -1,4 +1,5 @@
 using UnityEngine;
+using Breathe.Audio;
 
 namespace Breathe.Gameplay
 {
@@ -7,6 +8,11 @@ namespace Breathe.Gameplay
     // Driven by BalloonMinigame which controls session timing and scoring.
     public class BalloonController : MonoBehaviour
     {
+        [Header("Procedural Audio")]
+        [SerializeField, Tooltip("If true, spawns a ProceduralBalloonAudio component for real-time inflation SFX.")]
+        bool _enableProceduralAudio = true;
+
+        ProceduralBalloonAudio _proceduralAudio;
         [Header("Inflation")]
         [SerializeField] private float _inflationSpeed = 0.6f;
         [SerializeField] private float _maxScreenFill = 0.68f;
@@ -162,10 +168,20 @@ namespace Breathe.Gameplay
             BuildDepartingBalloon();
             BuildString();
             BuildHand();
+            InitializeProceduralAudio();
 
             _colorIndex = 0;
             ApplyBalloonColor();
             ResetInflation();
+        }
+
+        void InitializeProceduralAudio()
+        {
+            if (!_enableProceduralAudio) return;
+
+            _proceduralAudio = GetComponent<ProceduralBalloonAudio>();
+            if (_proceduralAudio == null)
+                _proceduralAudio = gameObject.AddComponent<ProceduralBalloonAudio>();
         }
 
         public void Activate() => _active = true;
@@ -174,6 +190,10 @@ namespace Breathe.Gameplay
         {
             _active = false;
             _phase = Phase.Frozen;
+
+            // Stop procedural audio
+            if (_proceduralAudio != null)
+                _proceduralAudio.UpdateAudio(0f, _inflationProgress, false);
         }
 
         private void Update()
@@ -338,6 +358,10 @@ namespace Breathe.Gameplay
             _inflationProgress = Mathf.Clamp01(_inflationProgress);
             UpdateBalloonVisual();
 
+            // Update procedural audio with current breath/inflation state
+            if (_proceduralAudio != null)
+                _proceduralAudio.UpdateAudio(breathPower, _inflationProgress, _active);
+
             if (_inflationProgress >= 1f)
                 BeginGrab();
         }
@@ -451,6 +475,10 @@ namespace Breathe.Gameplay
             _handObj.transform.rotation = Quaternion.identity;
             _grabBalloonPos = _balloonBody.transform.position;
             _grabBalloonScale = _balloonBody.transform.localScale;
+
+            // Stop inflation audio (no secondary beeps — air rush only via ProceduralBalloonAudio)
+            if (_proceduralAudio != null)
+                _proceduralAudio.UpdateAudio(0f, _inflationProgress, false);
         }
 
         private void LaunchDeparting()

@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Breathe.Data;
 using Breathe.Gameplay;
+using Breathe.Utility;
 
 namespace Breathe.Audio
 {
@@ -11,10 +12,25 @@ namespace Breathe.Audio
     // Add one instance to the first scene (e.g. Main Menu) with SfxLibrary assigned; mark DontDestroyOnLoad.
     public sealed class SfxPlayer : MonoBehaviour
     {
-        /// <summary>Must match <c>SettingsManager</c> SFX slider key so menu blips and all one-shots follow the SFX bus.</summary>
-        const string PrefKeySfxVolume = "Breathe_SfxVolume";
+        /// <seealso cref="AudioPrefsKeys"/>
 
         public static SfxPlayer Instance { get; private set; }
+
+        /// <summary>
+        /// Gameplay scenes (e.g. SAILBOAT) may omit a menu-placed SfxPlayer. Bow splash / minigame one-shots
+        /// still need the bus + one-shot source — bootstrap a minimal DontDestroyOnLoad root if missing.
+        /// </summary>
+        public static SfxPlayer EnsureInstance()
+        {
+            if (Instance != null) return Instance;
+
+            var existing = UnityEngine.Object.FindAnyObjectByType<SfxPlayer>();
+            if (existing != null) return existing;
+
+            var go = new GameObject("SfxPlayer (runtime bootstrap)");
+            UnityEngine.Object.DontDestroyOnLoad(go);
+            return go.AddComponent<SfxPlayer>();
+        }
 
         [SerializeField] private SfxLibrary _library;
         [SerializeField, Tooltip("2D one-shots (spatialBlend 0).")]
@@ -23,8 +39,8 @@ namespace Breathe.Audio
         private AudioSource _loop;
 
         [SerializeField, Range(0f, 1f)] private float _uiVolume = 0.85f;
-        [SerializeField, Range(0f, 1f)] private float _countdownVolume = 0.9f;
-        [SerializeField, Range(0f, 1f)] private float _resultVolume = 0.9f;
+        [SerializeField, Range(0f, 2f)] private float _countdownVolume = 1.8f;
+        [SerializeField, Range(0f, 1f)] private float _resultVolume = 0.14f;
         [SerializeField, Range(0f, 1f), Tooltip("Scales the final GO cue (TutorialPopupOpen clip slot).")]
         private float _countdownGoClipVolumeScale = 0.6f;
 
@@ -61,6 +77,13 @@ namespace Breathe.Audio
 
             SceneManager.sceneLoaded += OnSceneLoaded;
             StartCoroutine(WaitForGameStateAndSubscribe());
+            ApplyListenerMasterFromPrefs();
+        }
+
+        static void ApplyListenerMasterFromPrefs()
+        {
+            float raw = PlayerPrefs.GetFloat(AudioPrefsKeys.MasterVolume, AudioMixDefaults.MasterLinear);
+            MasterVolume.ApplyListenerFromStoredPreference(raw);
         }
 
         private void OnDestroy()
@@ -164,17 +187,11 @@ namespace Breathe.Audio
             }
         }
 
-        /// <summary>Uses MinigameSfxProfile GoalComplete or Success when assigned; otherwise global CelebrationStinger.</summary>
+        /// <summary>Brief win sting on Celebration — always <see cref="SfxLibrary.CelebrationStinger"/> (shared across minigames).</summary>
         private void PlayCelebrationStinger()
         {
             if (_library == null) return;
-            var prof = MinigameManager.Instance?.SelectedDefinition?.MinigameSfxProfile;
-            if (prof != null && prof.GoalComplete != null)
-                PlayOneShot(prof.GoalComplete, _resultVolume);
-            else if (prof != null && prof.Success != null)
-                PlayOneShot(prof.Success, _resultVolume);
-            else
-                PlayOneShot(_library.CelebrationStinger, _resultVolume);
+            PlayOneShot(_library.CelebrationStinger, _resultVolume);
         }
 
         /// <summary>
@@ -196,18 +213,33 @@ namespace Breathe.Audio
                 PlayOneShot(_library.ResultPersonalBest, _resultVolume * 0.95f);
         }
 
-        /// <summary>Universal hook — minigames can call for profile clips.</summary>
+        /// <summary>Gameplay ambience bed gain (matches <see cref="SceneMusicDirector"/> BGM trim). Includes −25% vs prior 0.85 calibration.</summary>
+        const float AmbienceLoopGainScale = 0.85f * 0.75f;
+
+        /// <summary>Universal hook — minigames can call for profile clips (2D, menu/SFX bus).</summary>
         public void PlayClip(AudioClip clip, float volumeScale = 1f)
         {
             PlayOneShot(clip, volumeScale);
         }
 
+        /// <summary>Bow splashes etc.: pan + attenuate vs listener using world position (<see cref="AudioSource.PlayClipAtPoint"/>).</summary>
+        public void PlayClipSpatial(AudioClip clip, float volumeScale, Vector3 worldPosition)
+        {
+            if (clip == null) return;
+            EnsureInstance();
+            float v = Mathf.Clamp01(volumeScale * SfxBusVolume);
+            AudioSource.PlayClipAtPoint(clip, worldPosition, v);
+        }
+
         /// <summary>Default sound for all main-menu / settings / UI buttons (assign one clip on SfxLibrary → Ui Button Confirm).</summary>
         public void PlayUiMenuClick() => PlayUiConfirm();
 
-        public void PlayUiConfirm() => PlayOneShot(_library != null ? _library.UiButtonConfirm : null, _uiVolume);
+        public void PlayUiConfirm()
+        {
+            PlayOneShot(_library != null ? _library.UiButtonConfirm : null, 1f);
+        }
         public void PlayUiCancel() => PlayOneShot(_library != null ? _library.UiButtonCancel : null, _uiVolume);
-        public void PlayUiHover() => PlayOneShot(_library != null ? _library.UiButtonHover : null, _uiVolume * 0.7f);
+        public void PlayUiHover() => PlayOneShot(_library != null ? _library.UiButtonHover : null, 1f);
         public void PlayTutorialContinue() =>
             PlayOneShot(_library != null ? _library.TutorialPopupContinue : null, _uiVolume);
 
@@ -231,9 +263,19 @@ namespace Breathe.Audio
                 return;
             }
 
-            if (_loop.clip == loop && _loop.isPlaying) return;
+            float ambScale = profile.AmbienceLoopVolumeScale;
+            float targetPitch = profile.AmbienceLoopPitch;
+            float vol = 0.55f * AmbienceLoopGainScale * SfxBusVolume * ambScale;
+            if (_loop.clip == loop && _loop.isPlaying)
+            {
+                _loop.volume = vol;
+                _loop.pitch = targetPitch;
+                return;
+            }
+
             _loop.clip = loop;
-            _loop.volume = 0.55f * SfxBusVolume;
+            _loop.volume = vol;
+            _loop.pitch = targetPitch;
             _loop.Play();
         }
 
@@ -245,7 +287,8 @@ namespace Breathe.Audio
         }
 
         /// <summary>0–1 from Settings; multiplied with <see cref="AudioListener.volume"/> (master).</summary>
-        static float SfxBusVolume => PlayerPrefs.GetFloat(PrefKeySfxVolume, 0.8f);
+        static float SfxBusVolume =>
+            PlayerPrefs.GetFloat(AudioPrefsKeys.SfxVolume, AudioMixDefaults.SfxLinear);
 
         private void PlayOneShot(AudioClip clip, float volumeScale)
         {

@@ -12,7 +12,8 @@ namespace Breathe.Data
         private string _minigameId = "sailboat";
         [SerializeField] private string _displayName = "SAILBOAT";
         [SerializeField, TextArea(2, 4)] private string _description = "BLOW  STEADILY  TO  FILL  YOUR  SAILS  AND  RACE  ACROSS  THE  FINISH  LINE";
-        [SerializeField] private Sprite _thumbnail;
+        [SerializeField, Tooltip("Level-select card art. Import a PNG/JPG capture as Sprite (Texture Type: Sprite 2D), assign here — the card uses it full-bleed with a text backdrop for readability.")]
+        private Sprite _thumbnail;
         [SerializeField] private string _breathPattern = "SUSTAINED  BLOW";
         [SerializeField] private bool _isUnlocked = true;
         [SerializeField, Tooltip("If false, this minigame stays in the roster for lookups but is hidden from level select.")]
@@ -29,6 +30,8 @@ namespace Breathe.Data
         [Header("Countdown")]
         [SerializeField, Tooltip("Text shown instead of 'GO' at end of countdown.")]
         private string _countdownGoText = "GO";
+        [SerializeField, Tooltip("Screenspace px: shift the final phrase downward. Use for long GO text so it clears centered HUD hints.")]
+        private float _countdownGoVerticalOffsetPx = 0f;
         [SerializeField, Tooltip("Seconds of grace after countdown before breath input is evaluated. " +
             "Prevents false reads from device startup lag.")]
         private float _postCountdownBuffer = 0f;
@@ -62,6 +65,7 @@ namespace Breathe.Data
         public Color CardColor => _cardColor;
         public string SceneName => _sceneName;
         public string CountdownGoText => _countdownGoText;
+        public float CountdownGoVerticalOffsetPx => _countdownGoVerticalOffsetPx;
         public float PostCountdownBuffer => _postCountdownBuffer;
         public string TutorialTitle => _tutorialTitle;
         public string TutorialInstruction => _tutorialInstruction;

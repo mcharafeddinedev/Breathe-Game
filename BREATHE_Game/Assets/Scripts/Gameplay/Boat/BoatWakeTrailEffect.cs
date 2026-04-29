@@ -45,6 +45,13 @@ namespace Breathe.Gameplay
 
         public void SetSpeed(float speed) => _speed = Mathf.Max(0f, speed);
 
+        /// <summary>True when wake segments are spawning (matches Update).</summary>
+        public bool IsWakeTrailShowing()
+        {
+            return _speed >= _maxSpeedThreshold ||
+                   (_wasAtMaxSpeed && _speed >= _deactivateThreshold);
+        }
+
         private void Start()
         {
             EnsurePlaceholderSprite();

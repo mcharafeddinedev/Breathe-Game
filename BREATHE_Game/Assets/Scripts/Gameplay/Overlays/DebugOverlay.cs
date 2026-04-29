@@ -10,14 +10,15 @@ namespace Breathe.Gameplay
     // session time) are always present. Per-minigame sections are read from
     // IMinigame.GetDebugInfo(). Sailboat-specific telemetry (boats, AI, course) is
     // discovered automatically if those objects exist in the scene.
-    // Toggle with backtick (`), Tab cycles display modes. Default visibility is also controlled from
-    // Settings (PlayerPrefs) so players can disable the overlay without using the keyboard.
+    // Show/toggle with ~/backtick (same key): tap cycles Compact → Expanded → Minimal;
+    // hold ~0.4s to hide overlay (PlayerPrefs respects off). Default visibility from Settings.
+    [DefaultExecutionOrder(1000)] // Ensures OnGUI draws on top of other elements
     public class DebugOverlay : MonoBehaviour
     {
         public const string PlayerPrefsKey = "Breathe_DebugOverlay";
 
         [Header("Display Settings")]
-        [SerializeField] private bool _visible = true;
+        [SerializeField] private bool _visible = false;
         [SerializeField, Tooltip("Margin from top-left corner in pixels.")]
         private float _margin = 12f;
 
@@ -58,7 +59,7 @@ namespace Breathe.Gameplay
 
         private void Start()
         {
-            _visible = PlayerPrefs.GetInt(PlayerPrefsKey, 1) != 0;
+            _visible = PlayerPrefs.GetInt(PlayerPrefsKey, 0) != 0;
 
             _breathPowerSystem = FindAnyObjectByType<BreathPowerSystem>();
             _gameStateManager = FindAnyObjectByType<GameStateManager>();
@@ -70,19 +71,50 @@ namespace Breathe.Gameplay
             _courseMarkers = FindAnyObjectByType<CourseMarkers>();
         }
 
+        private float _backquoteHoldTime;
+        private bool _backquoteHideTriggered;
+        private const float HoldToHideDuration = 0.4f;
+
         private void Update()
         {
             if (Keyboard.current == null) return;
 
-            if (Keyboard.current.backquoteKey.wasPressedThisFrame)
+            // Track hold duration for hiding overlay
+            if (Keyboard.current.backquoteKey.isPressed && _visible)
             {
-                _visible = !_visible;
-                PlayerPrefs.SetInt(PlayerPrefsKey, _visible ? 1 : 0);
-                PlayerPrefs.Save();
+                _backquoteHoldTime += Time.unscaledDeltaTime;
+                if (_backquoteHoldTime >= HoldToHideDuration && !_backquoteHideTriggered)
+                {
+                    _backquoteHideTriggered = true;
+                    _visible = false;
+                    PlayerPrefs.SetInt(PlayerPrefsKey, 0);
+                    PlayerPrefs.Save();
+                }
             }
 
-            if (Keyboard.current.tabKey.wasPressedThisFrame && _visible)
-                _displayMode = (DisplayMode)(((int)_displayMode + 1) % 3);
+            if (Keyboard.current.backquoteKey.wasReleasedThisFrame)
+            {
+                _backquoteHoldTime = 0f;
+                _backquoteHideTriggered = false;
+            }
+
+            if (Keyboard.current.backquoteKey.wasPressedThisFrame)
+            {
+                if (!_visible)
+                {
+                    // Backtick shows overlay when hidden
+                    _visible = true;
+                    PlayerPrefs.SetInt(PlayerPrefsKey, 1);
+                    PlayerPrefs.Save();
+                }
+                else
+                {
+                    // Backtick cycles display modes when visible (hold to hide)
+                    _displayMode = (DisplayMode)(((int)_displayMode + 1) % 3);
+                }
+                _backquoteHoldTime = 0f;
+                _backquoteHideTriggered = false;
+            }
         }
 
         private void OnGUI()
@@ -118,7 +150,10 @@ namespace Breathe.Gameplay
             string minigameId = MinigameManager.Instance?.ActiveMinigame?.MinigameId ?? "—";
             GUILayout.Label($"<b>BREATHE</b>  <size=10><color=#888>Debug  [{minigameId}]</color></size>",
                 _headerStyle);
-            GUILayout.Label($"<size=9><color=#555>[`] toggle  [Tab] {_displayMode}</color></size>",
+            GUILayout.Label(
+                "<size=9><color=#555>[~] Press to cycle view  (<b>"
+                + _displayMode +
+                "</b>) · Hold ~ to hide overlay</color></size>",
                 _labelStyle);
             GUILayout.Space(6f);
 
@@ -293,7 +328,7 @@ namespace Breathe.Gameplay
             float mph = WindSpeedConverter.ToMph(speedRaw);
 
             DrawRow("Speed", $"{speedRaw:F2} u/s");
-            DrawRow("", $"<size=11><color=#AAA>{knots:F1} knots  |  {mph:F1} mph</color></size>");
+            DrawRow("", $"<size=11><color=#AAA>{knots:F1} knots  AND  {mph:F1} mph</color></size>");
 
             Vector3 pos = _playerBoat.transform.position;
             DrawRow("Position", $"({pos.x:F1}, {pos.y:F1})");
@@ -401,6 +436,21 @@ namespace Breathe.Gameplay
             {
                 fontStyle = FontStyle.Bold
             };
+
+            // Flatten all states so text doesn't highlight on hover
+            FlattenStyle(_boxStyle);
+            FlattenStyle(_labelStyle);
+            FlattenStyle(_headerStyle);
+            FlattenStyle(_sectionStyle);
+            FlattenStyle(_valueHighlight);
+        }
+
+        private static void FlattenStyle(GUIStyle s)
+        {
+            if (s == null) return;
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
         }
     }
 }

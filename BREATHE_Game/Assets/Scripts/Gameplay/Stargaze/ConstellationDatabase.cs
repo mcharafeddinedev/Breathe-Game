@@ -8,6 +8,7 @@ namespace Breathe.Gameplay
     // and descriptive text for the educational reveal sequence.
     // Stored as a static class rather than ScriptableObject since the data is
     // fixed and procedurally referenced — no Inspector tuning needed.
+    // Science + character lines are short (one brief sentence each) for the reward caption UI.
     public static class ConstellationDatabase
     {
         // Per-star visual data: real tint color and relative brightness
@@ -88,8 +89,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Aries",
-                    ScientificDescription = "A small zodiac constellation between Pisces (PIE-seez) and Taurus. Its brightest star Hamal (hah-MAHL) glows orange, about 66 light-years away.",
-                    CharacterDescription = "The Ram — famous for the golden fleece that Jason and the Argonauts set out on an epic quest to find.",
+                    ScientificDescription = "Aries is a small zodiac patch; its brightest star, Hamal, is an orange giant.",
+                    CharacterDescription = "In myth, the Ram belongs to the tale of the Golden Fleece.",
                     Stars = new[] { V(0.3f,0.6f), V(0.4f,0.65f), V(0.55f,0.6f), V(0.65f,0.55f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3 },
                     Popularity = 1,
@@ -99,8 +100,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Taurus",
-                    ScientificDescription = "Home to the Pleiades (PLEE-uh-deez) and Hyades (HYE-uh-deez) star clusters, plus the Crab Nebula. Its bright orange eye is Aldebaran (al-DEB-uh-ran), a red giant about 65 light-years away.",
-                    CharacterDescription = "The Bull — Zeus disguised himself as a white bull to carry Europa (yoo-ROH-puh) across the sea to Crete.",
+                    ScientificDescription = "Taurus hosts the Hyades, the Pleiades, and the bright orange star Aldebaran.",
+                    CharacterDescription = "The Bull appears in the story of Zeus carrying Europa across the sea.",
                     Stars = new[] { V(0.35f,0.5f), V(0.4f,0.55f), V(0.5f,0.6f), V(0.55f,0.65f), V(0.6f,0.6f), V(0.45f,0.45f), V(0.55f,0.5f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 2,4, 0,5, 5,6 },
                     Popularity = 2,
@@ -110,8 +111,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Gemini",
-                    ScientificDescription = "Two bright stars mark the heads of the twins. Fun fact: Castor is actually six stars orbiting each other, about 51 light-years away.",
-                    CharacterDescription = "The Twins — mythic brothers and patrons of sailors who stuck together even though only Pollux was immortal.",
+                    ScientificDescription = "Gemini is named for its twin head stars, Castor and Pollux — bright and easy to spot.",
+                    CharacterDescription = "The Twins are famous brothers who sail together in Greek legend.",
                     Stars = new[] { V(0.35f,0.7f), V(0.4f,0.6f), V(0.38f,0.5f), V(0.35f,0.4f), V(0.55f,0.72f), V(0.5f,0.6f), V(0.52f,0.5f), V(0.55f,0.38f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 4,5, 5,6, 6,7, 1,5 },
                     Popularity = 3,
@@ -121,8 +122,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Cancer",
-                    ScientificDescription = "The dimmest zodiac constellation, but it hides a gem: the Beehive Cluster, a fuzzy cloud of stars you can spot without a telescope.",
-                    CharacterDescription = "The Crab — Hera sent it to distract Hercules during his fight with the Hydra. Tiny but tenacious.",
+                    ScientificDescription = "Cancer is a faint zodiac group but contains the open cluster called the Beehive.",
+                    CharacterDescription = "The Crab nips at the hero Hercules in old myths of his labors.",
                     Stars = new[] { V(0.4f,0.55f), V(0.45f,0.6f), V(0.5f,0.55f), V(0.55f,0.6f), V(0.48f,0.5f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 1,4, 2,4 },
                     Popularity = 1,
@@ -132,8 +133,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Leo",
-                    ScientificDescription = "One of the easiest constellations to spot. Its brightest star Regulus sits about 79 light-years away and spins so fast it's slightly squashed.",
-                    CharacterDescription = "The Lion — the Nemean (neh-MEE-an) beast from Hercules' first labor, placed among the stars by Zeus.",
+                    ScientificDescription = "Leo is easy to see; its brightest star, Regulus, sits at the lion’s front.",
+                    CharacterDescription = "The Lion recalls the beast Hercules met in his first famous labor.",
                     Stars = new[] { V(0.3f,0.6f), V(0.35f,0.65f), V(0.45f,0.7f), V(0.55f,0.65f), V(0.6f,0.55f), V(0.55f,0.45f), V(0.45f,0.4f), V(0.35f,0.45f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,0 },
                     Popularity = 3,
@@ -143,8 +144,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Virgo",
-                    ScientificDescription = "The largest zodiac constellation. Its blue-white jewel Spica (SPY-kuh) is about 250 light-years away. This region of sky is packed with distant galaxies.",
-                    CharacterDescription = "The Maiden — often linked to Demeter (deh-MEE-ter), goddess of the harvest, or her daughter Persephone (per-SEF-oh-nee).",
+                    ScientificDescription = "Virgo is the largest zodiac figure; Spica is its bright blue guide star.",
+                    CharacterDescription = "The Maiden is tied in myth to the harvest and the changing seasons.",
                     Stars = new[] { V(0.5f,0.7f), V(0.45f,0.6f), V(0.5f,0.5f), V(0.55f,0.6f), V(0.4f,0.45f), V(0.6f,0.45f), V(0.5f,0.35f) },
                     LineConnections = new[] { 0,1, 0,3, 1,2, 3,2, 2,4, 2,5, 2,6 },
                     Popularity = 2,
@@ -154,8 +155,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Libra",
-                    ScientificDescription = "The only zodiac constellation that represents an object instead of a living thing. Its scale-pan stars Zubenelgenubi (zoo-BEN-el-jeh-NOO-bee) and Zubeneschamali (zoo-BEN-esh-shah-MAH-lee) used to be considered the claws of neighboring Scorpius.",
-                    CharacterDescription = "The Scales — representing justice and balance, held by Astraea (as-TREE-uh), goddess of innocence.",
+                    ScientificDescription = "Libra is the only zodiac sign drawn as a balance, with two bright scale stars.",
+                    CharacterDescription = "The Scales stand for fairness; older sky maps showed them on the Scorpion’s claws.",
                     Stars = new[] { V(0.4f,0.6f), V(0.5f,0.65f), V(0.6f,0.6f), V(0.45f,0.45f), V(0.55f,0.45f) },
                     LineConnections = new[] { 0,1, 1,2, 0,3, 2,4 },
                     Popularity = 1,
@@ -165,8 +166,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Scorpius",
-                    ScientificDescription = "Its red heart Antares (an-TAIR-eez) is a supergiant hundreds of times wider than our Sun, about 550 light-years away. Named \"Rival of Mars\" for its red color.",
-                    CharacterDescription = "The Scorpion — sent to defeat Orion the hunter. The two are placed on opposite sides of the sky, never visible at the same time.",
+                    ScientificDescription = "Scorpius is ruled by the red supergiant Antares, a rival in color to the planet Mars.",
+                    CharacterDescription = "The Scorpion and Orion are kept on opposite sides of the sky in legend.",
                     Stars = new[] { V(0.3f,0.65f), V(0.35f,0.6f), V(0.4f,0.55f), V(0.45f,0.5f), V(0.5f,0.45f), V(0.55f,0.4f), V(0.6f,0.35f), V(0.65f,0.38f), V(0.7f,0.42f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,8 },
                     Popularity = 3,
@@ -176,8 +177,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Sagittarius",
-                    ScientificDescription = "Point this way and you're looking toward the center of our galaxy. This patch of sky is rich with nebulae and star nurseries.",
-                    CharacterDescription = "The Archer — a centaur drawing his bow at Scorpius. Often linked to the wise centaur Chiron (KYE-ron).",
+                    ScientificDescription = "Sagittarius points toward the Milky Way’s center, full of nebulae and young stars.",
+                    CharacterDescription = "The Archer is drawn as a centaur with a ready bow in classical art.",
                     Stars = new[] { V(0.4f,0.5f), V(0.45f,0.55f), V(0.5f,0.6f), V(0.55f,0.55f), V(0.5f,0.5f), V(0.55f,0.45f), V(0.6f,0.5f), V(0.45f,0.4f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,0, 3,5, 5,6, 4,7 },
                     Popularity = 2,
@@ -187,8 +188,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Capricornus",
-                    ScientificDescription = "Say it \"KAP-rih-KOR-nus.\" A faint but ancient constellation. Its brightest star Deneb Algedi (DEN-eb al-JEE-dee) is actually two stars orbiting each other, only about 39 light-years from Earth.",
-                    CharacterDescription = "The Sea Goat — half goat, half fish. The god Pan dove into the Nile and took this form to escape the monster Typhon (TYE-fon).",
+                    ScientificDescription = "Capricornus is a faint, ancient figure; Deneb Algedi is its brightest star.",
+                    CharacterDescription = "The Sea-Goat blends goat and fish, including tales of the god Pan.",
                     Stars = new[] { V(0.35f,0.55f), V(0.4f,0.6f), V(0.5f,0.62f), V(0.6f,0.58f), V(0.65f,0.5f), V(0.55f,0.42f), V(0.4f,0.45f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 6,0 },
                     Popularity = 1,
@@ -198,8 +199,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Aquarius",
-                    ScientificDescription = "Home to the Helix Nebula, a glowing shell of gas about 700 light-years away — one of the closest nebulae to Earth.",
-                    CharacterDescription = "The Water Bearer — Ganymede (GAN-ih-meed), swept to Mount Olympus by Zeus's eagle to serve as cupbearer to the gods.",
+                    ScientificDescription = "Aquarius holds bright stars in a part of the sky rich with star clusters and nebulae.",
+                    CharacterDescription = "The Water Bearer is classically shown pouring a stream toward the sea.",
                     Stars = new[] { V(0.4f,0.7f), V(0.45f,0.6f), V(0.5f,0.55f), V(0.55f,0.5f), V(0.5f,0.45f), V(0.45f,0.4f), V(0.55f,0.35f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 4,6 },
                     Popularity = 1,
@@ -209,8 +210,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Pisces",
-                    ScientificDescription = "Say it \"PIE-seez.\" A large but faint constellation. The Sun passes through here at the spring equinox, marking the start of the astronomical year.",
-                    CharacterDescription = "The Fishes — Aphrodite (AF-roh-DYE-tee) and her son Eros tied themselves together as fish to escape the monster Typhon (TYE-fon).",
+                    ScientificDescription = "Pisces is large, faint, and lies along the path the Sun takes through the year.",
+                    CharacterDescription = "The Fishes appear in stories of gods who turned into fish to escape a monster.",
                     Stars = new[] { V(0.3f,0.5f), V(0.35f,0.55f), V(0.4f,0.5f), V(0.45f,0.55f), V(0.5f,0.6f), V(0.55f,0.55f), V(0.6f,0.5f), V(0.65f,0.55f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 6,7 },
                     Popularity = 1,
@@ -222,8 +223,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Orion",
-                    ScientificDescription = "The most recognizable constellation. Red supergiant Betelgeuse (BET-ul-jooz) marks one shoulder, brilliant blue Rigel (RYE-jul) the opposite foot. The three belt stars point toward the Orion Nebula, a stellar nursery.",
-                    CharacterDescription = "The Hunter — placed among the stars by Zeus. His belt of three stars has guided travelers for thousands of years.",
+                    ScientificDescription = "Orion is one of the easiest constellations, with red Betelgeuse, blue Rigel, and a straight belt of three stars.",
+                    CharacterDescription = "The Hunter is a famous sky figure whose belt has guided travelers for ages.",
                     Stars = new[] { V(0.35f,0.72f), V(0.6f,0.7f), V(0.4f,0.55f), V(0.45f,0.5f), V(0.5f,0.5f), V(0.55f,0.55f), V(0.38f,0.3f), V(0.58f,0.28f) },
                     LineConnections = new[] { 0,2, 2,3, 3,4, 4,5, 5,1, 2,6, 5,7, 3,4 },
                     Popularity = 3,
@@ -233,8 +234,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Ursa Major",
-                    ScientificDescription = "The third-largest constellation. The Big Dipper asterism is part of it — follow pointer stars Dubhe (DOO-bee) and Merak (MAIR-ak) and they'll lead you straight to the North Star.",
-                    CharacterDescription = "The Great Bear — Callisto (kah-LIS-toh), transformed into a bear by jealous Hera (HAIR-uh) and lifted into the sky by Zeus.",
+                    ScientificDescription = "Ursa Major is huge; the Big Dipper is part of it, and the pointers lead toward Polaris, the North Star.",
+                    CharacterDescription = "The Great Bear is tied to the myth of Callisto among the constellations.",
                     Stars = new[] { V(0.3f,0.55f), V(0.35f,0.6f), V(0.45f,0.62f), V(0.55f,0.6f), V(0.6f,0.55f), V(0.65f,0.5f), V(0.72f,0.52f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 3,0 },
                     Popularity = 3,
@@ -244,8 +245,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Ursa Minor",
-                    ScientificDescription = "Polaris, our North Star, sits at the tip of the bear's tail. Ancient sailors from the Phoenicians to the Vikings navigated by it. About 433 light-years away.",
-                    CharacterDescription = "The Little Bear — Arcas (AR-kus), son of Callisto, placed beside his mother in the sky forever.",
+                    ScientificDescription = "Ursa Minor is the Little Bear; Polaris caps its tail and marks the north celestial pole.",
+                    CharacterDescription = "The Little Bear is paired in myth with the Great Bear in the same story family.",
                     Stars = new[] { V(0.5f,0.75f), V(0.48f,0.65f), V(0.45f,0.55f), V(0.5f,0.48f), V(0.55f,0.5f), V(0.58f,0.55f), V(0.52f,0.58f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 6,3 },
                     Popularity = 2,
@@ -255,8 +256,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Cassiopeia",
-                    ScientificDescription = "Say it \"kass-ee-oh-PEE-uh.\" That famous W-shape in the northern sky — visible year-round from most northern locations. It's full of star clusters and glowing gas clouds.",
-                    CharacterDescription = "The Queen — she boasted she was more beautiful than the sea nymphs, so the gods chained her throne in the sky forever.",
+                    ScientificDescription = "Cassiopeia’s bright W rides the Milky Way and is well placed for most northern evenings.",
+                    CharacterDescription = "The Queen is remembered in sky lore for her pride and the sea’s answer.",
                     Stars = new[] { V(0.25f,0.55f), V(0.35f,0.65f), V(0.48f,0.55f), V(0.6f,0.65f), V(0.7f,0.55f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4 },
                     Popularity = 3,
@@ -266,8 +267,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Cygnus",
-                    ScientificDescription = "Say it \"SIG-nus.\" Also called the Northern Cross. Its brightest star Deneb (DEN-eb) is one of the most luminous stars known, blazing about 2,600 light-years away.",
-                    CharacterDescription = "The Swan — Zeus in the form of a swan, flying along the Milky Way. Sometimes linked to the musician Orpheus (OR-fee-us).",
+                    ScientificDescription = "Cygnus is also called the Northern Cross, with Deneb as a bright, distant beacon.",
+                    CharacterDescription = "The Swan glides along the Milky Way in several classical stories.",
                     Stars = new[] { V(0.5f,0.75f), V(0.5f,0.6f), V(0.5f,0.45f), V(0.35f,0.55f), V(0.65f,0.55f), V(0.5f,0.3f) },
                     LineConnections = new[] { 0,1, 1,2, 2,5, 3,1, 1,4 },
                     Popularity = 2,
@@ -277,8 +278,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Lyra",
-                    ScientificDescription = "Say it \"LYE-ruh.\" Small but brilliant. Vega (VEE-guh) is the fifth brightest star in the night sky and was our North Star about 12,000 years ago. The Ring Nebula hides here too.",
-                    CharacterDescription = "The Lyre — the magical harp of Orpheus (OR-fee-us), whose music could charm stones and rivers.",
+                    ScientificDescription = "Lyra is small and dominated by Vega, one of the night sky’s brightest stars.",
+                    CharacterDescription = "The Lyre is the little harp of Orpheus in legend.",
                     Stars = new[] { V(0.5f,0.72f), V(0.42f,0.58f), V(0.58f,0.58f), V(0.4f,0.45f), V(0.6f,0.45f) },
                     LineConnections = new[] { 0,1, 0,2, 1,3, 2,4, 3,4 },
                     Popularity = 2,
@@ -288,8 +289,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Canis Major",
-                    ScientificDescription = "Home to Sirius (SEER-ee-us), the brightest star in the entire night sky — only 8.6 light-years away. Its rising once marked the start of the hottest \"dog days\" of summer.",
-                    CharacterDescription = "The Greater Dog — Orion's faithful hunting companion, trotting loyally after him across the sky.",
+                    ScientificDescription = "Canis Major holds Sirius, the single brightest star in Earth’s night sky and a close neighbor in space.",
+                    CharacterDescription = "The Greater Dog follows Orion as his bright hunting companion.",
                     Stars = new[] { V(0.5f,0.7f), V(0.45f,0.6f), V(0.4f,0.5f), V(0.55f,0.55f), V(0.6f,0.45f), V(0.5f,0.35f) },
                     LineConnections = new[] { 0,1, 1,2, 0,3, 3,4, 4,5, 1,3 },
                     Popularity = 2,
@@ -299,8 +300,8 @@ namespace Breathe.Gameplay
                 new ConstellationData
                 {
                     Name = "Draco",
-                    ScientificDescription = "A long chain of stars looping around the Little Bear. Its star Thuban (THOO-bahn) was the North Star when the ancient Egyptians built the pyramids.",
-                    CharacterDescription = "The Dragon — Ladon (LAY-don), the many-headed guardian of the golden apples in the garden of the Hesperides (hes-PAIR-ih-deez).",
+                    ScientificDescription = "Draco is a long chain around the north sky; Thuban once served as the pole star in antiquity.",
+                    CharacterDescription = "The Dragon appears in old myths as a fearsome, many-headed sky guardian.",
                     Stars = new[] { V(0.3f,0.5f), V(0.35f,0.55f), V(0.4f,0.6f), V(0.48f,0.58f), V(0.55f,0.62f), V(0.6f,0.55f), V(0.65f,0.5f), V(0.6f,0.45f), V(0.55f,0.42f) },
                     LineConnections = new[] { 0,1, 1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,8 },
                     Popularity = 1,

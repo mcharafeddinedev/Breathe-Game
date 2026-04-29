@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BubblesSfxProfile
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
   _gameplayStart: {fileID: 8300000, guid: e416ec535b0c405ab36c1195a1b7b418, type: 3}
-  _gameplayAmbienceLoop: {fileID: 8300000, guid: ac846c1754504861b69af5cb5733e70c, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: 4cd3c0f42c44ead43b13541ef9d2ebeb, type: 3}
   _timeWarning: {fileID: 8300000, guid: 6469fb7a3bc047ed923049e6889ddb0c, type: 3}
   _success: {fileID: 8300000, guid: a54de6c85aef49688ff02c0b50fed876, type: 3}
   _goalComplete: {fileID: 8300000, guid: 1969778e5d8c4786922890c84f061b7f, type: 3}
@@ -21,3 +21,5 @@ MonoBehaviour:
   _secondaryAction: {fileID: 8300000, guid: 2b014bbdb89a418f9ffaa987ff66657e, type: 3}
   _tertiaryAction: {fileID: 8300000, guid: 46ed5dc63ab84cbbbf4ec5b568ceb30f, type: 3}
   _specialEvent: {fileID: 8300000, guid: 30deca8fa63a40f8a9e877c2544b5031, type: 3}
+  _ambienceLoopVolumeScale: 0.2625
+  _ambienceLoopPitch: 1

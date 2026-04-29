@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace Breathe.Utility
@@ -25,10 +26,76 @@ namespace Breathe.Utility
             return _cached;
         }
 
+        /// <summary>
+        /// ARCADECLASSIC / WebGL dynamic fonts often omit glyphs for U+002B PLUS, U+002F SOLIDUS,
+        /// and U+007C VERTICAL LINE. Substitute so HUD and popups stay readable in browser builds.
+        /// </summary>
+        public static string SanitizeForPixelFont(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            text = text.Replace("+", "PLUS ");
+            // Do not break TMP/HTML closing tags (e.g. </b>, </i>) — '/' was turning </b> into "< b>".
+            text = Regex.Replace(text, @"(?<!<)\/", " ");
+            return text.Replace('|', ' ');
+        }
+
+        /// <summary>
+        /// Whole seconds for HUD and results. Fractional glyphs (U+002E, U+0027, etc.) often fail on WebGL with ARCADECLASSIC.
+        /// </summary>
+        public static string FormatHudSecondsWhole(float seconds)
+        {
+            if (seconds < 0f) seconds = 0f;
+            return $"{Mathf.FloorToInt(seconds + 0.0001f)} S";
+        }
+
+        /// <summary>
+        /// Countdown HUD: whole seconds remaining (ceiling), e.g. 0.2s left shows as 1 S.
+        /// </summary>
+        public static string FormatHudCountdownSecondsWhole(float secondsRemaining)
+        {
+            if (secondsRemaining < 0f) secondsRemaining = 0f;
+            return $"{Mathf.CeilToInt(secondsRemaining)} S";
+        }
+
+        /// <summary>
+        /// HUD counters — wide gaps around OF (Skydive / Stone Skip / Bubbles in-round HUD).
+        /// </summary>
+        public static string FormatHudCountOfTotal(int current, int total)
+        {
+            return $"{current}    OF    {total}";
+        }
+
+        /// <summary>
+        /// End-of-run results overlays — compact "n OF total" so columns stay readable.
+        /// </summary>
+        public static string FormatResultsCountOfTotal(int current, int total)
+        {
+            return $"{current} OF {total}";
+        }
+
+        static readonly Regex ParenQuotedPronunciation = new Regex(@"\(\s*""([^""]+)""\s*\)", RegexOptions.Compiled);
+        static readonly Regex StraightDoubleQuotedPhrase = new Regex(@"""([^""]+)""", RegexOptions.Compiled);
+
+        /// <summary>
+        /// ARCADECLASSIC often has no glyphs for parentheses or ASCII quotes. Rewrites ("PHON") and remaining
+        /// "PHON" phrases into  [  PHON  ]  — square brackets usually rasterize on WebGL where () do not.
+        /// </summary>
+        public static string ExpandPronunciationHintsForPixelFont(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            text = text.Replace('\u201c', '"').Replace('\u201d', '"');
+            text = text.Replace('\u2014', ' ').Replace('\u2013', ' ');
+            text = ParenQuotedPronunciation.Replace(text, "  [  $1  ]  ");
+            text = StraightDoubleQuotedPhrase.Replace(text, "  [  $1  ]  ");
+            text = text.Replace('(', ' ').Replace(')', ' ');
+            return SanitizeForPixelFont(text);
+        }
+
         // Draws an IMGUI label with a black outline for readability.
         // Call this instead of GUI.Label for any text that needs contrast.
         public static void OutlinedLabel(Rect rect, string text, GUIStyle style, int thickness = 1)
         {
+            text = SanitizeForPixelFont(text);
             Color origNormal = style.normal.textColor;
             Color origHover = style.hover.textColor;
             Color origActive = style.active.textColor;

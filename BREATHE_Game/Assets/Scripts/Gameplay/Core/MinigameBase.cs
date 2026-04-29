@@ -37,6 +37,13 @@ namespace Breathe.Gameplay
                 MinigameManager.Instance.RegisterActiveMinigame(this);
         }
 
+        protected virtual void Start()
+        {
+            // Awake ordering: if Sailboat ran before MinigameManager, registration was skipped above.
+            if (MinigameManager.Instance != null)
+                MinigameManager.Instance.RegisterActiveMinigame(this);
+        }
+
         protected virtual void OnDestroy()
         {
             if (MinigameManager.Instance != null &&
@@ -76,14 +83,15 @@ namespace Breathe.Gameplay
         }
 
         /// <summary>Uses MinigameSfxProfile.PrimaryAction (e.g. chiptune hit). Optional cooldown avoids spam (e.g. bubbles).</summary>
-        protected void TryPlayMinigamePrimaryActionSfx(float minSecondsBetween = 0f)
+        /// <param name="volumeScale">Multiplies baked-in level (0.88).</param>
+        protected void TryPlayMinigamePrimaryActionSfx(float minSecondsBetween = 0f, float volumeScale = 1f)
         {
             var clip = Definition?.MinigameSfxProfile?.PrimaryAction;
             if (clip == null || SfxPlayer.Instance == null) return;
             if (minSecondsBetween > 0f && Time.unscaledTime < _nextPrimarySfxUnscaledTime) return;
             if (minSecondsBetween > 0f)
                 _nextPrimarySfxUnscaledTime = Time.unscaledTime + minSecondsBetween;
-            SfxPlayer.Instance.PlayClip(clip, 0.88f);
+            SfxPlayer.Instance.PlayClip(clip, 0.88f * Mathf.Clamp01(volumeScale));
         }
 
         /// <summary>Uses MinigameSfxProfile.SpecialEvent (e.g. constellation reveal).</summary>

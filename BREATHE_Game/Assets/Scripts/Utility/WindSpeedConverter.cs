@@ -13,7 +13,7 @@ namespace Breathe.Utility
 
         public static string Format(float gameSpeed)
         {
-            return $"{ToKnots(gameSpeed):F1} kn  /  {ToMph(gameSpeed):F1} mph";
+            return $"{ToKnots(gameSpeed):F1} kn  AND  {ToMph(gameSpeed):F1} mph";
         }
     }
 }

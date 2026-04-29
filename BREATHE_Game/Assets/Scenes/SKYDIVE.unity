@@ -360,7 +360,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8e342438b3c8c54fa04cb1288b3673a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.DebugOverlay
-  _visible: 1
+  _visible: 0
   _margin: 12
 --- !u!1 &1059236074
 GameObject:
@@ -535,14 +535,14 @@ MonoBehaviour:
   _spawnY: 5.5
   _xMin: -7
   _xMax: 7
-  _fallSpeed: 1.8
+  _fallSpeed: 1.55
   _windCyclePeriodMin: 2
   _windCyclePeriodMax: 4
-  _windMaxForce: 3.5
+  _windMaxForce: 3
   _breathForceMultiplier: 5
-  _perfectRadius: 0.5
-  _goodRadius: 1.2
-  _nearRadius: 2
+  _perfectRadius: 0.58
+  _goodRadius: 1.32
+  _nearRadius: 2.15
 --- !u!1 &1921390645
 GameObject:
   m_ObjectHideFlags: 0
@@ -624,7 +624,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.SkydiveMinigame
   _breathAnalytics: {fileID: 129044734}
   _controller: {fileID: 1810394964}
-  _successTarget: 10
+  _successTarget: 5
   _missLimit: 3
   _delayBetweenDivers: 1.2
   _perfectPoints: 300

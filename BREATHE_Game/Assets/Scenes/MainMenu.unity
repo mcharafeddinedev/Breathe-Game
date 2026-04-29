@@ -325,6 +325,7 @@ GameObject:
   - component: {fileID: 140487493}
   - component: {fileID: 140487498}
   - component: {fileID: 140487497}
+  - component: {fileID: 140487499}
   m_Layer: 5
   m_Name: Canvas_MainMenuUI
   m_TagString: Untagged
@@ -366,7 +367,7 @@ MonoBehaviour:
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 800, y: 600}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -432,7 +433,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.1303745, g: 0.24125847, b: 0.40251565, a: 0.42}
+  m_Color: {r: 0.064, g: 0.112, b: 0.099, a: 0.46}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -457,6 +458,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 140487492}
   m_CullTransparentMesh: 1
+--- !u!114 &140487499
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 140487492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3e9014f6b2c4d5e9078d431b2cae110, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Breathe.UI::Breathe.UI.ShipPrepPlayerPrefsReset
+  _reloadSceneAfterReset: 1
 --- !u!1 &156391054
 GameObject:
   m_ObjectHideFlags: 0
@@ -630,11 +644,11 @@ RectTransform:
   - {fileID: 501105911}
   m_Father: {fileID: 2046143661}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -185}
-  m_SizeDelta: {x: 160, y: 30}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: 0, y: 10}
+  m_SizeDelta: {x: 200, y: 36}
+  m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &210052085
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -893,7 +907,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -30, y: -30}
+  m_SizeDelta: {x: -16, y: -16}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &379947783
 MonoBehaviour:
@@ -908,7 +922,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.34901962, g: 0.45882353, b: 0.5176471, a: 1}
+  m_Color: {r: 0.086, g: 0.148, b: 0.136, a: 0.982}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1501,10 +1515,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Breathe.Input::Breathe.Input.FanBreathInput
   breathConfig: {fileID: 11400000, guid: 0db18f2defd25ff4fac9b70fbe3d4f3b, type: 2}
-  comPort: COM3
+  defaultComPort: COM3
   baudRate: 9600
   readTimeoutMs: 100
   threadJoinTimeoutMs: 1000
+  probeTimeoutMs: 1500
 --- !u!4 &755446033
 Transform:
   m_ObjectHideFlags: 0
@@ -1550,6 +1565,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Breathe.UI::Breathe.UI.MainMenuController
   _titleText: {fileID: 1671320596}
+  _titleSubtitleText: {fileID: 0}
+  _homeMenuProminenceScale: 1
+  _homeBlockVerticalShiftPx: 18
+  _homeMenuTagline: PUT YOUR BREATH TO THE TEST!
   _levelSelectButton: {fileID: 1601538967}
   _settingsButton: {fileID: 1607064637}
   _creditsButton: {fileID: 877276207}
@@ -1562,8 +1581,27 @@ MonoBehaviour:
   _creditsBackButton: {fileID: 210052085}
   _gameGridParent: {fileID: 1961663927}
   _spawnBathCausticsBackdrop: 1
+  _mainMenuBackgroundVideo: {fileID: 32900000, guid: d0cee7bd3d3544e4a8cc39f25b5665a8, type: 3}
+  _mainMenuBackgroundVideoStreaming: 
   _homeScreenRoot: {fileID: 0}
-  _subPanelTint: {r: 0.08, g: 0.11, b: 0.18, a: 0.78}
+  _creditsDeveloperName: Marwan Charafeddine
+  _creditsStudio: Gold Leaf Interactive
+  _creditsRoles: 'Solo developer from concept to shipped release.
+
+    Creator, programmer & direction:
+
+    Systems, UX/UI, narrative flow, audio integration.
+
+    Production & third-party integration (see TOOLS).'
+  _creditsToolsAck: 'ART: C# Coded Visuals
+
+    SFX: Freesound.org (CC0)
+
+    MUSIC:
+    Composed with SUNO'
+  _creditsBuildBlurb: Developed in Unity 6 (C#) as a self-contained, data-driven
+    set of minigames. Shipped for Windows and WebGL, with simulated breath input
+    in the browser.
 --- !u!4 &777737346
 Transform:
   m_ObjectHideFlags: 0
@@ -2089,7 +2127,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2bf891893d4c43b459e4d9cb337699a3, type: 2}
   - {fileID: 11400000, guid: e9cc66ddd3559814fb5ef74b41065582, type: 2}
   - {fileID: 11400000, guid: 0297768cb0d72424dbafe2f296da54b0, type: 2}
-  - {fileID: 11400000, guid: 4cdc55f6b120de94d9b70228384177e3, type: 2}
   - {fileID: 11400000, guid: 298108bd1abf2a8418a1e2607cc8d1ef, type: 2}
 --- !u!4 &1109110909
 Transform:
@@ -2116,6 +2153,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1184401710}
   - component: {fileID: 1184401709}
+  - component: {fileID: 1184401711}
   m_Layer: 0
   m_Name: SfxPlayer
   m_TagString: Untagged
@@ -2141,6 +2179,7 @@ MonoBehaviour:
   _uiVolume: 0.85
   _countdownVolume: 0.9
   _resultVolume: 0.9
+  _countdownGoClipVolumeScale: 0.6
 --- !u!4 &1184401710
 Transform:
   m_ObjectHideFlags: 0
@@ -2156,6 +2195,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1184401711
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1184401708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4b5c6d7980a432c9e8f7d6aa5bc3d21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Audio.SceneMusicDirector
+  _mainMenuA: {fileID: 8300000, guid: e797cc71bc7b5174d86b6e3c58d082d6, type: 3}
+  _mainMenuB: {fileID: 8300000, guid: 30077d113e5d1494fa33f28df93b144e, type: 3}
+  _sailboat: {fileID: 8300000, guid: e023b02284c06e04997de1d27034cefe, type: 3}
+  _balloon: {fileID: 8300000, guid: 688232a011ad8b147986cb7185776cf0, type: 3}
+  _bubbles: {fileID: 8300000, guid: 48959d29a4019794683363ef1b368c53, type: 3}
+  _skydive: {fileID: 8300000, guid: 920e8021d74d884478307c7ee61c8678, type: 3}
+  _stargaze: {fileID: 8300000, guid: 0873a781122352b43aea71933b92ba75, type: 3}
+  _prefsGainMultiplier: 0.25
+  _unloadFadeFallbackSeconds: 0.42
 --- !u!1 &1503443544
 GameObject:
   m_ObjectHideFlags: 0
@@ -2690,8 +2750,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 130}
-  m_SizeDelta: {x: 438.84, y: 135.4744}
+  m_AnchoredPosition: {x: 0, y: 175}
+  m_SizeDelta: {x: 400, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1671320596
 MonoBehaviour:
@@ -2713,7 +2773,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "B R E A TH E \nA r c a d e\n"
+  m_text: B R E A TH E   A r c a d e
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 6900c457df4cda541906b6c45dfd0fd4, type: 2}
   m_sharedMaterial: {fileID: -2984625729374442940, guid: 6900c457df4cda541906b6c45dfd0fd4, type: 2}
@@ -2740,8 +2800,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 58
-  m_fontSizeBase: 58
+  m_fontSize: 56
+  m_fontSizeBase: 56
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -3190,8 +3250,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -55}
-  m_SizeDelta: {x: 185, y: 225}
+  m_AnchoredPosition: {x: 0, y: -18}
+  m_SizeDelta: {x: 228, y: 270}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1923573371
 MonoBehaviour:
@@ -3211,7 +3271,7 @@ MonoBehaviour:
     m_Top: 0
     m_Bottom: 0
   m_ChildAlignment: 4
-  m_Spacing: 30
+  m_Spacing: 20
   m_ChildForceExpandWidth: 1
   m_ChildForceExpandHeight: 1
   m_ChildControlWidth: 1
@@ -3307,7 +3367,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.34901962, g: 0.45882353, b: 0.5176471, a: 1}
+  m_Color: {r: 0.092, g: 0.146, b: 0.134, a: 0.904}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -3396,7 +3456,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.34868073, g: 0.4549443, b: 0.51572317, a: 1}
+  m_Color: {r: 0.078, g: 0.134, b: 0.118, a: 0.994}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

@@ -50,8 +50,9 @@ namespace Breathe.Gameplay
             LoadPersonalBests();
         }
 
-        private void Start()
+        protected override void Start()
         {
+            base.Start();
             if (_balloonController == null)
                 _balloonController = FindAnyObjectByType<BalloonController>();
 
@@ -145,8 +146,8 @@ namespace Breathe.Gameplay
             {
                 _balloonsCompleted++;
                 _totalScore = _balloonsCompleted * _pointsPerBalloon;
-                _scorePopups.Push($"+{_pointsPerBalloon}", new Color(1f, 0.88f, 0.35f));
-                TryPlayMinigamePrimaryActionSfx(0f);
+                _scorePopups.Push($"{_pointsPerBalloon}  PTS", new Color(1f, 0.88f, 0.35f));
+                TryPlayMinigamePrimaryActionSfx(0f, 0.28f);
             }
         }
 
@@ -208,10 +209,10 @@ namespace Breathe.Gameplay
                 new MinigameStat("Balloons", $"{_balloonsCompleted}", _newPBBalloons, StatTier.Hero),
                 new MinigameStat("Avg Intensity", $"{avgIntensity * 100f:F0}%", false, StatTier.Primary),
                 new MinigameStat("Breaths", $"{sustained}", false, StatTier.Primary),
-                new MinigameStat("Avg Breath", $"{avgDur:F1}s", false, StatTier.Primary),
+                new MinigameStat("Avg Breath", GameFont.FormatHudSecondsWhole(avgDur), false, StatTier.Primary),
                 new MinigameStat("Pattern", pattern, false, StatTier.Secondary),
                 new MinigameStat("Activity", FormatActivityGrade(activity), false, StatTier.Secondary),
-                new MinigameStat("Session", $"{_sessionDuration:F0}s", false, StatTier.Secondary)
+                new MinigameStat("Session", GameFont.FormatHudSecondsWhole(_sessionDuration), false, StatTier.Secondary)
             };
         }
 
@@ -219,7 +220,7 @@ namespace Breathe.Gameplay
         {
             var info = new Dictionary<string, string>
             {
-                ["Timer"] = $"{_sessionTimer:F1}s",
+                ["Timer"] = GameFont.FormatHudSecondsWhole(_sessionTimer),
                 ["Balloons"] = $"{_balloonsCompleted}",
                 ["Score"] = $"{_totalScore}",
                 ["Inflation"] = _balloonController != null
@@ -231,6 +232,7 @@ namespace Breathe.Gameplay
 
         private void OnGUI()
         {
+            if (Time.timeScale == 0f) return; // Don't draw HUD when paused
             if (!_gameplayActive) return;
             if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Playing)
                 return;
@@ -260,17 +262,17 @@ namespace Breathe.Gameplay
             GameFont.OutlinedLabel(scoreLblRect, "SCORE", _labelStyle);
 
             // Center cell: TIMER
-            string timeText = $"{Mathf.CeilToInt(_sessionTimer)}";
+            string timeText = GameFont.FormatHudCountdownSecondsWhole(_sessionTimer);
             Color timerColor = _sessionTimer <= 10f
                 ? Color.Lerp(Color.red, Color.white, Mathf.PingPong(Time.time * 3f, 1f))
                 : Color.white;
-            _timerStyle.normal.textColor = timerColor;
+            SetStyleColor(_timerStyle, timerColor);
 
             Rect timerRect = new Rect(cellW, numY, cellW, numH);
             GameFont.OutlinedLabel(timerRect, timeText, _timerStyle, 2);
             Rect timerLblRect = new Rect(cellW, lblY, cellW, lblH);
-            _timerLabelStyle.normal.textColor = _sessionTimer <= 10f
-                ? new Color(1f, 0.7f, 0.7f) : new Color(0.85f, 0.88f, 0.95f);
+            SetStyleColor(_timerLabelStyle, _sessionTimer <= 10f
+                ? new Color(1f, 0.7f, 0.7f) : new Color(0.85f, 0.88f, 0.95f));
             GameFont.OutlinedLabel(timerLblRect, "TIME", _timerLabelStyle);
 
             // Right cell: BALLOONS
@@ -339,6 +341,12 @@ namespace Breathe.Gameplay
             };
             _labelStyle.normal.textColor = new Color(0.82f, 0.86f, 0.92f);
             if (f != null) _labelStyle.font = f;
+
+            // Flatten all states so text doesn't highlight on hover
+            FlattenHudStyle(_timerStyle);
+            FlattenHudStyle(_timerLabelStyle);
+            FlattenHudStyle(_counterStyle);
+            FlattenHudStyle(_labelStyle);
         }
 
         private static string FormatActivityGrade(float ratio)
@@ -347,6 +355,23 @@ namespace Breathe.Gameplay
             if (ratio >= 0.5f) return "Good";
             if (ratio >= 0.3f) return "Fair";
             return "Low";
+        }
+
+        private static void FlattenHudStyle(GUIStyle s)
+        {
+            if (s == null) return;
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
+        }
+
+        private static void SetStyleColor(GUIStyle s, Color c)
+        {
+            if (s == null) return;
+            s.normal.textColor = c;
+            s.hover.textColor = c;
+            s.active.textColor = c;
+            s.focused.textColor = c;
         }
     }
 }

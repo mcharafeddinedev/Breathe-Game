@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Breathe.Audio;
 using Breathe.Data;
 using Breathe.Utility;
-
 namespace Breathe.Gameplay
 {
     // Stargaze minigame: blow to push clouds aside and reveal constellations.
@@ -29,6 +29,8 @@ namespace Breathe.Gameplay
 
         private float _roundSplashTimer;
         private static readonly float RoundSplashDuration = 2.5f;
+        /// <summary>Cloud/breath tuning; same every round (ARCADECLASSIC has no reliable "/" or "|" for UI).</summary>
+        private const float RoundDifficultyMultiplier = 1f;
 
         // Per-round timing
         private float[] _roundClearTimes;
@@ -59,7 +61,19 @@ namespace Breathe.Gameplay
         private bool _continueReady;
         private GUIStyle _continueStyle;
         private GUIStyle _countdownStyle;
+
         private Rect _continueRect;
+
+        [Header("Procedural Audio")]
+        [SerializeField]
+        bool _enableStargazeWind = true;
+
+        [SerializeField]
+        bool _enableRevealChime = true;
+
+        ProceduralStargazeWindAudio _procWind;
+
+        ProceduralConstellationChimeBurst _procRevealChime;
 
         protected override void Awake()
         {
@@ -67,8 +81,9 @@ namespace Breathe.Gameplay
             _roundClearTimes = new float[_totalRounds];
         }
 
-        private void Start()
+        protected override void Start()
         {
+            base.Start();
             if (_controller == null)
                 _controller = FindAnyObjectByType<StargazeController>();
 
@@ -92,8 +107,7 @@ namespace Breathe.Gameplay
         {
             if (remaining == 3 && _controller != null && _sessionConstellations != null)
             {
-                float difficulty = 1f + _currentRound * 0.5f;
-                _controller.SetDifficulty(difficulty);
+                _controller.SetDifficulty(RoundDifficultyMultiplier);
                 _controller.SetupConstellation(_sessionConstellations[_currentRound]);
                 _roundSplashTimer = RoundSplashDuration;
             }
@@ -126,6 +140,7 @@ namespace Breathe.Gameplay
                     _controller.UpdateAnimation();
                 else if (_controller.CurrentPhase == StargazeController.Phase.Clearing)
                     _controller.UpdateBreathing(0f);
+                TickStargazeWindAudio();
             }
 
             if (_countdownDone && !_gameplayActive)
@@ -143,6 +158,7 @@ namespace Breathe.Gameplay
                     _sessionPhase = SessionPhase.Playing;
                     _roundStartTime = _sessionTimer;
                 }
+                TickStargazeWindAudio();
                 return;
             }
 
@@ -163,6 +179,11 @@ namespace Breathe.Gameplay
                     _discoveryText = $"{phrase}\nYOU  DISCOVERED  {conName}!";
                     _discoveryTimer = 3f;
                     PlayMinigameSpecialEventSfx();
+                    if (_enableRevealChime)
+                    {
+                        EnsureRevealChime();
+                        _procRevealChime?.Trigger();
+                    }
                 }
                 _lastPhase = curPhase;
             }
@@ -211,14 +232,16 @@ namespace Breathe.Gameplay
                     break;
 
             }
+
+            TickStargazeWindAudio();
+
         }
 
         private void BeginRound()
         {
             if (_currentRound < _sessionConstellations.Length)
             {
-                float difficulty = 1f + _currentRound * 0.5f;
-                _controller.SetDifficulty(difficulty);
+                _controller.SetDifficulty(RoundDifficultyMultiplier);
                 _controller.SetupConstellation(_sessionConstellations[_currentRound]);
                 _sessionPhase = SessionPhase.Playing;
                 _roundStartTime = _sessionTimer;
@@ -252,7 +275,7 @@ namespace Breathe.Gameplay
 
             var stats = new List<MinigameStat>
             {
-                new MinigameStat("Session Time", $"{_sessionTimer:F1}s", false, StatTier.Hero),
+                new MinigameStat("Session Time", GameFont.FormatHudSecondsWhole(_sessionTimer), false, StatTier.Hero),
                 new MinigameStat("Constellations", $"{_currentRound}", false, StatTier.Hero)
             };
 
@@ -261,13 +284,13 @@ namespace Breathe.Gameplay
             {
                 string name = i < _sessionConstellations.Length
                     ? _sessionConstellations[i].Name : $"Round {i + 1}";
-                stats.Add(new MinigameStat(name, $"{_roundClearTimes[i]:F1}s",
+                stats.Add(new MinigameStat(name, GameFont.FormatHudSecondsWhole(_roundClearTimes[i]),
                     false, StatTier.Primary));
             }
 
             stats.Add(new MinigameStat("Avg Intensity", $"{avgIntensity * 100f:F0}%", false, StatTier.Secondary));
             stats.Add(new MinigameStat("Breaths", $"{sustained}", false, StatTier.Secondary));
-            stats.Add(new MinigameStat("Avg Breath", $"{avgDur:F1}s", false, StatTier.Secondary));
+            stats.Add(new MinigameStat("Avg Breath", GameFont.FormatHudSecondsWhole(avgDur), false, StatTier.Secondary));
             stats.Add(new MinigameStat("Pattern", pattern, false, StatTier.Secondary));
             stats.Add(new MinigameStat("Activity", FormatActivityGrade(activity), false, StatTier.Secondary));
 
@@ -282,21 +305,23 @@ namespace Breathe.Gameplay
 
             return new Dictionary<string, string>
             {
-                ["Round"] = $"{_currentRound + 1}/{_totalRounds}",
+                ["Round"] = $"{_currentRound + 1}  OF  {_totalRounds}",
                 ["Constellation"] = conName,
                 ["Reveal"] = $"{reveal:P0}",
                 ["Phase"] = _controller != null ? _controller.CurrentPhase.ToString() : "N/A",
-                ["Time"] = $"{_sessionTimer:F1}s"
+                ["Time"] = GameFont.FormatHudSecondsWhole(_sessionTimer)
             };
         }
 
         private void OnGUI()
         {
+            if (Time.timeScale == 0f) return; // Don't draw HUD when paused
             if (!_gameplayActive) return;
             if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Playing)
                 return;
 
             BuildHUDStyles();
+            float uiSc = Mathf.Clamp(Screen.height / 900f, 0.9f, 1.55f);
 
             // Header bar background
             if (_headerBarTex != null)
@@ -304,8 +329,8 @@ namespace Breathe.Gameplay
 
             // Round indicator — top center
             int displayRound = Mathf.Min(_currentRound + 1, _totalRounds);
-            string roundText = $"ROUND  {displayRound}  /  {_totalRounds}";
-            Rect roundRect = new Rect(0f, 16f, Screen.width, 42f);
+            string roundText = $"ROUND  {displayRound}  OF  {_totalRounds}";
+            Rect roundRect = new Rect(0f, 14f, Screen.width, 52f);
             GameFont.OutlinedLabel(roundRect, roundText, _roundStyle, 2);
 
             // Auto-advance countdown — top right, pulsing
@@ -320,30 +345,37 @@ namespace Breathe.Gameplay
                         Font fCd = GameFont.Get();
                         _countdownStyle = new GUIStyle(GUI.skin.label)
                         {
-                            fontSize = 26,
+                            fontSize = 32,
                             fontStyle = FontStyle.Bold,
                             alignment = TextAnchor.MiddleRight
                         };
                         if (fCd != null) _countdownStyle.font = fCd;
+                        FlattenLabelStyle(_countdownStyle);
                     }
 
                     float cdPulse = 0.55f + 0.45f * Mathf.Sin(Time.time * 2.5f);
-                    _countdownStyle.normal.textColor = new Color(0.68f, 0.75f, 1f, cdPulse);
+                    Color cdColor = new Color(0.68f, 0.75f, 1f, cdPulse);
+                    SetStyleColor(_countdownStyle, cdColor);
 
                     string cdText = _currentRound < _totalRounds - 1
-                        ? $"NEXT  ROUND  IN  {secs}s"
-                        : $"RESULTS  IN  {secs}s";
-                    Rect cdRect = new Rect(0f, 22f, Screen.width - 30f, 36f);
+                        ? $"NEXT  ROUND  IN  {secs} S"
+                        : $"RESULTS  IN  {secs} S";
+                    Rect cdRect = new Rect(0f, 20f, Screen.width - 30f, 46f);
                     GameFont.OutlinedLabel(cdRect, cdText, _countdownStyle, 2);
                 }
             }
 
-            // Discovery popup — under header bar
+            // Discovery popup — between top HUD and constellation (tuned so it doesn’t crowd the figure)
             if (_discoveryTimer > 0f && !string.IsNullOrEmpty(_discoveryText))
             {
                 float dAlpha = Mathf.Clamp01(_discoveryTimer / 0.5f);
-                _discoveryStyle.normal.textColor = new Color(0.4f, 1f, 0.6f, dAlpha);
-                Rect discRect = new Rect(0f, 110f, Screen.width, 80f);
+                SetStyleColor(_discoveryStyle, new Color(0.4f, 1f, 0.6f, dAlpha));
+                float discH = 60f * uiSc;
+                float bandBottom = 102f * Mathf.Max(1f, uiSc);
+                float skyAnchor = Screen.height * 0.22f;
+                float midpointY = bandBottom + (skyAnchor - bandBottom) * 0.24f;
+                float discY = Mathf.Clamp(midpointY - discH * 0.04f, bandBottom + 10f * uiSc, Screen.height * 0.195f);
+                Rect discRect = new Rect(0f, discY, Screen.width, discH);
                 GameFont.OutlinedLabel(discRect, _discoveryText, _discoveryStyle, 3);
             }
 
@@ -351,18 +383,22 @@ namespace Breathe.Gameplay
             if (_roundSplashTimer > 0f)
             {
                 float splashAlpha = Mathf.Clamp01(_roundSplashTimer / 0.5f);
-                _captionNameStyle.normal.textColor = new Color(0.85f, 0.92f, 1f, splashAlpha);
+                SetStyleColor(_captionNameStyle, new Color(0.85f, 0.92f, 1f, splashAlpha));
                 string splashText = $"ROUND  {displayRound}";
-                Rect splashRect = new Rect(0f, Screen.height * 0.35f, Screen.width, 60f);
+                Rect splashRect = new Rect(0f, Screen.height * 0.36f, Screen.width, 72f);
                 GameFont.OutlinedLabel(splashRect, splashText, _captionNameStyle, 3);
             }
+
+            // Phase hints — large, vertically centered (not bottom-docked)
+            float hintH = 112f * uiSc;
+            float hintY = Screen.height * 0.48f - hintH * 0.5f;
+            var hintRect = new Rect(0f, hintY, Screen.width, hintH);
 
             // Hint during converging phase: "GET READY..."
             if (_controller != null && _controller.CurrentPhase == StargazeController.Phase.Converging)
             {
                 float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 3f);
-                _hintStyle.normal.textColor = new Color(0.82f, 0.88f, 1f, pulse);
-                Rect hintRect = new Rect(0f, Screen.height - 100f, Screen.width, 60f);
+                SetStyleColor(_hintStyle, new Color(0.82f, 0.88f, 1f, pulse));
                 GameFont.OutlinedLabel(hintRect, "GET  READY...", _hintStyle, 3);
             }
 
@@ -378,8 +414,7 @@ namespace Breathe.Gameplay
                 if (!string.IsNullOrEmpty(hint))
                 {
                     float pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 2f);
-                    _hintStyle.normal.textColor = new Color(0.82f, 0.88f, 1f, pulse);
-                    Rect hintRect = new Rect(0f, Screen.height - 100f, Screen.width, 60f);
+                    SetStyleColor(_hintStyle, new Color(0.82f, 0.88f, 1f, pulse));
                     GameFont.OutlinedLabel(hintRect, hint, _hintStyle, 3);
                 }
             }
@@ -393,7 +428,7 @@ namespace Breathe.Gameplay
                 if (cam != null)
                 {
                     float labelAlpha = _controller.FigureAlpha;
-                    _starLabelStyle.normal.textColor = new Color(0.85f, 0.9f, 1f, labelAlpha);
+                    SetStyleColor(_starLabelStyle, new Color(0.85f, 0.9f, 1f, labelAlpha));
 
                     var placed = new System.Collections.Generic.List<Rect>();
                     for (int i = 0; i < _controller.ConstellationStarCount; i++)
@@ -433,21 +468,21 @@ namespace Breathe.Gameplay
                 float captionAlpha = _controller.CurrentPhase == StargazeController.Phase.CaptionShowing
                     ? 1f : Mathf.Clamp01(_controller.RevealPercent);
 
-                _captionNameStyle.normal.textColor = new Color(0.85f, 0.9f, 1f, captionAlpha);
-                _captionBodyStyle.normal.textColor = new Color(0.78f, 0.82f, 0.92f, captionAlpha * 0.9f);
+                SetStyleColor(_captionNameStyle, new Color(0.85f, 0.9f, 1f, captionAlpha));
+                SetStyleColor(_captionBodyStyle, new Color(0.78f, 0.82f, 0.92f, captionAlpha * 0.9f));
 
                 float margin = 16f;
                 float innerPad = 40f;
 
-                float nameH = 40f;
-                float sciH = 72f;
-                float charH = 52f;
-                float gapAfterName = 4f;
-                float gapAfterSci = 4f;
-                float gapAfterChar = 8f;
-                float btnH = _continueReady ? 36f : 0f;
+                float nameH = 50f;
+                float sciH = 70f;          // Fits 2 lines at font 30 (longest ~100 chars may wrap)
+                float charH = 50f;         // Fits 1-2 lines (character descriptions are shorter)
+                float gapAfterName = 18f;  // Clear space between title and first sentence
+                float gapAfterSci = 4f;    // Minimal gap between sentences
+                float gapAfterChar = 10f;
+                float btnH = _continueReady ? 42f : 0f;
                 float totalContent = nameH + gapAfterName + sciH + gapAfterSci + charH + gapAfterChar + btnH;
-                float bgPadV = 14f;
+                float bgPadV = 18f;
                 float bgH = totalContent + bgPadV * 2f;
                 float bottomY = Screen.height - bgH - 4f;
 
@@ -465,11 +500,15 @@ namespace Breathe.Gameplay
                 GameFont.OutlinedLabel(new Rect(innerPad, y, Screen.width - innerPad * 2f, nameH), nameText, _captionNameStyle, 2);
                 y += nameH + gapAfterName;
 
-                string sciText = (_controller.CaptionScience ?? "").Replace(" ", "  ");
+                string sciText = GameFont.ExpandPronunciationHintsForPixelFont(_controller.CaptionScience ?? "")
+                    .ToUpperInvariant()
+                    .Replace(" ", "  ");
                 GUI.Label(new Rect(innerPad, y, Screen.width - innerPad * 2f, sciH), sciText, _captionBodyStyle);
                 y += sciH + gapAfterSci;
 
-                string charText = (_controller.CaptionCharacter ?? "").Replace(" ", "  ");
+                string charText = GameFont.ExpandPronunciationHintsForPixelFont(_controller.CaptionCharacter ?? "")
+                    .ToUpperInvariant()
+                    .Replace(" ", "  ");
                 GUI.Label(new Rect(innerPad, y, Screen.width - innerPad * 2f, charH), charText, _captionBodyStyle);
                 y += charH + gapAfterChar;
 
@@ -480,20 +519,21 @@ namespace Breathe.Gameplay
                         Font fCont = GameFont.Get();
                         _continueStyle = new GUIStyle(GUI.skin.label)
                         {
-                            fontSize = 26,
+                            fontSize = 30,
                             fontStyle = FontStyle.Bold,
                             alignment = TextAnchor.MiddleCenter
                         };
                         if (fCont != null) _continueStyle.font = fCont;
                     }
 
-                    float pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 3f);
-                    _continueStyle.normal.textColor = new Color(0.68f, 0.75f, 1f, pulse);
+                    // Pulsing warm amber to grab attention
+                    float pulse = 0.7f + 0.3f * Mathf.Sin(Time.time * 3.5f);
+                    _continueStyle.normal.textColor = new Color(1f, 0.82f, 0.4f, pulse);
 
-                    float btnW = 320f;
-                    float btnX = (Screen.width - btnW) * 0.5f;
+                    float btnW = Screen.width - innerPad * 2f;
+                    float btnX = innerPad;
                     _continueRect = new Rect(btnX, y, btnW, btnH);
-                    GameFont.OutlinedLabel(_continueRect, "▶   CONTINUE   ◀", _continueStyle, 2);
+                    GameFont.OutlinedLabel(_continueRect, "CLICK  OR  PRESS  ENTER  TO  CONTINUE", _continueStyle, 2);
                 }
                 else
                 {
@@ -509,7 +549,7 @@ namespace Breathe.Gameplay
 
             _roundStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 34,
+                fontSize = 42,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -518,7 +558,7 @@ namespace Breathe.Gameplay
 
             _captionNameStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 44,
+                fontSize = 52,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
@@ -527,7 +567,7 @@ namespace Breathe.Gameplay
 
             _captionBodyStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 24,
+                fontSize = 30,
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.UpperCenter,
                 wordWrap = true
@@ -548,27 +588,138 @@ namespace Breathe.Gameplay
             {
                 fontSize = 36,
                 fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.UpperCenter
+                alignment = TextAnchor.MiddleCenter
             };
             _discoveryStyle.normal.textColor = new Color(0.4f, 1f, 0.6f);
             if (f != null) _discoveryStyle.font = f;
 
             _hintStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 42,
+                fontSize = 54,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
             _hintStyle.normal.textColor = new Color(0.82f, 0.88f, 1f);
             if (f != null) _hintStyle.font = f;
 
+            // Flatten hover states so non-interactive text doesn't highlight
+            FlattenLabelStyle(_roundStyle);
+            FlattenLabelStyle(_captionNameStyle);
+            FlattenLabelStyle(_captionBodyStyle);
+            FlattenLabelStyle(_starLabelStyle);
+            FlattenLabelStyle(_discoveryStyle);
+            FlattenLabelStyle(_hintStyle);
+
             _captionBgTex = new Texture2D(1, 1);
-            _captionBgTex.SetPixel(0, 0, new Color(0.04f, 0.04f, 0.10f, 0.72f));
+            _captionBgTex.SetPixel(0, 0, new Color(0.05f, 0.06f, 0.14f, 0.9f));
             _captionBgTex.Apply();
 
             _headerBarTex = new Texture2D(1, 1);
             _headerBarTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.5f));
             _headerBarTex.Apply();
+        }
+
+        private void EnsureProcWind()
+        {
+            if (_procWind != null || !_enableStargazeWind) return;
+
+            GameObject windGo = new GameObject("StargazeWindAudio");
+            windGo.transform.SetParent(transform, false);
+            windGo.transform.localPosition = Vector3.zero;
+
+            AudioSource src = windGo.AddComponent<AudioSource>();
+            src.playOnAwake = false;
+            src.loop = true;
+            src.spatialBlend = 0f;
+
+            _procWind = windGo.AddComponent<ProceduralStargazeWindAudio>();
+        }
+
+        private void EnsureRevealChime()
+        {
+            if (_procRevealChime != null || !_enableRevealChime) return;
+
+            GameObject chimeGo = new GameObject("StargazeRevealChime");
+            chimeGo.transform.SetParent(transform, false);
+            chimeGo.transform.localPosition = Vector3.zero;
+
+            AudioSource src = chimeGo.AddComponent<AudioSource>();
+            src.playOnAwake = false;
+            src.loop = false;
+            src.spatialBlend = 0f;
+
+            _procRevealChime = chimeGo.AddComponent<ProceduralConstellationChimeBurst>();
+        }
+
+        private void TickStargazeWindAudio()
+        {
+            if (!_enableStargazeWind || _controller == null) return;
+
+            if (_sessionPhase == SessionPhase.Complete)
+            {
+                EnsureProcWind();
+                _procWind?.Tick(0f, 0f);
+                return;
+            }
+
+            EnsureProcWind();
+
+            float gust = 0f;
+            float mist = 0f;
+            float breath = BreathPowerSystem.Instance != null ? BreathPowerSystem.Instance.CurrentBreathPower : 0f;
+            var cp = _controller.CurrentPhase;
+
+            switch (cp)
+            {
+                case StargazeController.Phase.Converging:
+                    mist = 0.13f;
+                    gust = 0.035f;
+                    break;
+
+                case StargazeController.Phase.Clearing:
+                    {
+                        float gate = Mathf.Max(0.02f, _controller.ClearingBreathGate);
+
+                        if (breath >= gate)
+                        {
+                            float norm = Mathf.Clamp01((breath - gate) / Mathf.Max(0.0001f, 1f - gate));
+                            float reveal = _controller.RevealPercent;
+
+                            gust = Mathf.Clamp01(norm * Mathf.Lerp(0.55f, 1f, reveal));
+                            mist = Mathf.Clamp01((1f - norm) * 0.16f + (1f - reveal) * 0.05f);
+                        }
+                        else
+                        {
+                            float low01 = Mathf.Clamp01(breath / Mathf.Max(gate, 1e-4f));
+                            gust = 0f;
+                            mist = Mathf.Lerp(0.36f, 0.14f, low01);
+                        }
+                        break;
+                    }
+
+                case StargazeController.Phase.AutoClearing:
+                    gust = 0.2f;
+                    mist = 0.07f;
+                    break;
+
+                case StargazeController.Phase.LinesAppearing:
+                case StargazeController.Phase.FigureAppearing:
+                    gust = 0.11f;
+                    mist = 0.065f;
+                    break;
+
+                case StargazeController.Phase.CaptionShowing:
+                    gust = 0.065f;
+                    mist = 0.05f;
+                    break;
+
+                case StargazeController.Phase.RoundDone:
+                default:
+                    gust = mist = 0.02f;
+                    break;
+            }
+
+            _procWind.Tick(gust, mist);
         }
 
         private bool ShouldContinue()
@@ -577,18 +728,9 @@ namespace Breathe.Gameplay
             if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
                 return true;
 
+            // Click anywhere to continue
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame && _continueRect.width > 0f)
-            {
-                Vector2 pos = mouse.position.ReadValue();
-                Vector2 guiPos = new Vector2(pos.x, Screen.height - pos.y);
-                if (_continueRect.Contains(guiPos))
-                    return true;
-            }
-
-            float breath = BreathPowerSystem.Instance != null
-                ? BreathPowerSystem.Instance.CurrentBreathPower : 0f;
-            if (breath >= 0.08f)
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
                 return true;
 
             return false;
@@ -600,6 +742,25 @@ namespace Breathe.Gameplay
             if (ratio >= 0.5f) return "Good";
             if (ratio >= 0.3f) return "Fair";
             return "Low";
+        }
+
+        /// <summary>Flatten hover/active/focused states so text doesn't highlight on mouseover.</summary>
+        private static void FlattenLabelStyle(GUIStyle s)
+        {
+            if (s == null) return;
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
+        }
+
+        /// <summary>Set text color on all states so dynamically-colored text doesn't highlight on hover.</summary>
+        private static void SetStyleColor(GUIStyle s, Color c)
+        {
+            if (s == null) return;
+            s.normal.textColor = c;
+            s.hover.textColor = c;
+            s.active.textColor = c;
+            s.focused.textColor = c;
         }
     }
 }

@@ -31,6 +31,7 @@ namespace Breathe.Gameplay
         GUIStyle _style;
         bool _styleReady;
         float _fontScale = 1f;
+        float _defaultYFraction = 0.36f;
 
         /// <summary>Multiplies base popup font size (44). Default 1. Skydive uses ~1.1–1.35 for readability.</summary>
         public float FontScale
@@ -45,6 +46,13 @@ namespace Breathe.Gameplay
             }
         }
 
+        /// <summary>Default Y position as fraction of screen height (0 = top, 1 = bottom). Default 0.36.</summary>
+        public float DefaultYFraction
+        {
+            get => _defaultYFraction;
+            set => _defaultYFraction = Mathf.Clamp01(value);
+        }
+
         public void Clear() => _entries.Clear();
 
         /// <param name="screenCenter">Optional anchor in screen space (y=0 top). Random jitter if null.</param>
@@ -52,7 +60,7 @@ namespace Breathe.Gameplay
         {
             if (string.IsNullOrEmpty(text)) return;
             float cx = screenCenter?.x ?? Screen.width * 0.5f + Random.Range(-110, 111);
-            float cy = screenCenter?.y ?? Screen.height * 0.36f + Random.Range(-36, 37);
+            float cy = screenCenter?.y ?? Screen.height * _defaultYFraction + Random.Range(-36, 37);
             if (_entries.Count >= MaxEntries)
                 _entries.RemoveAt(0);
             _entries.Add(new Entry
@@ -136,7 +144,8 @@ namespace Breathe.Gameplay
 
         public void DrawOnGUI()
         {
-            if (_entries.Count == 0) return;
+            // Don't draw popups when game is paused (Time.timeScale == 0)
+            if (_entries.Count == 0 || Time.timeScale == 0f) return;
             EnsureStyle();
 
             Color prevGui = GUI.color;
@@ -186,6 +195,10 @@ namespace Breathe.Gameplay
                 alignment = TextAnchor.MiddleCenter
             };
             _style.normal.textColor = Color.white;
+            // Flatten all states so text doesn't highlight on hover
+            _style.hover = _style.normal;
+            _style.active = _style.normal;
+            _style.focused = _style.normal;
             if (f != null) _style.font = f;
         }
     }

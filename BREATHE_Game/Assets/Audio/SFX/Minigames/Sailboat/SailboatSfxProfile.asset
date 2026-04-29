@@ -13,11 +13,13 @@ MonoBehaviour:
   m_Name: SailboatSfxProfile
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
   _gameplayStart: {fileID: 8300000, guid: 760a1f52646f42098a572332b1801fd3, type: 3}
-  _gameplayAmbienceLoop: {fileID: 8300000, guid: 2aabb02ae2bc423189b142fef6d148ca, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: d683701eadc0fd74ca5ba3b52a082f9b, type: 3}
   _timeWarning: {fileID: 8300000, guid: 40f9555e20b14733940d893314dd3282, type: 3}
   _success: {fileID: 8300000, guid: 0ee01738574b4e43b0fe17772f3d6655, type: 3}
   _goalComplete: {fileID: 8300000, guid: 8e3690f2ad554f3ab7702b46c0a3a052, type: 3}
   _primaryAction: {fileID: 8300000, guid: ae1ab50e21f7490f8da60f7e1b8fba95, type: 3}
-  _secondaryAction: {fileID: 8300000, guid: 59ad2e37acac4e36bbfe8d5a2eabab61, type: 3}
+  _secondaryAction: {fileID: 8300000, guid: 87846a5c3c993d749a6da11d8ea3bdd4, type: 3}
   _tertiaryAction: {fileID: 8300000, guid: 0fc2784c286d4d588c9acb12e8754096, type: 3}
   _specialEvent: {fileID: 8300000, guid: 95eee8fa8f8d4e35ba01c7e9e1539a49, type: 3}
+  _ambienceLoopVolumeScale: 0.14
+  _ambienceLoopPitch: 1.14

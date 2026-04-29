@@ -1,13 +1,15 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Breathe.Audio
 {
     /// <summary>
-    /// One per Button — plays the shared menu click sound. Does not require SfxPlayer to exist when hooks are added.
+    /// One per Button — hover uses <see cref="SfxLibrary.UiButtonHover"/> (UI hover); click uses confirm (menu click).
+    /// Added by <see cref="SfxPlayer.RegisterMenuClickSoundForHierarchy"/> / scene sweep. Requires an active EventSystem + raycast graphic.
     /// </summary>
     [RequireComponent(typeof(Button))]
-    public sealed class MenuClickSoundHook : MonoBehaviour
+    public sealed class MenuClickSoundHook : MonoBehaviour, IPointerEnterHandler
     {
         /// <summary>
         /// Adds click hooks under <paramref name="root"/> (idempotent). Safe to call before SfxPlayer awakens.
@@ -38,6 +40,14 @@ namespace Breathe.Audio
             var btn = GetComponent<Button>();
             if (btn != null)
                 btn.onClick.AddListener(OnButtonClicked);
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            var btn = GetComponent<Button>();
+            if (btn == null || !btn.interactable || !btn.IsActive())
+                return;
+            SfxPlayer.Instance?.PlayUiHover();
         }
 
         private static void OnButtonClicked()

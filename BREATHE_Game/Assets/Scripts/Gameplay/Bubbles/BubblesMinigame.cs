@@ -14,7 +14,7 @@ namespace Breathe.Gameplay
         [SerializeField] private BubbleWandController _wandController;
 
         [Header("Session")]
-        [SerializeField] private int _bubbleGoal = 45;
+        [SerializeField] private int _bubbleGoal = 38;
         [SerializeField] private int _pointsPerBubble = 10;
         [SerializeField] private int _streakBonusPerBubble = 5;
 
@@ -56,8 +56,9 @@ namespace Breathe.Gameplay
             LoadPersonalBests();
         }
 
-        private void Start()
+        protected override void Start()
         {
+            base.Start();
             if (_wandController == null)
                 _wandController = FindAnyObjectByType<BubbleWandController>();
 
@@ -144,10 +145,11 @@ namespace Breathe.Gameplay
 
                     Transform anchor = _wandController.TryTakeSweetSpotScoreAnchor();
                     var popColor = new Color(0.45f, 1f, 0.65f);
+                    string ptsPopup = $"{basePoints}  PTS";
                     if (anchor != null && cam != null)
-                        _scorePopups.PushFollowing($"+{basePoints}", popColor, anchor, cam);
+                        _scorePopups.PushFollowing(ptsPopup, popColor, anchor, cam);
                     else
-                        _scorePopups.Push($"+{basePoints}", popColor, null);
+                        _scorePopups.Push(ptsPopup, popColor, null);
                 }
                 if (newBubbles > 0)
                     TryPlayMinigamePrimaryActionSfx(0.14f);
@@ -229,10 +231,10 @@ namespace Breathe.Gameplay
             return new[]
             {
                 new MinigameStat("Score", $"{_totalScore}", _newPBScore, StatTier.Hero),
-                new MinigameStat("Time", $"{_sessionTimer:F1}s", _newPBTime, StatTier.Hero),
-                new MinigameStat("Bubbles", $"{bubbles}", false, StatTier.Primary),
+                new MinigameStat("Time", GameFont.FormatHudSecondsWhole(_sessionTimer), _newPBTime, StatTier.Hero),
+                new MinigameStat("Bubbles", GameFont.FormatResultsCountOfTotal(bubbles, _bubbleGoal), false, StatTier.Primary),
                 new MinigameStat("Best Streak", $"{streakBubbles} in a row", false, StatTier.Primary),
-                new MinigameStat("Streak Time", $"{longestStreak:F1}s", false, StatTier.Primary),
+                new MinigameStat("Streak Time", GameFont.FormatHudSecondsWhole(longestStreak), false, StatTier.Primary),
                 new MinigameStat("Avg Power", $"{avgIntensity * 100f:F0}%", false, StatTier.Secondary),
                 new MinigameStat("Pattern", pattern, false, StatTier.Secondary),
                 new MinigameStat("Activity", FormatActivityGrade(activity), false, StatTier.Secondary)
@@ -247,8 +249,8 @@ namespace Breathe.Gameplay
 
             return new Dictionary<string, string>
             {
-                ["Time"] = $"{_sessionTimer:F1}s",
-                ["Bubbles"] = $"{bubbles}/{_bubbleGoal}",
+                ["Time"] = GameFont.FormatHudSecondsWhole(_sessionTimer),
+                ["Bubbles"] = GameFont.FormatResultsCountOfTotal(bubbles, _bubbleGoal),
                 ["Score"] = $"{_totalScore}",
                 ["Zone"] = zone,
                 ["Streak"] = $"{streak}"
@@ -257,6 +259,7 @@ namespace Breathe.Gameplay
 
         private void OnGUI()
         {
+            if (Time.timeScale == 0f) return; // Don't draw HUD when paused
             if (!_gameplayActive) return;
             if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Playing)
                 return;
@@ -268,12 +271,15 @@ namespace Breathe.Gameplay
 
             float margin = 16f * sc;
             float numW = 220f * sc;
-            float numH = 56f * sc;
+            // Wider than timer/score: "NN  OF  NN" + bold pixel font must stay on one line.
+            float bubbleCounterW = 300f * sc;
+            // Pixel font + bold + outline needs more vertical room than fontSize alone (avoids IMGUI clipping).
+            float numH = 76f * sc;
             float lblH = 32f * sc;
-            float rowGap = 6f * sc;
-            float barH = 102f * sc;
+            float rowGap = 10f * sc;
             float yNum = 14f * sc;
             float yLbl = yNum + numH + rowGap;
+            float barH = yLbl + lblH + 28f * sc;
 
             // Header bar background
             if (_headerBarTex != null)
@@ -282,16 +288,16 @@ namespace Breathe.Gameplay
             int bubbles = _wandController != null ? _wandController.SweetSpotBubblesProduced : 0;
 
             // Bubble counter — top center
-            string counterText = $"{bubbles}  /  {_bubbleGoal}";
-            float cx = (Screen.width - numW) * 0.5f;
-            Rect counterRect = new Rect(cx, yNum, numW, numH);
+            string counterText = GameFont.FormatHudCountOfTotal(bubbles, _bubbleGoal);
+            float cx = (Screen.width - bubbleCounterW) * 0.5f;
+            Rect counterRect = new Rect(cx, yNum, bubbleCounterW, numH);
             GameFont.OutlinedLabel(counterRect, counterText, _counterStyle, 2);
 
-            Rect counterLabel = new Rect(cx, yLbl, numW, lblH);
+            Rect counterLabel = new Rect(cx, yLbl, bubbleCounterW, lblH);
             GameFont.OutlinedLabel(counterLabel, "BUBBLES", _labelStyle);
 
             // Timer — top left
-            string timeText = $"{_sessionTimer:F1}s";
+            string timeText = GameFont.FormatHudSecondsWhole(_sessionTimer);
             Rect timeRect = new Rect(margin, yNum, numW, numH);
             GameFont.OutlinedLabel(timeRect, timeText, _timerStyle, 2);
 
@@ -326,7 +332,7 @@ namespace Breathe.Gameplay
                         BubbleWandController.BreathZone.TooAggressive => new Color(1f, 0.4f, 0.3f),
                         _ => Color.white
                     };
-                    _zoneStyle.normal.textColor = zoneColor;
+                    SetStyleColor(_zoneStyle, zoneColor);
 
                     float zoneH = 52f * sc;
                     Rect zoneRect = new Rect(0f, Screen.height - 28f * sc - zoneH, Screen.width, zoneH);
@@ -357,7 +363,9 @@ namespace Breathe.Gameplay
             {
                 fontSize = HudFont(52),
                 fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,
+                wordWrap = false
             };
             _counterStyle.normal.textColor = Color.white;
             if (f != null) _counterStyle.font = f;
@@ -375,7 +383,8 @@ namespace Breathe.Gameplay
             {
                 fontSize = HudFont(46),
                 fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow
             };
             _timerStyle.normal.textColor = Color.white;
             if (f != null) _timerStyle.font = f;
@@ -388,6 +397,12 @@ namespace Breathe.Gameplay
             };
             _zoneStyle.normal.textColor = Color.white;
             if (f != null) _zoneStyle.font = f;
+
+            // Flatten all states so text doesn't highlight on hover
+            FlattenHudStyle(_counterStyle);
+            FlattenHudStyle(_labelStyle);
+            FlattenHudStyle(_timerStyle);
+            FlattenHudStyle(_zoneStyle);
 
             if (_headerBarTex == null)
             {
@@ -403,6 +418,23 @@ namespace Breathe.Gameplay
             if (ratio >= 0.5f) return "Good";
             if (ratio >= 0.3f) return "Fair";
             return "Low";
+        }
+
+        private static void FlattenHudStyle(GUIStyle s)
+        {
+            if (s == null) return;
+            s.hover = s.normal;
+            s.active = s.normal;
+            s.focused = s.normal;
+        }
+
+        private static void SetStyleColor(GUIStyle s, Color c)
+        {
+            if (s == null) return;
+            s.normal.textColor = c;
+            s.hover.textColor = c;
+            s.active.textColor = c;
+            s.focused.textColor = c;
         }
     }
 }

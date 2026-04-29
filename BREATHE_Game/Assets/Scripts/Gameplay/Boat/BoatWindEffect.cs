@@ -56,6 +56,12 @@ namespace Breathe.Gameplay
             _windIntensity = Mathf.Clamp01(intensity);
         }
 
+        /// <summary>True when wind streaks are spawning (same gate as Update).</summary>
+        public bool IsWindStreakEffectActive()
+        {
+            return _windIntensity >= _activationThreshold;
+        }
+
         private void Start()
         {
             if (!_useExternalIntensity)

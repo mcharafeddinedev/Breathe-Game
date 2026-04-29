@@ -7,10 +7,11 @@ namespace Breathe.Audio
     public sealed class SfxLibrary : ScriptableObject
     {
         [Header("UI — Main menu & settings")]
-        [SerializeField, Tooltip("Primary menu click; also used for all hooked UI buttons via PlayUiMenuClick. Optional: assign same clip to Cancel/Hover for consistency.")]
+        [SerializeField, Tooltip("Button press / confirm — played on any Button click via MenuClickSoundHook (global).")]
         private AudioClip _uiButtonConfirm;
         [SerializeField] private AudioClip _uiButtonCancel;
-        [SerializeField] private AudioClip _uiButtonHover;
+        [SerializeField, Tooltip("Button hover — played on pointer enter via MenuClickSoundHook (global).")]
+        private AudioClip _uiButtonHover;
         [SerializeField] private AudioClip _uiPanelOpen;
         [SerializeField] private AudioClip _uiPanelClose;
 
@@ -29,7 +30,8 @@ namespace Breathe.Audio
         [Header("Results & celebration")]
         [SerializeField] private AudioClip _resultScreenAppear;
         [SerializeField] private AudioClip _resultPersonalBest;
-        [SerializeField] private AudioClip _celebrationStinger;
+        [SerializeField, Tooltip("Win stinger — one clip for every minigame for now.")]
+        private AudioClip _celebrationStinger;
         [SerializeField] private AudioClip _resultContinue;
 
         public AudioClip UiButtonConfirm => _uiButtonConfirm;

@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6dce11cddc8c6fb4fb87d4cd88316a23, type: 3}
   m_Name: DefaultAIConfig
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.AIConfig
-  _speedVariationAmplitude: 0.3
+  _speedVariationAmplitude: 0.26
   _speedVariationFrequency: 0.5
-  _rubberBandingStrength: 0.5
+  _rubberBandingStrength: 0.42
   _stunDuration: 2
   _finishSlowdownDistance: 10
   _finishSlowdownRate: 0.5

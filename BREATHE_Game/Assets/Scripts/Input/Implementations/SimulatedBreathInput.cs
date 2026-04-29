@@ -5,9 +5,8 @@ using Breathe.Utility;
 
 namespace Breathe.Input
 {
-    // Keyboard/gamepad breath sim for testing and accessibility.
-    // Hold Space to ramp up, release to decay. Gamepad right trigger
-    // and left stick Y also work — highest value wins each frame.
+    // Keyboard-only breath sim for testing and accessibility.
+    // Hold Space to ramp up, release to decay.
     public sealed class SimulatedBreathInput : MonoBehaviour, IBreathInput
     {
         [SerializeField] private BreathConfig breathConfig;
@@ -35,13 +34,9 @@ namespace Breathe.Input
             enabled = true;
 
             bool hasKeyboard = Keyboard.current != null;
-            bool hasGamepad = Gamepad.current != null;
-            string devices = hasKeyboard && hasGamepad ? "Keyboard + Gamepad"
-                           : hasKeyboard ? "Keyboard"
-                           : hasGamepad ? "Gamepad"
-                           : "No input devices detected";
+            string devices = hasKeyboard ? "Keyboard" : "No keyboard detected";
 
-            Debug.Log($"[BreathInput] Simulated breath input ENABLED — {devices} (hold Space or right trigger to breathe)");
+            Debug.Log($"[BreathInput] Simulated breath input ENABLED — {devices} (hold Space to breathe)");
         }
 
         public void Shutdown()
@@ -61,11 +56,8 @@ namespace Breathe.Input
             float dt = Time.deltaTime;
             UpdateKeyboardRamp(dt);
 
-            float gamepadValue = ReadGamepadAnalog();
-            float raw = Mathf.Max(_keyboardIntensity, gamepadValue);
-
             _smoothedIntensity = SignalProcessing.ExponentialMovingAverage(
-                _smoothedIntensity, raw, breathConfig.SmoothingFactor);
+                _smoothedIntensity, _keyboardIntensity, breathConfig.SmoothingFactor);
             _smoothedIntensity = SignalProcessing.DeadZone(
                 _smoothedIntensity, breathConfig.DeadZoneThreshold);
             _smoothedIntensity = Mathf.Clamp01(_smoothedIntensity);
@@ -83,14 +75,6 @@ namespace Breathe.Input
                 _keyboardIntensity -= breathConfig.DecaySpeed * dt;
 
             _keyboardIntensity = Mathf.Clamp01(_keyboardIntensity);
-        }
-
-        private float ReadGamepadAnalog()
-        {
-            if (Gamepad.current == null) return 0f;
-            float trigger = Gamepad.current.rightTrigger.ReadValue();
-            float stickY = Mathf.Clamp01(Gamepad.current.leftStick.ReadValue().y);
-            return Mathf.Max(trigger, stickY);
         }
 
         private void CheckLevelCrossing()

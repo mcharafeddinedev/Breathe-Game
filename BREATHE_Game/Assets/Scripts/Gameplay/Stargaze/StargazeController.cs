@@ -110,6 +110,8 @@ namespace Breathe.Gameplay
         public bool IsRoundDone => _currentPhase == Phase.RoundDone;
         public float CaptionPhaseTime => _currentPhase == Phase.CaptionShowing ? _phaseTimer : 0f;
 
+        public float ClearingBreathGate => _breathThreshold;
+
         public void AdvanceToRoundDone()
         {
             if (_currentPhase == Phase.CaptionShowing)

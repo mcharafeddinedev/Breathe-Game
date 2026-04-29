@@ -32,7 +32,7 @@ namespace Breathe.Gameplay
         private string _instruction;
         private string _tip;
 
-        // Which input source is selected (index into InputMode enum: 0=Simulated, 1=Mic, 2=Fan)
+        // UI index: WebGL 0=Sim only; desktop 0=Sim,1=Mic,2=Fan (or Sim+Fan if mic stripped).
         private int _selectedInput;
 
         private bool _stylesReady;
@@ -87,7 +87,35 @@ namespace Breathe.Gameplay
         private void SyncInputTogglesFromManager()
         {
             var bim = BreathInputManager.Instance;
-            _selectedInput = bim != null ? (int)bim.CurrentMode : 0;
+            _selectedInput = bim != null ? ModeToUiIndex(bim.CurrentMode) : 0;
+        }
+
+        private static string[] GetInputOptionLabels()
+        {
+            string sim = BreathInputManager.TutorialSimulatedOptionLabel;
+            if (!BreathInputManager.InputModeCyclingSupported)
+                return new[] { sim };
+            if (!BreathInputManager.MicrophoneSupported)
+                return new[] { sim, "FAN" };
+            return new[] { sim, "MICROPHONE", "FAN" };
+        }
+
+        private static int ModeToUiIndex(InputMode mode)
+        {
+            if (!BreathInputManager.InputModeCyclingSupported)
+                return 0;
+            if (!BreathInputManager.MicrophoneSupported)
+                return mode == InputMode.Fan ? 1 : 0;
+            return (int)mode;
+        }
+
+        private static InputMode UiIndexToInputMode(int uiIndex)
+        {
+            if (!BreathInputManager.InputModeCyclingSupported)
+                return InputMode.Simulated;
+            if (!BreathInputManager.MicrophoneSupported)
+                return uiIndex == 1 ? InputMode.Fan : InputMode.Simulated;
+            return (InputMode)uiIndex;
         }
 
         private void LoadTutorialContent()
@@ -199,7 +227,7 @@ namespace Breathe.Gameplay
             float titleH = 72f * sc;
             float btnHeight = 58f * sc;
             float btnWidth = Mathf.Min(280f * sc, pw * 0.45f);
-            float inputH = 88f * sc;
+            float inputH = 140f * sc;
             float margin = 22f * sc;
 
             // Title — top of panel
@@ -229,7 +257,10 @@ namespace Breathe.Gameplay
             // 4 sections fill the zone evenly: instruction, tip, input options, (gaps between all)
             float totalContent = instrHeight + tipHeight + inputH;
             float totalGap = zoneH - totalContent;
-            float gap = totalGap / (hasTip ? 4f : 3f);
+            int gapDiv = hasTip ? 4 : 3;
+            float gap = gapDiv > 0 ? Mathf.Max(6f * sc, totalGap / gapDiv) : 6f * sc;
+            if (totalGap < 0)
+                gap = 4f * sc;
 
             float instrY = zoneTop + gap;
             DrawOutlinedWrappedBlock(new Rect(px + pad, instrY, contentW, instrHeight), _instruction, _instructionStyle, lineGap, paraGap);
@@ -273,21 +304,42 @@ namespace Breathe.Gameplay
             float sectionTop = topY + 44f * sc;
 
             float radioSize = 30f * sc;
-            float spacing = 10f * sc;
-            float gapBetweenItems = 44f * sc;
-            string[] labels = { "SIMULATED", "MICROPHONE", "FAN" };
+            float spacing = 12f * sc;
+            float gapBetweenItems = 40f * sc;
+            string[] labels = GetInputOptionLabels();
 
-            // Pre-calculate total width for proper centering
-            float[] labelWidths = new float[labels.Length];
-            float totalWidth = 0f;
+            float marginX = 48f * sc;
+            float maxRowW = Mathf.Max(100f, panelWidth - marginX * 2f);
+            float minLabelW = 220f * sc;
+
+            var labelWidths = new float[labels.Length];
+            float sumCells = 0f;
             for (int i = 0; i < labels.Length; i++)
             {
-                labelWidths[i] = _checkboxLabelStyle.CalcSize(new GUIContent(labels[i])).x;
-                totalWidth += radioSize + spacing + labelWidths[i];
-                if (i < labels.Length - 1) totalWidth += gapBetweenItems;
+                float w = _checkboxLabelStyle.CalcSize(new GUIContent(labels[i])).x;
+                labelWidths[i] = Mathf.Max(w + 28f * sc, minLabelW);
+                sumCells += radioSize + spacing + labelWidths[i];
+            }
+
+            float totalWidth = sumCells + gapBetweenItems * (labels.Length - 1);
+            if (totalWidth > maxRowW)
+            {
+                float slack = maxRowW - sumCells;
+                if (slack > 0 && labels.Length > 1)
+                    gapBetweenItems = Mathf.Max(10f * sc, slack / (labels.Length - 1));
+                else
+                    gapBetweenItems = 10f * sc;
+                totalWidth = sumCells + gapBetweenItems * (labels.Length - 1);
+            }
+
+            if (totalWidth > maxRowW)
+            {
+                DrawInputOptionsVertical(panelX, sectionTop, panelWidth, labels, radioSize, spacing, labelWidths, sc);
+                return;
             }
 
             float cx = panelX + (panelWidth - totalWidth) * 0.5f;
+            float rowH = Mathf.Max(40f * sc, 44f * sc);
 
             for (int i = 0; i < labels.Length; i++)
             {
@@ -299,7 +351,7 @@ namespace Breathe.Gameplay
                 if (GUI.Button(boxRect, marker, boxStyle))
                     SelectInput(i);
 
-                Rect labelRect = new Rect(cx + radioSize + spacing, sectionTop - 2f, labelWidths[i], 36f * sc);
+                Rect labelRect = new Rect(cx + radioSize + spacing, sectionTop - 2f, labelWidths[i], rowH);
                 GameFont.OutlinedLabel(labelRect, labels[i], _checkboxLabelStyle);
 
                 if (Event.current.type == EventType.MouseDown && labelRect.Contains(Event.current.mousePosition))
@@ -312,6 +364,42 @@ namespace Breathe.Gameplay
             }
         }
 
+        private void DrawInputOptionsVertical(
+            float panelX, float sectionTop, float panelWidth,
+            string[] labels, float radioSize, float spacing, float[] labelWidths, float sc)
+        {
+            float rowH = Mathf.Max(40f * sc, 44f * sc);
+            float rowGap = 10f * sc;
+            float maxLabelW = labelWidths[0];
+            for (int i = 1; i < labels.Length; i++)
+                maxLabelW = Mathf.Max(maxLabelW, labelWidths[i]);
+            float rowW = radioSize + spacing + maxLabelW;
+            float cx = panelX + (panelWidth - rowW) * 0.5f;
+            float cy = sectionTop;
+
+            for (int i = 0; i < labels.Length; i++)
+            {
+                bool isSelected = (i == _selectedInput);
+                GUIStyle boxStyle = isSelected ? _checkboxBoxCheckedStyle : _checkboxBoxStyle;
+                string marker = isSelected ? "\u2022" : "";
+
+                Rect boxRect = new Rect(cx, cy, radioSize, radioSize);
+                if (GUI.Button(boxRect, marker, boxStyle))
+                    SelectInput(i);
+
+                Rect labelRect = new Rect(cx + radioSize + spacing, cy - 2f, labelWidths[i], rowH);
+                GameFont.OutlinedLabel(labelRect, labels[i], _checkboxLabelStyle);
+
+                if (Event.current.type == EventType.MouseDown && labelRect.Contains(Event.current.mousePosition))
+                {
+                    SelectInput(i);
+                    Event.current.Use();
+                }
+
+                cy += rowH + rowGap;
+            }
+        }
+
         private void SelectInput(int index)
         {
             if (index == _selectedInput) return;
@@ -320,7 +408,7 @@ namespace Breathe.Gameplay
             _selectedInput = index;
             var bim = BreathInputManager.Instance;
             if (bim != null)
-                bim.SetInputMode((InputMode)index);
+                bim.SetInputMode(UiIndexToInputMode(index));
         }
 
         static float UiScale()
@@ -421,10 +509,10 @@ namespace Breathe.Gameplay
 
             _overlayBg = new GUIStyle();
             // Strong dimmer so the running scene reads as "behind" the briefing until Continue.
-            _overlayBg.normal.background = MakeTex(new Color(0f, 0f, 0f, 0.9f));
+            _overlayBg.normal.background = MakeTex(MenuVisualTheme.TutorialOverlayDim);
 
             _panelBg = new GUIStyle();
-            _panelBg.normal.background = MakeTex(new Color(0.02f, 0.06f, 0.14f, 0.98f));
+            _panelBg.normal.background = MakeTex(MenuVisualTheme.TutorialPanelBg);
 
             _titleStyle = new GUIStyle(GUI.skin.label)
             {
@@ -432,7 +520,7 @@ namespace Breathe.Gameplay
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
-            _titleStyle.normal.textColor = new Color(0.4f, 0.85f, 1f);
+            _titleStyle.normal.textColor = MenuVisualTheme.TutorialTitle;
             FlattenStyle(_titleStyle);
 
             _instructionStyle = new GUIStyle(GUI.skin.label)
@@ -454,7 +542,7 @@ namespace Breathe.Gameplay
                 wordWrap = false,
                 padding = new RectOffset(14, 14, 2, 2)
             };
-            _tipStyle.normal.textColor = new Color(0.65f, 0.85f, 0.65f);
+            _tipStyle.normal.textColor = MenuVisualTheme.TutorialTip;
             FlattenStyle(_tipStyle);
 
             _buttonStyle = new GUIStyle(GUI.skin.button)
@@ -464,15 +552,15 @@ namespace Breathe.Gameplay
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(20, 20, 10, 10)
             };
-            _buttonStyle.normal.background = MakeTex(new Color(0.15f, 0.5f, 0.9f, 1f));
+            _buttonStyle.normal.background = MakeTex(MenuVisualTheme.ResultButtonPrimary);
             _buttonStyle.normal.textColor = Color.white;
-            _buttonStyle.hover.background = MakeTex(new Color(0.2f, 0.6f, 1f, 1f));
+            _buttonStyle.hover.background = MakeTex(MenuVisualTheme.ResultButtonPrimaryHover);
             _buttonStyle.hover.textColor = Color.white;
-            _buttonStyle.active.background = MakeTex(new Color(0.1f, 0.4f, 0.8f, 1f));
+            _buttonStyle.active.background = MakeTex(MenuVisualTheme.TutorialCheckboxCheckedActive);
             _buttonStyle.active.textColor = Color.white;
 
             _buttonHoverStyle = new GUIStyle(_buttonStyle);
-            _buttonHoverStyle.normal.background = MakeTex(new Color(0.2f, 0.6f, 1f, 1f));
+            _buttonHoverStyle.normal.background = MakeTex(MenuVisualTheme.ResultButtonPrimaryHover);
             _buttonHoverStyle.fontSize = ScaledFont(34);
 
             _buttonTextStyle = new GUIStyle(GUI.skin.label)
@@ -496,7 +584,7 @@ namespace Breathe.Gameplay
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
-            _inputHeaderStyle.normal.textColor = new Color(0.7f, 0.85f, 1f);
+            _inputHeaderStyle.normal.textColor = MenuVisualTheme.TutorialInputHeader;
             FlattenStyle(_inputHeaderStyle);
 
             _checkboxLabelStyle = new GUIStyle(GUI.skin.label)
@@ -504,7 +592,7 @@ namespace Breathe.Gameplay
                 fontSize = ScaledFont(28),
                 alignment = TextAnchor.MiddleLeft
             };
-            _checkboxLabelStyle.normal.textColor = new Color(0.9f, 0.95f, 1f);
+            _checkboxLabelStyle.normal.textColor = MenuVisualTheme.TutorialCheckboxLabel;
             FlattenStyle(_checkboxLabelStyle);
 
             _checkboxBoxStyle = new GUIStyle(GUI.skin.button)
@@ -514,16 +602,16 @@ namespace Breathe.Gameplay
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(0, 0, 0, 2)
             };
-            _checkboxBoxStyle.normal.background = MakeTex(new Color(0.15f, 0.18f, 0.25f, 1f));
+            _checkboxBoxStyle.normal.background = MakeTex(MenuVisualTheme.TutorialCheckboxBg);
             _checkboxBoxStyle.normal.textColor = Color.white;
-            _checkboxBoxStyle.hover.background = MakeTex(new Color(0.25f, 0.3f, 0.4f, 1f));
-            _checkboxBoxStyle.active.background = MakeTex(new Color(0.1f, 0.14f, 0.2f, 1f));
+            _checkboxBoxStyle.hover.background = MakeTex(MenuVisualTheme.TutorialCheckboxBgHover);
+            _checkboxBoxStyle.active.background = MakeTex(MenuVisualTheme.TutorialCheckboxBgActive);
 
             _checkboxBoxCheckedStyle = new GUIStyle(_checkboxBoxStyle);
-            _checkboxBoxCheckedStyle.normal.background = MakeTex(new Color(0.15f, 0.5f, 0.9f, 1f));
+            _checkboxBoxCheckedStyle.normal.background = MakeTex(MenuVisualTheme.TutorialCheckboxChecked);
             _checkboxBoxCheckedStyle.normal.textColor = Color.white;
-            _checkboxBoxCheckedStyle.hover.background = MakeTex(new Color(0.2f, 0.55f, 0.95f, 1f));
-            _checkboxBoxCheckedStyle.active.background = MakeTex(new Color(0.1f, 0.4f, 0.8f, 1f));
+            _checkboxBoxCheckedStyle.hover.background = MakeTex(MenuVisualTheme.TutorialCheckboxCheckedHover);
+            _checkboxBoxCheckedStyle.active.background = MakeTex(MenuVisualTheme.TutorialCheckboxCheckedActive);
 
             Font f = GameFont.Get();
             if (f != null)

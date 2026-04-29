@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Breathe.Audio;
 
 namespace Breathe.Gameplay
 {
@@ -7,6 +8,12 @@ namespace Breathe.Gameplay
     // for the three intensity zones (too gentle, sweet spot, too aggressive).
     public class BubbleWandController : MonoBehaviour
     {
+        [Header("Bubble Audio")]
+        [SerializeField, Tooltip("Bubble sound clips (randomly selected with pitch variation).")]
+        AudioClip[] _bubbleClips;
+        [SerializeField, Range(0f, 1f)] float _bubbleSfxVolume = 0.5f;
+
+        BubbleSfxPlayer _bubbleSfx;
         [Header("Sweet Spot")]
         [SerializeField] private float _sweetSpotMin = 0.18f;
         [SerializeField] private float _sweetSpotMax = 0.70f;
@@ -71,8 +78,25 @@ namespace Breathe.Gameplay
         private static Material _spriteMat;
         private Texture2D _bubbleTex;
 
+        /// <summary>Clears the frame buffer before sprites; avoids a bright flash when Camera clear was Skybox with no sky material.</summary>
+        static readonly Color BathCameraSolidClear = new(0.06f, 0.20f, 0.30f);
+
         // Camera-relative positioning (computed once)
         private Camera _cam;
+
+        void Awake()
+        {
+            ApplyBathCameraClearEarly();
+        }
+
+        /// <summary>Run before rendering / before <see cref="Initialize"/> so tutorial fade and reveal never sit over a bogus white skybox clear.</summary>
+        static void ApplyBathCameraClearEarly()
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = BathCameraSolidClear;
+        }
         private float _ringLocalY;   // ring center Y, relative to camera center
         private float _ringRadius;
 
@@ -103,6 +127,21 @@ namespace Breathe.Gameplay
 
             BuildBackground();
             BuildWand();
+            InitializeBubbleAudio();
+        }
+
+        void InitializeBubbleAudio()
+        {
+            _bubbleSfx = GetComponent<BubbleSfxPlayer>();
+            if (_bubbleSfx == null)
+                _bubbleSfx = gameObject.AddComponent<BubbleSfxPlayer>();
+
+            // Pass clips from inspector if assigned here
+            if (_bubbleClips != null && _bubbleClips.Length > 0)
+                _bubbleSfx.SetClips(_bubbleClips, _bubbleSfxVolume);
+
+            // If still empty (Awake ran before Resources import, or no serialized refs), try Resources/Audio.
+            _bubbleSfx.EnsureClipsLoaded();
         }
 
         private void BuildBackground()
@@ -110,7 +149,10 @@ namespace Breathe.Gameplay
             var cam = Camera.main;
             BathBackdropBuilder.Build(cam, out _bathBackdropRoot, BathBackdropBuilder.GameplayDefault);
             if (cam != null)
-                cam.backgroundColor = new Color(0.06f, 0.20f, 0.30f);
+            {
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = BathCameraSolidClear;
+            }
         }
 
         public void Activate() => _active = true;
@@ -288,6 +330,13 @@ namespace Breathe.Gameplay
 
             if (isSweetSpot)
                 _sweetSpotScoreAnchors.Enqueue(obj.transform);
+
+            // Play bubble sound with pitch based on size (smaller = higher pitch)
+            if (_bubbleSfx != null)
+            {
+                float pitchMult = isSweetSpot ? Mathf.Lerp(1.1f, 0.9f, size) : 1.3f;
+                _bubbleSfx.PlayBubbleWithPitch(pitchMult, isSweetSpot);
+            }
         }
 
         private void UpdateBubbles()
@@ -339,6 +388,10 @@ namespace Breathe.Gameplay
 
         private void SpawnSplash(float power)
         {
+            // Play splash sound
+            if (_bubbleSfx != null)
+                _bubbleSfx.PlaySplash();
+
             int particleCount = Random.Range(6, 12);
             for (int i = 0; i < particleCount; i++)
             {

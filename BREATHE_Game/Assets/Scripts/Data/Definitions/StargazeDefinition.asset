@@ -22,6 +22,7 @@ MonoBehaviour:
   _cardColor: {r: 0.3, g: 0.15, b: 0.5, a: 1}
   _sceneName: STARGAZE
   _countdownGoText: CLEAR THE SKIES!
+  _countdownGoVerticalOffsetPx: 100
   _postCountdownBuffer: 0
   _minigameSfxProfile: {fileID: 11400000, guid: f53a76a51cdf47109dd64052ac96477e, type: 2}
   _tutorialTitle: HOW TO PLAY

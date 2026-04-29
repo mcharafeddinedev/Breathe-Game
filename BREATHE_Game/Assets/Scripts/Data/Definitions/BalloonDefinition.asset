@@ -19,7 +19,7 @@ MonoBehaviour:
   _thumbnail: {fileID: 0}
   _breathPattern: Intensity  Ramp
   _isUnlocked: 1
-  _cardColor: {r: 1, g: 0.1, b: 0.1, a: 1}
+  _cardColor: {r: 0.98, g: 0.3, b: 0.18, a: 1}
   _sceneName: BALLOON
   _countdownGoText: BALLOONS!
   _postCountdownBuffer: 0

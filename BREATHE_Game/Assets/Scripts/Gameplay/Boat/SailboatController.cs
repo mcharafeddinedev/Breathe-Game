@@ -1,4 +1,5 @@
 using UnityEngine;
+using Breathe.Audio;
 using Breathe.Data;
 using Breathe.Input;
 
@@ -13,6 +14,12 @@ namespace Breathe.Gameplay
         [UnityEngine.Serialization.FormerlySerializedAs("_windSystem")]
         [SerializeField] private BreathPowerSystem _breathPowerSystem;
         [SerializeField] private CourseConfig _courseConfig;
+
+        [Header("Procedural Audio")]
+        [SerializeField] private bool _enableProceduralHullAudio = true;
+
+        private ProceduralSailboatWindAudio _procHullAudio;
+        private CourseManager _cachedCourseManager;
 
         [Header("Waypoints")]
         [SerializeField] private Transform[] _waypoints;
@@ -163,7 +170,19 @@ namespace Breathe.Gameplay
             _splashEffect = GetComponent<BoatSplashEffect>() ?? gameObject.AddComponent<BoatSplashEffect>();
             _wakeTrailEffect = GetComponent<BoatWakeTrailEffect>() ?? gameObject.AddComponent<BoatWakeTrailEffect>();
 
+            _cachedCourseManager = FindAnyObjectByType<CourseManager>();
+            EnsureProceduralHullAudio();
+
             AlignToFirstWaypoint();
+        }
+
+        private void EnsureProceduralHullAudio()
+        {
+            if (!_enableProceduralHullAudio) return;
+
+            _procHullAudio = GetComponent<ProceduralSailboatWindAudio>();
+            if (_procHullAudio == null)
+                _procHullAudio = gameObject.AddComponent<ProceduralSailboatWindAudio>();
         }
 
         private void AlignToFirstWaypoint()
@@ -199,7 +218,9 @@ namespace Breathe.Gameplay
 
             // No movement during countdown — boats sit still until the race starts.
             // Once finished, keep coasting so the boat sails through the finish line.
-            var cm = FindAnyObjectByType<CourseManager>();
+            var cm = _cachedCourseManager != null ? _cachedCourseManager : FindAnyObjectByType<CourseManager>();
+            if (cm != null) _cachedCourseManager = cm;
+
             if (cm != null && !cm.IsRaceActive && !cm.PlayerFinished)
             {
                 CurrentSpeed = 0f;
@@ -216,8 +237,21 @@ namespace Breathe.Gameplay
             ApplyEnvironmentalOffsets();
             UpdateSailVisuals(windPower);
 
-            if (_splashEffect != null) _splashEffect.SetSpeed(CurrentSpeed);
+            if (_splashEffect != null)
+            {
+                _splashEffect.SetSpeed(CurrentSpeed);
+                _splashEffect.SetSplashWindDrive(windPower);
+                _splashEffect.TickSplashFrameAfterWind();
+            }
             if (_wakeTrailEffect != null) _wakeTrailEffect.SetSpeed(CurrentSpeed);
+
+            if (_procHullAudio != null && _courseConfig != null)
+            {
+                float speedCap = Mathf.Max(0.1f, _courseConfig.BaseSpeed + _courseConfig.BreathBonusMultiplier);
+                float speed01 = Mathf.Clamp01(CurrentSpeed / speedCap);
+                bool raceAudibleShell = cm != null && (cm.IsRaceActive || cm.PlayerFinished);
+                _procHullAudio.Tick(windPower, speed01, raceAudibleShell);
+            }
 
             _speedLogTimer += Time.deltaTime;
             if (_speedLogTimer >= SpeedLogInterval)

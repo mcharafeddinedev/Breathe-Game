@@ -1,4 +1,5 @@
 using UnityEngine;
+using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
@@ -15,14 +16,23 @@ namespace Breathe.Gameplay
             public float CausticsPhaseScale;
             /// <summary>Multiplies caustics highlight strength (alpha cap in <see cref="BathCausticsAnimator"/>).</summary>
             public float CausticsIntensity;
+            /// <summary>Dual-caustics only: sprite alpha tint on second (parallax) layer (typically ~0.48 gameplay, higher on main menu).</summary>
+            public float CausticsParallaxTintAlpha;
+            /// <summary>Main menu: greener/teal ocean water + caustics (gameplay keeps classic blue-cyan bath).</summary>
+            public bool VibrantTealOcean;
+            /// <summary>Main menu only: soft mother-of-pearl highlights + dual-layer chromatic shift instead of lime-teal caustics.</summary>
+            public bool PearlescentCaustics;
         }
 
         public static readonly Options MenuDefault = new()
         {
             AmbientActivity = false,
             DualCausticsOnly = true,
-            CausticsPhaseScale = 1.32f,
-            CausticsIntensity = 1.42f
+            CausticsPhaseScale = 1.48f,
+            CausticsIntensity = 1.58f,
+            CausticsParallaxTintAlpha = 0.66f,
+            VibrantTealOcean = true,
+            PearlescentCaustics = true
         };
 
         public static readonly Options GameplayDefault = new()
@@ -30,7 +40,10 @@ namespace Breathe.Gameplay
             AmbientActivity = true,
             DualCausticsOnly = false,
             CausticsPhaseScale = 1.45f,
-            CausticsIntensity = 1f
+            CausticsIntensity = 1f,
+            CausticsParallaxTintAlpha = 0.48f,
+            VibrantTealOcean = false,
+            PearlescentCaustics = false
         };
 
         /// <summary>Builds the full backdrop hierarchy; sets <paramref name="root"/> to the parent object.</summary>
@@ -45,12 +58,27 @@ namespace Breathe.Gameplay
             root.transform.position = center;
 
             // --- Deep water ---
+            Color deepBottom = options.VibrantTealOcean
+                ? new Color(0.025f, 0.14f, 0.155f)
+                : new Color(0.04f, 0.14f, 0.22f);
+            Color deepTop = options.VibrantTealOcean
+                ? new Color(0.11f, 0.52f, 0.47f)
+                : new Color(0.12f, 0.48f, 0.58f);
+            Color causticsHighlight;
+            if (options.PearlescentCaustics)
+            {
+                // Mother-of-pearl shimmer: warm shell + faint rose/lavender (not lime/teal underwater spotlight).
+                causticsHighlight = new Color(0.91f, 0.885f, 0.942f);
+            }
+            else if (options.VibrantTealOcean)
+                causticsHighlight = new Color(0.52f, 0.90f, 0.76f);
+            else
+                causticsHighlight = new Color(0.78f, 0.96f, 1f);
+
             var deepGo = new GameObject("DeepWater");
             deepGo.transform.SetParent(root.transform, false);
             var deepSr = deepGo.AddComponent<SpriteRenderer>();
-            var deepTex = GenerateVerticalGradientTexture(12, 160,
-                new Color(0.04f, 0.14f, 0.22f),
-                new Color(0.12f, 0.48f, 0.58f));
+            var deepTex = GenerateVerticalGradientTexture(12, 160, deepBottom, deepTop);
             deepSr.sprite = Sprite.Create(deepTex, new Rect(0, 0, deepTex.width, deepTex.height),
                 new Vector2(0.5f, 0.5f), 8f);
             deepSr.sortingOrder = -32;
@@ -63,7 +91,9 @@ namespace Breathe.Gameplay
             var rimTex = GenerateBottomRimTexture(64, 48);
             rimSr.sprite = Sprite.Create(rimTex, new Rect(0, 0, rimTex.width, rimTex.height),
                 new Vector2(0.5f, 0f), 8f);
-            rimSr.color = new Color(0.03f, 0.12f, 0.16f, 0.85f);
+            rimSr.color = options.VibrantTealOcean
+                ? new Color(0.025f, 0.12f, 0.11f, 0.85f)
+                : new Color(0.03f, 0.12f, 0.16f, 0.85f);
             rimSr.sortingOrder = -30;
             rimGo.transform.localPosition = new Vector3(0f, -6.5f, 0f);
             rimGo.transform.localScale = new Vector3(38f, 10f, 1f);
@@ -76,7 +106,9 @@ namespace Breathe.Gameplay
             var blobSr = blobGo.AddComponent<SpriteRenderer>();
             blobSr.sprite = Sprite.Create(blobTex, new Rect(0, 0, blobTex.width, blobTex.height),
                 new Vector2(0.5f, 0.5f), 8f);
-            blobSr.color = new Color(0.08f, 0.22f, 0.28f, 0.45f);
+            blobSr.color = options.VibrantTealOcean
+                ? new Color(0.055f, 0.30f, 0.26f, 0.45f)
+                : new Color(0.08f, 0.22f, 0.28f, 0.45f);
             blobSr.sortingOrder = -28;
             blobGo.transform.localPosition = new Vector3(-5.5f, 2f, 0f);
             blobGo.transform.localScale = new Vector3(14f, 11f, 1f);
@@ -86,7 +118,9 @@ namespace Breathe.Gameplay
             var blob2Sr = blob2Go.AddComponent<SpriteRenderer>();
             blob2Sr.sprite = Sprite.Create(blobTex, new Rect(0, 0, blobTex.width, blobTex.height),
                 new Vector2(0.5f, 0.5f), 8f);
-            blob2Sr.color = new Color(0.07f, 0.20f, 0.26f, 0.35f);
+            blob2Sr.color = options.VibrantTealOcean
+                ? new Color(0.045f, 0.26f, 0.22f, 0.35f)
+                : new Color(0.07f, 0.20f, 0.26f, 0.35f);
             blob2Sr.sortingOrder = -28;
             blob2Go.transform.localPosition = new Vector3(6f, -1.5f, 0f);
             blob2Go.transform.localScale = new Vector3(10f, 8f, 1f);
@@ -98,7 +132,9 @@ namespace Breathe.Gameplay
             var sheenTex = GenerateHorizontalSheenTexture(64, 32);
             sheenSr.sprite = Sprite.Create(sheenTex, new Rect(0, 0, sheenTex.width, sheenTex.height),
                 new Vector2(0.5f, 0f), 8f);
-            sheenSr.color = new Color(0.45f, 0.75f, 0.82f, 0.22f);
+            sheenSr.color = options.VibrantTealOcean
+                ? new Color(0.40f, 0.80f, 0.72f, 0.24f)
+                : new Color(0.45f, 0.75f, 0.82f, 0.22f);
             sheenSr.sortingOrder = -26;
             sheenGo.transform.localPosition = new Vector3(0f, 9f, 0f);
             sheenGo.transform.localScale = new Vector3(40f, 8f, 1f);
@@ -111,11 +147,14 @@ namespace Breathe.Gameplay
             causticsGo.transform.SetParent(root.transform, false);
             var causticsSr = causticsGo.AddComponent<SpriteRenderer>();
             causticsSr.sortingOrder = -22;
-            causticsSr.color = Color.white;
+            causticsSr.color = options.PearlescentCaustics
+                ? new Color(0.97f, 0.965f, 0.995f, 1f)
+                : Color.white;
             causticsGo.transform.localScale = new Vector3(34f, 24f, 1f);
             var caustics = causticsGo.AddComponent<BathCausticsAnimator>();
             bool dualCaustics = options.AmbientActivity || options.DualCausticsOnly;
-            caustics.Init(causticsSr, options.CausticsPhaseScale, dualCaustics, options.CausticsIntensity);
+            caustics.Init(causticsSr, options.CausticsPhaseScale, dualCaustics, options.CausticsIntensity,
+                causticsHighlight, options.CausticsParallaxTintAlpha, options.PearlescentCaustics);
 
             // Fish after caustics in hierarchy; sorting order must be > caustics (-21) or ripples hide them.
             if (options.AmbientActivity)
@@ -206,14 +245,37 @@ namespace Breathe.Gameplay
         private float _phaseScale = 1f;
         private float _intensity = 1f;
         private bool _dual;
+        private float _hiR = 0.78f, _hiG = 0.96f, _hiB = 1f;
+        /// <summary>Secondary layer tint (pearlescent: cooler cyan shift vs primary pearl).</summary>
+        private float _hiBR = 0.78f, _hiBG = 0.96f, _hiBB = 1f;
 
         private const int Size = 96;
 
-        public void Init(SpriteRenderer primary, float phaseScale, bool dualLayer, float intensity = 1f)
+        public void Init(SpriteRenderer primary, float phaseScale, bool dualLayer, float intensity = 1f,
+            Color causticsHighlight = default, float parallaxTintAlpha = 0.48f, bool pearlescentParallax = false)
         {
             _phaseScale = phaseScale;
             _dual = dualLayer;
             _intensity = Mathf.Max(0.1f, intensity);
+            if (causticsHighlight == default)
+                causticsHighlight = new Color(0.78f, 0.96f, 1f);
+            _hiR = causticsHighlight.r;
+            _hiG = causticsHighlight.g;
+            _hiB = causticsHighlight.b;
+            if (pearlescentParallax)
+            {
+                // Slight spectral split: primary = warm pearl, texture B = cooler opal edge.
+                _hiBR = Mathf.Clamp01(_hiR * 0.86f + 0.06f);
+                _hiBG = Mathf.Clamp01(_hiG * 0.94f + 0.04f);
+                _hiBB = Mathf.Clamp01(_hiB * 1.04f + 0.02f);
+            }
+            else
+            {
+                _hiBR = _hiR;
+                _hiBG = _hiG;
+                _hiBB = _hiB;
+            }
+
             _srA = primary;
             _texA = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
             _texA.wrapMode = TextureWrapMode.Clamp;
@@ -223,11 +285,25 @@ namespace Breathe.Gameplay
 
             if (!dualLayer) return;
 
+            float bAlpha = Mathf.Clamp(parallaxTintAlpha, 0.15f, 0.92f);
+
             var goB = new GameObject("CausticsOverlayB");
             goB.transform.SetParent(transform, false);
             _srB = goB.AddComponent<SpriteRenderer>();
             _srB.sortingOrder = primary.sortingOrder + 1;
-            _srB.color = new Color(0.82f, 0.96f, 1f, 0.48f);
+            if (pearlescentParallax)
+            {
+                // Sprite tint complements texture B for a lilac→aqua veil over the pearl base.
+                _srB.color = new Color(0.80f, 0.87f, 0.94f, bAlpha);
+            }
+            else
+            {
+                _srB.color = new Color(
+                    Mathf.Clamp01(_hiR * 1.04f),
+                    Mathf.Clamp01(_hiG * 1f),
+                    Mathf.Clamp01(_hiB * 1.06f),
+                    bAlpha);
+            }
             goB.transform.localScale = new Vector3(1.09f, 1.06f, 1f);
             goB.transform.localPosition = new Vector3(0.4f, -0.35f, 0f);
             _texB = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
@@ -244,11 +320,11 @@ namespace Breathe.Gameplay
             if (_frameTimer < interval) return;
             _frameTimer = 0f;
             _phase += 0.018f * _phaseScale;
-            FillCaustics(_texA, _phase, _intensity);
+            CausticsTextureFill.Fill(_texA, _phase, _intensity, new Color(_hiR, _hiG, _hiB));
             _texA.Apply(false);
             if (_dual && _texB != null)
             {
-                FillCaustics(_texB, _phase * 1.15f + 2.1f, _intensity);
+                CausticsTextureFill.Fill(_texB, _phase * 1.15f + 2.1f, _intensity, new Color(_hiBR, _hiBG, _hiBB));
                 _texB.Apply(false);
             }
         }
@@ -259,29 +335,6 @@ namespace Breathe.Gameplay
             if (_spriteB != null) Destroy(_spriteB);
             if (_texA != null) Destroy(_texA);
             if (_texB != null) Destroy(_texB);
-        }
-
-        private static void FillCaustics(Texture2D tex, float phase, float intensity)
-        {
-            float aCap = 0.22f * intensity;
-            int w = tex.width;
-            int h = tex.height;
-            for (int y = 0; y < h; y++)
-            {
-                float ny = y / (float)h;
-                for (int x = 0; x < w; x++)
-                {
-                    float nx = x / (float)w;
-                    float c1 = Mathf.Sin(nx * 8f + phase) * Mathf.Sin(ny * 6f + phase * 1.2f);
-                    float c2 = Mathf.Sin((nx + ny) * 5f + phase * 0.8f);
-                    float c3 = Mathf.Sin(nx * 14f - ny * 10f + phase * 1.5f);
-                    float c4 = Mathf.Sin(nx * 3.2f + ny * 4.1f + phase * 0.55f);
-                    float v = Mathf.Clamp01(c1 * 0.30f + c2 * 0.30f + c3 * 0.28f + c4 * 0.12f + 0.5f);
-                    float a = Mathf.Lerp(0f, aCap, v);
-                    a *= Mathf.Lerp(0.35f, 1f, ny);
-                    tex.SetPixel(x, y, new Color(0.78f, 0.96f, 1f, a));
-                }
-            }
         }
     }
 

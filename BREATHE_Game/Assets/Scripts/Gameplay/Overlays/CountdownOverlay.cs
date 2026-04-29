@@ -21,6 +21,7 @@ namespace Breathe.Gameplay
         private bool _isGoTick;
         private GUIStyle _countdownStyle;
         private string _goText = "GO";
+        private float _goPhraseVerticalOffsetPx;
 
         private void Start()
         {
@@ -40,8 +41,11 @@ namespace Breathe.Gameplay
         {
             if (MinigameManager.Instance == null) return;
             MinigameDefinition def = MinigameManager.Instance.SelectedDefinition;
-            if (def != null && !string.IsNullOrEmpty(def.CountdownGoText))
+            if (def == null) return;
+
+            if (!string.IsNullOrEmpty(def.CountdownGoText))
                 _goText = def.CountdownGoText;
+            _goPhraseVerticalOffsetPx = def.CountdownGoVerticalOffsetPx;
         }
 
         private void HandleCountdownTick(int remaining)
@@ -97,7 +101,10 @@ namespace Breathe.Gameplay
                 ? new Color(0.2f, 1f, 0.4f, alpha)
                 : new Color(1f, 1f, 1f, alpha);
             _countdownStyle.normal.textColor = baseColor;
+            // Flatten all states so text doesn't highlight on hover
             _countdownStyle.hover.textColor = baseColor;
+            _countdownStyle.active.textColor = baseColor;
+            _countdownStyle.focused.textColor = baseColor;
 
             float centerX = Screen.width / 2f;
             float centerY = Screen.height / 2f;
@@ -111,6 +118,9 @@ namespace Breathe.Gameplay
                 float eased = fadeT * fadeT;
                 yOffset = -eased * (centerY - boxHeight * 0.2f);
             }
+
+            if (_isGoTick)
+                yOffset += _goPhraseVerticalOffsetPx;
 
             Rect rect = new Rect(centerX - boxWidth / 2f,
                                   centerY - boxHeight / 2f + yOffset,

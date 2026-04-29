@@ -43,6 +43,10 @@ namespace Breathe.Gameplay
                     wordWrap = false,
                     normal = { textColor = Color.white }
                 };
+                // Flatten all states so text doesn't highlight on hover
+                _style.hover = _style.normal;
+                _style.active = _style.normal;
+                _style.focused = _style.normal;
                 Font f = GameFont.Get();
                 if (f != null) _style.font = f;
             }

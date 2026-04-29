@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Breathe.Data;
 
 namespace Breathe.Input
@@ -12,13 +13,15 @@ namespace Breathe.Input
 
     /// Singleton that manages which single breath input source is active.
     /// Only one source runs at a time — switching shuts down the old and initializes the new.
+    /// <para><b>Session rule:</b> Each scene load starts in <see cref="InputMode.Simulated"/>.
+    /// <see cref="SetInputMode"/> (settings / tutorial) may change the source live until the next load.</para>
     public sealed class BreathInputManager : MonoBehaviour
     {
-        /// <summary>PlayerPrefs key shared with SettingsManager for input mode persistence.</summary>
+        /// <summary>PlayerPrefs key — written as Simulated on each scene load; settings UI may update when cycling mode in-scene.</summary>
         public const string PrefKeyInputMode = "Breathe_InputMode";
 
         [Header("Input Mode")]
-        [SerializeField, Tooltip("Fallback if no saved preference exists in PlayerPrefs.")]
+        [SerializeField, Tooltip("Editor default only — runtime always starts as Simulated; each loaded scene resets to Simulated.")]
         private InputMode currentMode = InputMode.Simulated;
 
         [Header("Input Sources")]
@@ -36,6 +39,60 @@ namespace Breathe.Input
         private bool _menuMode;
 
         public static BreathInputManager Instance { get; private set; }
+
+        /// <summary>
+        /// True when microphone input is available on this platform.
+        /// WebGL: disabled — browser mic permissions and Web Audio API can break gameplay; Simulated only.
+        /// </summary>
+        public static bool MicrophoneSupported =>
+#if UNITY_WEBGL && !UNITY_EDITOR
+            false;
+#else
+            true;
+#endif
+
+        /// <summary>False on WebGL — USB serial (fan hardware) is not available in the browser.</summary>
+        public static bool FanHardwareSupported =>
+#if UNITY_WEBGL
+            false;
+#else
+            true;
+#endif
+
+        /// <summary>True when settings/tutorial should offer cycling beyond Simulated.</summary>
+        public static bool InputModeCyclingSupported => MicrophoneSupported || FanHardwareSupported;
+
+        /// <summary>
+        /// Settings cycle order:
+        /// - Desktop: Sim → Mic → Fan → Sim...
+        /// - WebGL:   Simulated only (mic/fan disabled to avoid browser API issues)
+        /// </summary>
+        public static InputMode GetNextCycledInputMode(InputMode current)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // No cycling on WebGL — Simulated only
+            return InputMode.Simulated;
+#else
+            return current switch
+            {
+                InputMode.Simulated => InputMode.Microphone,
+                InputMode.Microphone => InputMode.Fan,
+                _ => InputMode.Simulated
+            };
+#endif
+        }
+
+        /// <summary>Matches <see cref="SimulatedBreathInput"/> — hold Space.</summary>
+        public const string SimulatedControlsShortHint = "hold Space";
+
+        /// <summary>Settings row: Simulated includes control hint; other modes use enum name.</summary>
+        public static string InputModeSettingsLabel(InputMode mode) =>
+            mode == InputMode.Simulated
+                ? $"Simulated — {SimulatedControlsShortHint}"
+                : mode.ToString();
+
+        /// <summary>Tutorial input toggles — uppercase + extra spaces for pixel font.</summary>
+        public static string TutorialSimulatedOptionLabel => "SIMULATED  (HOLD  SPACE)";
 
         public IBreathInput ActiveInput => _activeInput;
         public InputMode CurrentMode => currentMode;
@@ -114,6 +171,15 @@ namespace Breathe.Input
         /// and logs exactly what happened.
         public void SetInputMode(InputMode mode)
         {
+            // WebGL: force Simulated — mic/fan not supported and can break gameplay.
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (mode != InputMode.Simulated)
+            {
+                Debug.LogWarning($"[BreathInputManager] {mode} not supported on WebGL — forcing Simulated");
+                mode = InputMode.Simulated;
+            }
+#endif
+
             InputMode previousMode = currentMode;
 
             if (_activeInput != null)
@@ -146,21 +212,26 @@ namespace Breathe.Input
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
 
-            if (PlayerPrefs.HasKey(PrefKeyInputMode))
-            {
-                var saved = (InputMode)PlayerPrefs.GetInt(PrefKeyInputMode);
-                if (saved != currentMode)
-                {
-                    Debug.Log($"[BreathInputManager] Restoring saved input mode: {saved} (was {currentMode})");
-                    currentMode = saved;
-                }
-            }
-
+            // Simulated is the default in every scene; do not restore Mic/Fan from PlayerPrefs.
+            currentMode = InputMode.Simulated;
             _activeInput = ResolveInput(currentMode);
             _activeInput?.Initialize();
 
             Debug.Log($"[BreathInputManager] Initialized with {currentMode} input on startup");
+        }
+
+        /// <summary>Every scene load resets breath input to Simulated (prefs kept in sync for settings UI).</summary>
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (Instance != this) return;
+
+            PlayerPrefs.SetInt(PrefKeyInputMode, (int)InputMode.Simulated);
+            PlayerPrefs.Save();
+
+            if (currentMode != InputMode.Simulated)
+                SetInputMode(InputMode.Simulated);
         }
 
         private void Update()
@@ -190,6 +261,7 @@ namespace Breathe.Input
 
         private void OnDestroy()
         {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             _activeInput?.Shutdown();
             if (Instance == this) Instance = null;
         }

@@ -21,3 +21,5 @@ MonoBehaviour:
   _secondaryAction: {fileID: 8300000, guid: bc92a3b3d2694c1ea23c31004d7adb86, type: 3}
   _tertiaryAction: {fileID: 8300000, guid: 1b2737388896433eb85e6729ed80522c, type: 3}
   _specialEvent: {fileID: 8300000, guid: fedf9570ede04cfdb2483e9466ebae2e, type: 3}
+  _ambienceLoopVolumeScale: 1
+  _ambienceLoopPitch: 1

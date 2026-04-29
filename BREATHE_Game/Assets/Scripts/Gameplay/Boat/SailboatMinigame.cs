@@ -125,11 +125,11 @@ namespace Breathe.Gameplay
             {
                 new MinigameStat("Placement", placementText,
                     false, StatTier.Hero),
-                new MinigameStat("Course Time", $"{_scoreManager.CourseTime:F1}s",
+                new MinigameStat("Course Time", GameFont.FormatHudSecondsWhole(_scoreManager.CourseTime),
                     _scoreManager.IsNewPersonalBest("CourseTime"), StatTier.Hero),
-                new MinigameStat("Breath Time", $"{_scoreManager.TotalBreathTime:F1}s",
+                new MinigameStat("Breath Time", GameFont.FormatHudSecondsWhole(_scoreManager.TotalBreathTime),
                     _scoreManager.IsNewPersonalBest("BreathTime"), StatTier.Primary),
-                new MinigameStat("Longest Blow", $"{_scoreManager.LongestSustainedBlow:F1}s",
+                new MinigameStat("Longest Blow", GameFont.FormatHudSecondsWhole(_scoreManager.LongestSustainedBlow),
                     _scoreManager.IsNewPersonalBest("LongestBlow"), StatTier.Primary),
                 new MinigameStat("Peak", $"{_scoreManager.PeakBreathIntensity * 100f:F0}%",
                     _scoreManager.IsNewPersonalBest("PeakIntensity"), StatTier.Primary),
@@ -138,7 +138,7 @@ namespace Breathe.Gameplay
                 new MinigameStat("Pattern", pattern, false, StatTier.Secondary),
                 new MinigameStat("Activity", FormatActivityGrade(activity), false, StatTier.Secondary),
                 new MinigameStat("Breaths", $"{sustained}", false, StatTier.Secondary),
-                new MinigameStat("Avg Length", $"{avgDur:F1}s", false, StatTier.Secondary),
+                new MinigameStat("Avg Length", GameFont.FormatHudSecondsWhole(avgDur), false, StatTier.Secondary),
                 new MinigameStat("Course", _frozenCourseName ?? "UNKNOWN", false, StatTier.Secondary)
             };
         }
@@ -149,11 +149,11 @@ namespace Breathe.Gameplay
             if (_courseManager != null)
             {
                 info["Race"] = _courseManager.IsRaceActive ? "Active" : "Idle";
-                info["Race Time"] = $"{_courseManager.RaceTime:F1}s";
+                info["Race Time"] = GameFont.FormatHudSecondsWhole(_courseManager.RaceTime);
             }
             if (_scoreManager != null)
             {
-                info["Breath Time"] = $"{_scoreManager.TotalBreathTime:F1}s";
+                info["Breath Time"] = GameFont.FormatHudSecondsWhole(_scoreManager.TotalBreathTime);
                 info["Peak"] = $"{_scoreManager.PeakBreathIntensity:P0}";
                 info["Zones"] = $"{_scoreManager.WindZonesConquered}";
             }
@@ -174,6 +174,7 @@ namespace Breathe.Gameplay
 
         private void OnGUI()
         {
+            if (Time.timeScale == 0f) return; // Don't draw HUD when paused
             if (GameStateManager.Instance == null ||
                 GameStateManager.Instance.CurrentState != GameState.Playing)
                 return;
@@ -190,11 +191,42 @@ namespace Breathe.Gameplay
                 _whiteTex.Apply();
             }
 
-            float barWidth = 28f;
-            float barHeight = Screen.height * 0.45f;
-            float barX = 20f;
-            float barY = Screen.height * 0.28f;
-            float cornerInset = 4f;
+            if (_barLabelStyle == null)
+            {
+                Font f = GameFont.Get();
+                _barLabelStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 24,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                _barLabelStyle.normal.textColor = Color.white;
+                // Flatten all states so text doesn't highlight on hover
+                _barLabelStyle.hover = _barLabelStyle.normal;
+                _barLabelStyle.active = _barLabelStyle.normal;
+                _barLabelStyle.focused = _barLabelStyle.normal;
+                if (f != null) _barLabelStyle.font = f;
+            }
+
+            float barWidth = 42f;
+            float margin = 20f;
+            
+            // Draw on both sides
+            DrawWindBarAt(margin); // Left side
+            DrawWindBarAt(Screen.width - barWidth - margin); // Right side
+        }
+
+        private void DrawWindBarAt(float barX)
+        {
+            float barWidth = 42f;
+            float padTop = 16f;
+            float labelBand = 44f;
+            float gapBelowBar = 8f;
+            float padBottom = 10f;
+            float barHeight = Mathf.Max(80f,
+                Screen.height - padTop - labelBand - gapBelowBar - padBottom);
+            float barY = padTop;
+            float cornerInset = 5f;
 
             GUI.color = new Color(0.1f, 0.1f, 0.15f, 0.8f);
             GUI.DrawTexture(new Rect(barX - 3f, barY - 3f, barWidth + 6f, barHeight + 6f), _whiteTex);
@@ -230,20 +262,7 @@ namespace Breathe.Gameplay
             }
 
             GUI.color = Color.white;
-            if (_barLabelStyle == null)
-            {
-                Font f = GameFont.Get();
-                _barLabelStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 14,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleCenter
-                };
-                _barLabelStyle.normal.textColor = Color.white;
-                if (f != null) _barLabelStyle.font = f;
-            }
-
-            Rect labelRect = new Rect(barX - 10f, barY + barHeight + 6f, barWidth + 20f, 24f);
+            Rect labelRect = new Rect(barX - 14f, barY + barHeight + gapBelowBar, barWidth + 28f, labelBand);
             GameFont.OutlinedLabel(labelRect, "WIND", _barLabelStyle);
         }
 

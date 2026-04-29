@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SkydiveSfxProfile
   m_EditorClassIdentifier: Breathe.Data::Breathe.Data.MinigameSfxProfile
   _gameplayStart: {fileID: 8300000, guid: e0d5be6f95304f71936cff34300f97ad, type: 3}
-  _gameplayAmbienceLoop: {fileID: 8300000, guid: 40ba302d350e4946b645ec812a8c5f33, type: 3}
+  _gameplayAmbienceLoop: {fileID: 8300000, guid: d683701eadc0fd74ca5ba3b52a082f9b, type: 3}
   _timeWarning: {fileID: 8300000, guid: 18d4437a7fa345fd8ae1b136e2002fcd, type: 3}
   _success: {fileID: 8300000, guid: db12295b75534e76a8c3034af2309ebc, type: 3}
   _goalComplete: {fileID: 8300000, guid: e7c7b6fcfeac4df79f42f98e85db6ac5, type: 3}
@@ -21,3 +21,5 @@ MonoBehaviour:
   _secondaryAction: {fileID: 8300000, guid: a8939cad3a9c4267bf8f68d9ce08a161, type: 3}
   _tertiaryAction: {fileID: 8300000, guid: b026f2243caf4ac6b0c40fb6f1a29ae8, type: 3}
   _specialEvent: {fileID: 8300000, guid: c746cc1bb2ff48f09478f00b072f8061, type: 3}
+  _ambienceLoopVolumeScale: 0.2
+  _ambienceLoopPitch: 1

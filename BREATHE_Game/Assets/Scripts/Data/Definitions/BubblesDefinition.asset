@@ -18,7 +18,7 @@ MonoBehaviour:
   _thumbnail: {fileID: 0}
   _breathPattern: Rhythmic  Pulsing
   _isUnlocked: 1
-  _cardColor: {r: 1, g: 0.5, b: 0.7, a: 1}
+  _cardColor: {r: 0.12, g: 0.78, b: 0.68, a: 1}
   _sceneName: BUBBLES
   _countdownGoText: FIND THE SWEET SPOT!
   _postCountdownBuffer: 0

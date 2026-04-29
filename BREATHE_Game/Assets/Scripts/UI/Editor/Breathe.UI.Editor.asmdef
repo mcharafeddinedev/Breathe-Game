@@ -1,0 +1,18 @@
+{
+    "name": "Breathe.UI.Editor",
+    "rootNamespace": "Breathe.Editor",
+    "references": [
+        "Breathe.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

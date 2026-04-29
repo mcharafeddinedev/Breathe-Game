@@ -1,4 +1,5 @@
 using UnityEngine;
+using Breathe.Audio;
 
 namespace Breathe.Gameplay
 {
@@ -64,6 +65,13 @@ namespace Breathe.Gameplay
         private SpriteRenderer _landingFeedbackRenderer;
         private float _landingFeedbackTimer;
 
+        [Header("Procedural Audio")]
+        [SerializeField] private bool _enableThrusterProcAudio = true;
+
+        private ProceduralSkydiveThrusterAudio _thrusterProc;
+        /// <summary>Set false until Skydive minigame countdown + buffer complete so thruster is silent during intro.</summary>
+        bool _thrusterGameplayAllowed;
+
         private static Material _spriteMat;
         private Texture2D _circleTex;
 
@@ -80,6 +88,9 @@ namespace Breathe.Gameplay
         public LandingQuality LastLandingQuality => _lastLandingQuality;
         public float LastLandingDistance => _lastLandingDistance;
         public bool WindChangedThisFrame { get; private set; }
+
+        /// <summary>Set each <see cref="SpawnDiver"/> — true iff new wind opposes prior spawn direction (not diver 1).</summary>
+        public bool WindDirectionFlippedVersusPriorSpawn { get; private set; }
 
         private GameObject _windArrowObj;
         private SpriteRenderer _windArrowRenderer;
@@ -151,6 +162,42 @@ namespace Breathe.Gameplay
 
             _targetX = Random.Range(_xMin * 0.7f, _xMax * 0.7f);
             UpdateTargetPosition();
+
+            EnsureThrusterProcAudio();
+            SetThrusterGameplayAllowed(false);
+        }
+
+        public void SetThrusterGameplayAllowed(bool allowed) => _thrusterGameplayAllowed = allowed;
+
+        private void EnsureThrusterProcAudio()
+        {
+            if (!_enableThrusterProcAudio) return;
+
+            _thrusterProc = GetComponent<ProceduralSkydiveThrusterAudio>();
+            if (_thrusterProc == null)
+                _thrusterProc = gameObject.AddComponent<ProceduralSkydiveThrusterAudio>();
+        }
+
+        private void LateUpdate()
+        {
+            TickThrusterProcAudio();
+        }
+
+        private void TickThrusterProcAudio()
+        {
+            if (_thrusterProc == null) return;
+
+            if (!_enableThrusterProcAudio)
+            {
+                _thrusterProc.Tick(0f, 0f, false);
+                return;
+            }
+
+            bool falling = _state == DiverState.Falling;
+            float thrustNorm = Mathf.Clamp01(_thrustBuildup / Mathf.Max(1e-4f, _thrustBuildupMax));
+            bool active = _thrusterGameplayAllowed && falling && !_boostActive;
+
+            _thrusterProc.Tick(_smoothBreathPower, thrustNorm, active);
         }
 
         public void SpawnDiver()
@@ -163,6 +210,8 @@ namespace Breathe.Gameplay
             float prevDir = Mathf.Sign(_currentWindForce);
             if (prevDir == 0f) prevDir = 1f;
             float windDir = (Random.value < 0.55f) ? -prevDir : prevDir;
+            WindDirectionFlippedVersusPriorSpawn = _diverNumber > 1 && !Mathf.Approximately(windDir, prevDir);
+
             _currentWindForce = windDir * windStrength;
             _displayWindForce = 0f;
             _arrowFadeTimer = 1.5f;
@@ -175,6 +224,11 @@ namespace Breathe.Gameplay
             _prevWindSign = windDir;
             _thrustBuildup = 0f;
             _windAccel = 0f;
+
+            _smoothBreathPower = 0f;
+            _lastBreathPower = 0f;
+
+            _thrusterProc?.ResetSmoothing();
 
             _diverObj.SetActive(true);
             _landingFeedbackObj.SetActive(false);
@@ -1259,6 +1313,7 @@ namespace Breathe.Gameplay
         /// <summary>Hides gameplay elements (diver, target, wind, trails) and keeps only the ambient world visible.</summary>
         public void EnterAmbientMode()
         {
+            SetThrusterGameplayAllowed(false);
             if (_targetObj != null) _targetObj.SetActive(false);
             if (_diverObj != null) _diverObj.SetActive(false);
             if (_landingFeedbackObj != null) _landingFeedbackObj.SetActive(false);

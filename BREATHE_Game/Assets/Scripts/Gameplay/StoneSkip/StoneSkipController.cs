@@ -16,7 +16,7 @@ namespace Breathe.Gameplay
         [SerializeField] private float _baseThrowSpeed = 12f;
         [SerializeField] private float _gravity = 14f;
         [SerializeField] private float _bounceDecay = 0.55f;
-        [SerializeField] private float _minBounceVelocity = 1.5f;
+        [SerializeField] private float _minBounceVelocity = 1.35f;
         [SerializeField] private float _skipHeight = 2.5f;
         [SerializeField] private float _waterLevel = -1.8f;
 

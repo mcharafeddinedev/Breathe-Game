@@ -126,7 +126,7 @@ namespace Breathe.UI
 
         private IEnumerator PopupRoutine(string text)
         {
-            popupText.text = text;
+            popupText.text = GameFont.SanitizeForPixelFont(text);
             popupText.color = new Color(popupText.color.r, popupText.color.g, popupText.color.b, 1f);
             popupText.overflowMode = TMPro.TextOverflowModes.Overflow;
             popupText.textWrappingMode = TMPro.TextWrappingModes.Normal;

@@ -1,5 +1,6 @@
 using UnityEngine;
 using Breathe.Data;
+using Breathe.Utility;
 
 namespace Breathe.Gameplay
 {
@@ -66,6 +67,19 @@ namespace Breathe.Gameplay
         private BoatWindEffect _windEffect;
         private BoatSplashEffect _splashEffect;
         private BoatWakeTrailEffect _wakeTrailEffect;
+
+        [Header("Ocean accent one-shot")]
+        [SerializeField, Tooltip("Same clip as player's sailboat ocean overlay (404762…). Assign on AI prefabs.")]
+        private AudioClip _aiOceanAccentClip;
+        [SerializeField, Range(0f, 1f)] private float _aiOceanAccentBreathFloor = 0.5f;
+        [SerializeField, Range(0.02f, 1f), Tooltip("Chance-ish rate per sec while gated (Poisson-ish via small-dt rolls).")]
+        private float _aiOceanAccentRollsPerSecond = 0.18f;
+        [SerializeField] private float _aiOceanCooldownMin = 1.85f;
+        [SerializeField] private float _aiOceanCooldownMax = 4.1f;
+        [SerializeField, Range(0f, 1f)] private float _aiOceanAccentPeakVolume = 0.38f;
+
+        AudioSource _aiOceanAccentSrc;
+        float _aiOceanAccentCooldown;
 
         // Competitive win — only the lead AI can be granted a win
         private bool _competitiveWinEvaluated;
@@ -270,8 +284,20 @@ namespace Breathe.Gameplay
             _currentSpeed = speed;
             MoveAlongWaypoints(speed);
 
-            if (_splashEffect != null) _splashEffect.SetSpeed(_currentSpeed);
+            float windForSplash = IsRaceActive() ? _breathPulse : 0f;
+            if (_splashEffect != null)
+            {
+                _splashEffect.SetSpeed(_currentSpeed);
+                _splashEffect.SetSplashWindDrive(windForSplash);
+                _splashEffect.TickSplashFrameAfterWind();
+            }
             if (_wakeTrailEffect != null) _wakeTrailEffect.SetSpeed(_currentSpeed);
+        }
+
+        void LateUpdate()
+        {
+            // After BoatWakeTrailEffect / BoatWindEffect update so streak/wake flags match visuals.
+            TryPlayAiOceanAccent();
         }
 
         private void UpdateHesitation()
@@ -538,6 +564,79 @@ namespace Breathe.Gameplay
         {
             var cm = FindAnyObjectByType<CourseManager>();
             return cm != null && cm.IsRaceActive;
+        }
+
+        void EnsureAiOceanAccentSource()
+        {
+            if (_aiOceanAccentClip == null || _aiOceanAccentSrc != null) return;
+
+            var go = new GameObject("AIOceanAccentOneShot");
+            go.transform.SetParent(transform, false);
+            _aiOceanAccentSrc = go.AddComponent<AudioSource>();
+            _aiOceanAccentSrc.playOnAwake = false;
+            _aiOceanAccentSrc.loop = false;
+            _aiOceanAccentSrc.spatialBlend = 0f;
+            _aiOceanAccentSrc.clip = _aiOceanAccentClip;
+            _aiOceanAccentSrc.priority = 210;
+            _aiOceanAccentSrc.ignoreListenerPause = true;
+            _aiOceanAccentSrc.volume = 0f;
+        }
+
+        static float SfxLinear()
+        {
+            return Mathf.Clamp01(PlayerPrefs.GetFloat(AudioPrefsKeys.SfxVolume, AudioMixDefaults.SfxLinear));
+        }
+
+        /// <summary>Screen-space pan: boats on viewport left bias left ear, right bias right.</summary>
+        float StereoPanFromBoatVsCamera()
+        {
+            var cam = Camera.main;
+            if (cam == null)
+                return Mathf.Clamp(transform.position.x * 0.12f, -0.75f, 0.75f);
+
+            Vector3 vp = cam.WorldToViewportPoint(transform.position);
+            if (vp.z < 0f) return 0f;
+
+            float t = Mathf.Clamp01(vp.x);
+            return Mathf.Lerp(-0.82f, 0.82f, t);
+        }
+
+        void TryPlayAiOceanAccent()
+        {
+            if (_aiOceanAccentClip == null) return;
+            if (_waypoints == null || _waypoints.Length == 0) return;
+            if (_courseConfig == null || _aiConfig == null) return;
+            if (_reactionDelay > 0f) return;
+
+            EnsureAiOceanAccentSource();
+            if (_aiOceanAccentSrc == null) return;
+
+            if (_isStunned || !IsRaceActive()) return;
+
+            bool simInputHigh = _breathPulse >= _aiOceanAccentBreathFloor;
+            bool hasStreakBehind =
+                (_windEffect != null && _windEffect.IsWindStreakEffectActive()) ||
+                (_wakeTrailEffect != null && _wakeTrailEffect.IsWakeTrailShowing());
+
+            if (!simInputHigh || !hasStreakBehind)
+                return;
+
+            float dt = Time.deltaTime;
+            _aiOceanAccentCooldown -= dt;
+            if (_aiOceanAccentCooldown > 0f) return;
+
+            float p = Mathf.Min(1f, _aiOceanAccentRollsPerSecond * dt);
+            if (UnityEngine.Random.value >= p) return;
+
+            float span = Mathf.Max(0f, _aiOceanCooldownMax - _aiOceanCooldownMin);
+            _aiOceanAccentCooldown = _aiOceanCooldownMin + span * UnityEngine.Random.value;
+
+            _aiOceanAccentSrc.Stop();
+            _aiOceanAccentSrc.panStereo = StereoPanFromBoatVsCamera();
+            _aiOceanAccentSrc.pitch = UnityEngine.Random.Range(0.94f, 1.04f);
+            _aiOceanAccentSrc.volume = Mathf.Clamp01(_aiOceanAccentPeakVolume * SfxLinear());
+            _aiOceanAccentSrc.time = 0f;
+            _aiOceanAccentSrc.Play();
         }
 
         private void UpdateStun()

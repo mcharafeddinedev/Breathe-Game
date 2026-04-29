@@ -196,7 +196,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8e342438b3c8c54fa04cb1288b3673a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Breathe.Gameplay::Breathe.Gameplay.DebugOverlay
-  _visible: 1
+  _visible: 0
   _margin: 12
 --- !u!1 &305883916
 GameObject:

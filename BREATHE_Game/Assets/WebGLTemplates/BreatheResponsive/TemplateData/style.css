@@ -1,0 +1,156 @@
+/* BreatheResponsive — fills parent (itch.io iframe) and keeps footer visible.
+   Based on Unity 6 Default. Keep BACKGROUND_COLOR and SPLASH_SCREEN_STYLE tokens intact.
+   
+   When NOT embedded in an iframe (localhost testing), constrains to 1280x720 and centers.
+   When embedded (itch.io), fills the iframe container. */
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #1a1a2e;
+}
+
+body {
+  touch-action: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#unity-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 1280px;
+  max-height: 720px;
+  box-sizing: border-box;
+}
+
+/* When embedded in an iframe, fill the entire iframe */
+body.in-iframe #unity-container {
+  max-width: 100%;
+  max-height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Default template centers with transform — breaks iframe sizing */
+#unity-container.unity-desktop {
+  transform: none;
+}
+
+#unity-container.unity-mobile {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+#unity-canvas {
+  background: {{{ BACKGROUND_COLOR }}};
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+.unity-mobile #unity-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+#unity-loading-bar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  z-index: 2;
+  pointer-events: none;
+}
+
+#unity-logo {
+  width: 154px;
+  height: 130px;
+  background: url('unity-logo-{{{ SPLASH_SCREEN_STYLE.toLowerCase() }}}.png') no-repeat center;
+}
+
+#unity-progress-bar-empty {
+  width: 141px;
+  height: 18px;
+  margin-top: 10px;
+  margin-left: 6.5px;
+  background: url('progress-bar-empty-{{{ SPLASH_SCREEN_STYLE.toLowerCase() }}}.png') no-repeat center;
+}
+
+#unity-progress-bar-full {
+  width: 0%;
+  height: 18px;
+  margin-top: 10px;
+  background: url('progress-bar-full-{{{ SPLASH_SCREEN_STYLE.toLowerCase() }}}.png') no-repeat center;
+}
+
+#unity-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  width: 100%;
+  background-color: rgba(30, 36, 51, 0.85);
+  box-sizing: border-box;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.unity-mobile #unity-footer {
+  display: none;
+}
+
+#unity-logo-title-footer {
+  float: left;
+  width: 102px;
+  height: 38px;
+  background: url('unity-logo-title-footer.png') no-repeat center;
+}
+
+#unity-build-title {
+  float: right;
+  margin-right: 10px;
+  line-height: 38px;
+  font-family: arial;
+  font-size: 18px;
+  color: #e8ecf4;
+}
+
+#unity-fullscreen-button {
+  cursor: pointer;
+  float: right;
+  width: 38px;
+  height: 38px;
+  margin-right: 4px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  background-color: #3d4f6f;
+  background-image: url('fullscreen-button.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 22px 22px;
+}
+
+#unity-warning {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  transform: translate(-50%);
+  background: white;
+  padding: 10px;
+  display: none;
+  z-index: 3;
+}
