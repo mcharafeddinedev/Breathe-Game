@@ -222,16 +222,34 @@ namespace Breathe.Input
             Debug.Log($"[BreathInputManager] Initialized with {currentMode} input on startup");
         }
 
-        /// <summary>Every scene load resets breath input to Simulated (prefs kept in sync for settings UI).</summary>
+        /// <summary>Always resets to Simulated mode on scene load. User must manually switch to Mic/Fan in settings.</summary>
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             if (Instance != this) return;
 
+            // Always default to Simulated — user switches to Mic/Fan explicitly in settings/how-to-play
             PlayerPrefs.SetInt(PrefKeyInputMode, (int)InputMode.Simulated);
             PlayerPrefs.Save();
 
+            // Exit menu mode if active
+            if (_menuMode)
+            {
+                _menuMode = false;
+                simulatedInput?.Shutdown();
+                fanInput?.Shutdown();
+                micInput?.Shutdown();
+            }
+
             if (currentMode != InputMode.Simulated)
                 SetInputMode(InputMode.Simulated);
+            else if (_activeInput == null || !_activeInput.IsActive)
+            {
+                // Re-initialize if the input isn't active (e.g. coming from menu mode)
+                _activeInput = ResolveInput(currentMode);
+                _activeInput?.Initialize();
+            }
+
+            Debug.Log($"[BreathInputManager] Scene '{scene.name}' loaded — reset to Simulated (user can switch in settings)");
         }
 
         private void Update()

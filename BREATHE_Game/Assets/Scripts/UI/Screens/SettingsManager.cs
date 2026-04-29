@@ -62,13 +62,30 @@ namespace Breathe.UI
         string[] _availableComPorts = Array.Empty<string>();
         int _comPortIdx;
         ComPortMode _comPortMode = ComPortMode.Auto;
+        string[] _availableMics = Array.Empty<string>();
+        int _micIdx;
+        const float StatusPollInterval = 0.4f;
+        float _statusPollTimer;
+        #endregion
+
+        #region Mic Preview (for level bar visualization in Settings)
+        AudioClip _previewMicClip;
+        string _previewMicDevice;
+        float[] _previewSampleBuffer;
+        float _previewLevel;
+        const int PreviewSampleRate = 44100;
+        const int PreviewSampleWindow = 1024;
         #endregion
 
         #region UI Refs
         RectTransform _content;
+        ScrollRect _settingsScrollRect;
         TextMeshProUGUI _inputModeLabel;
         TextMeshProUGUI _comPortLabel;
         TextMeshProUGUI _comPortStatusLabel;
+        TextMeshProUGUI _micDeviceLabel;
+        TextMeshProUGUI _micStatusLabel;
+        Image _micLevelFill;
         Slider _masterSlider, _musicSlider, _sfxSlider;
         TextMeshProUGUI _masterPct, _musicPct, _sfxPct;
         Toggle _fullscreenToggle;
@@ -105,7 +122,127 @@ namespace Breathe.UI
             RefreshAll();
             if (_howToPlayOverlay != null)
                 _howToPlayOverlay.SetActive(false);
+            _statusPollTimer = 0f;
+            StartMicPreview();
         }
+
+        void OnDisable()
+        {
+            StopMicPreview();
+        }
+
+        void OnDestroy()
+        {
+            StopMicPreview();
+        }
+
+        void Update()
+        {
+            _statusPollTimer += Time.unscaledDeltaTime;
+            if (_statusPollTimer >= StatusPollInterval)
+            {
+                _statusPollTimer = 0f;
+                RefreshMicStatus();
+                RefreshComPortStatus();
+            }
+            UpdateMicPreviewLevel();
+            UpdateMicLevelBar();
+        }
+
+        void UpdateMicLevelBar()
+        {
+            if (_micLevelFill == null) return;
+
+            // Use MicBreathInput intensity when in Microphone mode (preview is stopped), otherwise use preview
+            float level;
+            var mgr = BreathInputManager.Instance;
+            if (mgr != null && mgr.CurrentMode == InputMode.Microphone)
+                level = MicBreathInput.CurrentIntensity;
+            else
+                level = _previewLevel;
+
+            var rt = _micLevelFill.rectTransform;
+            rt.anchorMax = new Vector2(Mathf.Clamp01(level), 1f);
+        }
+
+        #region Mic Preview
+        void StartMicPreview()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return;
+#else
+            // Don't start preview when in Microphone mode - MicBreathInput owns the mic
+            var mgr = BreathInputManager.Instance;
+            if (mgr != null && mgr.CurrentMode == InputMode.Microphone)
+            {
+                Debug.Log("[SettingsManager] Mic preview skipped — MicBreathInput active");
+                return;
+            }
+
+            if (_availableMics == null || _availableMics.Length == 0)
+                RefreshAvailableMics();
+            if (_availableMics.Length == 0) return;
+
+            string device = _micIdx >= 0 && _micIdx < _availableMics.Length ? _availableMics[_micIdx] : null;
+            if (Microphone.IsRecording(device))
+            {
+                _previewMicDevice = device;
+                return;
+            }
+
+            _previewMicClip = Microphone.Start(device, true, 1, PreviewSampleRate);
+            _previewMicDevice = device;
+            _previewSampleBuffer = new float[PreviewSampleWindow];
+            _previewLevel = 0f;
+            Debug.Log($"[SettingsManager] Mic preview started: {device ?? "(default)"}");
+#endif
+        }
+
+        void StopMicPreview()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return;
+#else
+            if (_previewMicClip != null && Microphone.IsRecording(_previewMicDevice))
+            {
+                Microphone.End(_previewMicDevice);
+                Debug.Log($"[SettingsManager] Mic preview stopped: {_previewMicDevice ?? "(default)"}");
+            }
+            _previewMicClip = null;
+            _previewMicDevice = null;
+            _previewLevel = 0f;
+#endif
+        }
+
+        void RestartMicPreview()
+        {
+            StopMicPreview();
+            StartMicPreview();
+        }
+
+        void UpdateMicPreviewLevel()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return;
+#else
+            if (_previewMicClip == null || _previewSampleBuffer == null) return;
+            if (!Microphone.IsRecording(_previewMicDevice)) return;
+
+            int pos = Microphone.GetPosition(_previewMicDevice);
+            if (pos < PreviewSampleWindow) return;
+
+            _previewMicClip.GetData(_previewSampleBuffer, pos - PreviewSampleWindow);
+
+            float sum = 0f;
+            for (int i = 0; i < _previewSampleBuffer.Length; i++)
+                sum += _previewSampleBuffer[i] * _previewSampleBuffer[i];
+            float rms = Mathf.Sqrt(sum / _previewSampleBuffer.Length);
+
+            // Map raw RMS to 0-1 range (typical mic RMS ~0.001-0.1)
+            _previewLevel = Mathf.Clamp01(rms * 12f);
+#endif
+        }
+        #endregion
 
         // ================================================================
         //  Cleanup
@@ -132,7 +269,14 @@ namespace Breathe.UI
             foreach (var go in kill)
             {
                 go.SetActive(false);
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    DestroyImmediate(go);
+                else
+                    Destroy(go);
+#else
                 Destroy(go);
+#endif
             }
         }
 
@@ -178,7 +322,10 @@ namespace Breathe.UI
             AddHeader("Input");
             BuildInputRow();
             if (!IsWebGlPlayer)
+            {
+                BuildMicDeviceRow();
                 BuildComPortRow();
+            }
             AddDivider();
             AddHeader("Audio");
             (_masterSlider, _masterPct) = AddSliderRow("Master",
@@ -196,6 +343,10 @@ namespace Breathe.UI
             AddSpacer(2);
             BuildHowToPlayBtn();
 
+            // Set content height for scrolling
+            if (_content != null)
+                _content.sizeDelta = new Vector2(0f, _nextY + 10f);
+
             PositionBack();
             StyleBackButtonBorder();
             BuildHowToPlayOverlay();
@@ -212,12 +363,12 @@ namespace Breathe.UI
             rt.anchorMin = new Vector2(0, 1);
             rt.anchorMax = new Vector2(1, 1);
             rt.pivot = new Vector2(0.5f, 1);
-            rt.anchoredPosition = new Vector2(0, -8);
-            rt.sizeDelta = new Vector2(0, 36);
+            rt.anchoredPosition = new Vector2(0, -14);
+            rt.sizeDelta = new Vector2(0, 40);
 
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.text = "S E T T I N G S";
-            tmp.fontSize = 22;
+            tmp.fontSize = 28;
             tmp.fontStyle = FontStyles.Bold;
             tmp.color = ColHeader;
             tmp.alignment = TextAlignmentOptions.Center;
@@ -226,16 +377,80 @@ namespace Breathe.UI
 
         RectTransform BuildContentArea()
         {
-            var go = new GameObject("Content", typeof(RectTransform));
-            go.transform.SetParent(transform, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            // Insets leave room for title + BACK; tighter vertical inset so stacked rows fill the framed area (esp. pause menu).
-            rt.offsetMin = new Vector2(22, 32);
-            rt.offsetMax = new Vector2(-22, -36);
-            MenuUiChrome.AddInsetPanelFrame(rt);
-            return rt;
+            // Scroll container
+            var scrollGo = new GameObject("ContentScroll", typeof(RectTransform), typeof(ScrollRect), typeof(Image));
+            scrollGo.transform.SetParent(transform, false);
+            var scrollRt = scrollGo.GetComponent<RectTransform>();
+            scrollRt.anchorMin = Vector2.zero;
+            scrollRt.anchorMax = Vector2.one;
+            scrollRt.offsetMin = new Vector2(16, 76);
+            scrollRt.offsetMax = new Vector2(-16, -90);
+            var scrollImg = scrollGo.GetComponent<Image>();
+            scrollImg.color = new Color(0f, 0f, 0f, 0.01f);
+            scrollImg.raycastTarget = true;
+            MenuUiChrome.AddInsetPanelFrame(scrollRt);
+
+            // Viewport
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+            viewportGo.transform.SetParent(scrollGo.transform, false);
+            var vpRt = viewportGo.GetComponent<RectTransform>();
+            vpRt.anchorMin = Vector2.zero;
+            vpRt.anchorMax = Vector2.one;
+            vpRt.offsetMin = Vector2.zero;
+            vpRt.offsetMax = new Vector2(-12f, 0f); // Room for scrollbar
+            var vpImg = viewportGo.GetComponent<Image>();
+            vpImg.color = Color.clear;
+            vpImg.raycastTarget = false;
+
+            // Content (rows will be added here)
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewportGo.transform, false);
+            var contentRt = contentGo.GetComponent<RectTransform>();
+            contentRt.anchorMin = new Vector2(0f, 1f);
+            contentRt.anchorMax = new Vector2(1f, 1f);
+            contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.anchoredPosition = Vector2.zero;
+            contentRt.sizeDelta = new Vector2(0f, 0f);
+
+            // Scrollbar
+            var scrollbarGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            scrollbarGo.transform.SetParent(scrollGo.transform, false);
+            var sbRt = scrollbarGo.GetComponent<RectTransform>();
+            sbRt.anchorMin = new Vector2(1f, 0f);
+            sbRt.anchorMax = new Vector2(1f, 1f);
+            sbRt.pivot = new Vector2(1f, 0.5f);
+            sbRt.sizeDelta = new Vector2(8f, 0f);
+            sbRt.anchoredPosition = Vector2.zero;
+            var sbImg = scrollbarGo.GetComponent<Image>();
+            sbImg.color = new Color(0.15f, 0.2f, 0.18f, 0.5f);
+
+            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleGo.transform.SetParent(scrollbarGo.transform, false);
+            var handleRt = handleGo.GetComponent<RectTransform>();
+            handleRt.anchorMin = Vector2.zero;
+            handleRt.anchorMax = Vector2.one;
+            handleRt.offsetMin = new Vector2(1f, 1f);
+            handleRt.offsetMax = new Vector2(-1f, -1f);
+            var handleImg = handleGo.GetComponent<Image>();
+            handleImg.color = MenuVisualTheme.SliderFill;
+
+            var scrollbar = scrollbarGo.GetComponent<Scrollbar>();
+            scrollbar.handleRect = handleRt;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scrollbar.targetGraphic = handleImg;
+
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+            scroll.viewport = vpRt;
+            scroll.content = contentRt;
+            scroll.verticalScrollbar = scrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
+            _settingsScrollRect = scroll;
+            return contentRt;
         }
 
         void PositionBack()
@@ -248,12 +463,12 @@ namespace Breathe.UI
             float left = _content != null ? _content.offsetMin.x : 28f;
             float right = _content != null ? -_content.offsetMax.x : 28f;
             float contentW = Mathf.Max(120f, parentW - left - right);
-            float btnW = Mathf.Min(320f, Mathf.Max(200f, contentW * 0.42f));
+            float btnW = Mathf.Min(320f, Mathf.Max(180f, contentW * 0.38f));
 
             rt.anchorMin = new Vector2(0.5f, 0f);
             rt.anchorMax = new Vector2(0.5f, 0f);
             rt.pivot = new Vector2(0.5f, 0f);
-            rt.sizeDelta = new Vector2(btnW, 34f);
+            rt.sizeDelta = new Vector2(btnW, 36f);
             rt.anchoredPosition = new Vector2(0f, 6f);
             _backBtn.transform.SetAsLastSibling();
         }
@@ -270,10 +485,10 @@ namespace Breathe.UI
         //  using top-anchored rects. Children are anchor-positioned (see LblL/CtlL/PctL).
         // ================================================================
 
-        const float RowH = 26f;
-        const float HdrH = 22f;
-        const float DivH = 1f;
-        const float Gap  = 2f;
+        const float RowH = 30f;
+        const float HdrH = 24f;
+        const float DivH = 2f;
+        const float Gap  = 3f;
 
         RectTransform PlaceRow(float height)
         {
@@ -294,7 +509,7 @@ namespace Breathe.UI
             var row = PlaceRow(HdrH);
             var tmp = AddTMP(row, "Header", Vector2.zero, Vector2.one);
             tmp.text = $"--  {text}  --";
-            tmp.fontSize = 13;
+            tmp.fontSize = 15;
             tmp.fontStyle = FontStyles.Bold;
             tmp.color = ColHeader;
             tmp.alignment = TextAlignmentOptions.Center;
@@ -324,19 +539,19 @@ namespace Breathe.UI
             {
                 _inputModeLabel = AddCycleBtn(row,
                     BreathInputManager.InputModeSettingsLabel(InputMode.Simulated), CycleInputMode);
-                _inputModeLabel.fontSize = 12;
+                _inputModeLabel.fontSize = 14;
                 _inputModeLabel.enableAutoSizing = true;
-                _inputModeLabel.fontSizeMin = 9;
-                _inputModeLabel.fontSizeMax = 12;
+                _inputModeLabel.fontSizeMin = 10;
+                _inputModeLabel.fontSizeMax = 14;
             }
             else
             {
                 _inputModeLabel = AddTMP(row, "InputModeValue", new Vector2(CtlL, 0.08f), new Vector2(CtlR, 0.92f));
                 _inputModeLabel.text = BreathInputManager.InputModeSettingsLabel(InputMode.Simulated);
-                _inputModeLabel.fontSize = 12;
+                _inputModeLabel.fontSize = 14;
                 _inputModeLabel.enableAutoSizing = true;
-                _inputModeLabel.fontSizeMin = 9;
-                _inputModeLabel.fontSizeMax = 12;
+                _inputModeLabel.fontSizeMin = 10;
+                _inputModeLabel.fontSizeMax = 14;
                 _inputModeLabel.color = ColValue;
                 _inputModeLabel.alignment = TextAlignmentOptions.Center;
             }
@@ -348,10 +563,191 @@ namespace Breathe.UI
             var mgr = BreathInputManager.Instance;
             if (mgr == null) return;
             InputMode next = BreathInputManager.GetNextCycledInputMode(mgr.CurrentMode);
+
+            // Stop preview before switching TO Microphone mode so MicBreathInput can use the mic
+            if (next == InputMode.Microphone)
+                StopMicPreview();
+
             mgr.SetInputMode(next);
             _inputModeLabel.text = Cyc(BreathInputManager.InputModeSettingsLabel(next));
             PlayerPrefs.SetInt(BreathInputManager.PrefKeyInputMode, (int)next);
             PlayerPrefs.Save();
+
+            // Restart preview when switching AWAY from Microphone mode (preview coexists with Simulated/Fan)
+            if (next != InputMode.Microphone)
+                StartMicPreview();
+        }
+
+        // ----- Microphone Device -----
+
+        void BuildMicDeviceRow()
+        {
+            RefreshAvailableMics();
+
+            var row = PlaceRow(RowH);
+            AddLabel(row, "Microphone");
+            _micDeviceLabel = AddCycleBtn(row, GetMicDisplayText(), CycleMicDevice);
+            // Auto-size shrinks long device names to fit standard bar width
+            _micDeviceLabel.enableAutoSizing = true;
+            _micDeviceLabel.fontSizeMin = 8;
+            _micDeviceLabel.fontSizeMax = 14;
+
+            var statusRow = PlaceRow(RowH);
+            var micStatusLabelTmp = AddTMP(statusRow, "MicStatusLabel", new Vector2(LblL, 0), new Vector2(LblR, 1));
+            micStatusLabelTmp.text = "Status";
+            micStatusLabelTmp.fontSize = 12;
+            micStatusLabelTmp.fontStyle = FontStyles.Italic;
+            micStatusLabelTmp.color = ColLabel;
+            micStatusLabelTmp.alignment = TextAlignmentOptions.MidlineRight;
+
+            _micStatusLabel = AddTMP(statusRow, "MicStatusValue", new Vector2(CtlL, 0), new Vector2(PctR, 1));
+            _micStatusLabel.fontSize = 11;
+            _micStatusLabel.enableAutoSizing = true;
+            _micStatusLabel.fontSizeMin = 10;
+            _micStatusLabel.fontSizeMax = 13;
+            _micStatusLabel.color = ColLabel;
+            _micStatusLabel.alignment = TextAlignmentOptions.MidlineLeft;
+            RefreshMicStatus();
+
+            // Mic level bar (real-time input visualization)
+            var levelRow = PlaceRow(RowH * 0.7f);
+            var levelLabelTmp = AddTMP(levelRow, "MicLevelLabel", new Vector2(LblL, 0), new Vector2(LblR, 1));
+            levelLabelTmp.text = "Level";
+            levelLabelTmp.fontSize = 11;
+            levelLabelTmp.fontStyle = FontStyles.Italic;
+            levelLabelTmp.color = ColLabel;
+            levelLabelTmp.alignment = TextAlignmentOptions.MidlineRight;
+
+            var levelBorderGo = new GameObject("MicLevelBorder", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            levelBorderGo.transform.SetParent(levelRow, false);
+            Anchor(levelBorderGo, new Vector2(CtlL, 0.22f), new Vector2(CtlR, 0.78f));
+            levelBorderGo.GetComponent<Image>().color = ColBorder;
+            levelBorderGo.GetComponent<Image>().raycastTarget = false;
+
+            var levelTrackGo = new GameObject("MicLevelTrack", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            levelTrackGo.transform.SetParent(levelBorderGo.transform, false);
+            var trackRt = levelTrackGo.GetComponent<RectTransform>();
+            trackRt.anchorMin = Vector2.zero;
+            trackRt.anchorMax = Vector2.one;
+            trackRt.offsetMin = new Vector2(2f, 2f);
+            trackRt.offsetMax = new Vector2(-2f, -2f);
+            levelTrackGo.GetComponent<Image>().color = ColSliderBg;
+            levelTrackGo.GetComponent<Image>().raycastTarget = false;
+
+            var levelFillGo = new GameObject("MicLevelFill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            levelFillGo.transform.SetParent(levelTrackGo.transform, false);
+            var fillRt = levelFillGo.GetComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = new Vector2(0f, 1f);
+            fillRt.pivot = new Vector2(0f, 0.5f);
+            fillRt.offsetMin = Vector2.zero;
+            fillRt.offsetMax = Vector2.zero;
+            _micLevelFill = levelFillGo.GetComponent<Image>();
+            _micLevelFill.color = ColSliderFill;
+            _micLevelFill.raycastTarget = false;
+        }
+
+        void RefreshAvailableMics()
+        {
+            _availableMics = MicBreathInput.GetAvailableDevices(forceRefresh: true);
+            string savedDevice = MicBreathInput.GetSavedDevice();
+            if (!string.IsNullOrEmpty(savedDevice))
+            {
+                _micIdx = Array.FindIndex(_availableMics,
+                    d => string.Equals(d, savedDevice, StringComparison.OrdinalIgnoreCase));
+                if (_micIdx < 0) _micIdx = 0;
+            }
+            else
+            {
+                _micIdx = 0;
+            }
+        }
+
+        string GetMicDisplayText()
+        {
+            if (_availableMics.Length == 0)
+                return "No mic found";
+            if (_micIdx >= 0 && _micIdx < _availableMics.Length)
+                return _availableMics[_micIdx];
+            return "Default";
+        }
+
+        void CycleMicDevice()
+        {
+            RefreshAvailableMics();
+            if (_availableMics.Length == 0) return;
+
+            _micIdx = (_micIdx + 1) % _availableMics.Length;
+            string selected = _availableMics[_micIdx];
+            MicBreathInput.SetSavedDevice(selected);
+            _micDeviceLabel.text = Cyc(GetMicDisplayText());
+
+            var mgr = BreathInputManager.Instance;
+            if (mgr != null && mgr.CurrentMode == InputMode.Microphone)
+            {
+                // In Microphone mode: reinitialize MicBreathInput with new device (no preview)
+                var micInput = mgr.ActiveInput as MicBreathInput;
+                micInput?.Reinitialize();
+            }
+            else
+            {
+                // Not in Microphone mode: restart preview with new device
+                RestartMicPreview();
+            }
+
+            RefreshMicStatus();
+        }
+
+        void RefreshMicStatus()
+        {
+            if (_micStatusLabel == null) return;
+
+            var mgr = BreathInputManager.Instance;
+            bool inMicMode = mgr != null && mgr.CurrentMode == InputMode.Microphone;
+
+            // Check if preview is active (only when NOT in Microphone mode)
+            bool previewActive = false;
+#if !UNITY_WEBGL || UNITY_EDITOR
+            if (!inMicMode)
+                previewActive = _previewMicClip != null && Microphone.IsRecording(_previewMicDevice);
+#endif
+
+            string msg;
+            Color statusColor;
+
+            if (inMicMode)
+            {
+                // In Microphone mode: show MicBreathInput status
+                var status = MicBreathInput.ConnectionStatus;
+                msg = status == MicConnectionStatus.Connected ? "Listening (Active)" : MicBreathInput.StatusMessage;
+                statusColor = status switch
+                {
+                    MicConnectionStatus.Connected => new Color(0.4f, 0.9f, 0.4f),
+                    MicConnectionStatus.Connecting or MicConnectionStatus.PermissionPending => ColLabel,
+                    MicConnectionStatus.Failed or MicConnectionStatus.PermissionDenied => new Color(0.9f, 0.5f, 0.4f),
+                    _ => ColLabel
+                };
+            }
+            else if (previewActive)
+            {
+                msg = "Preview  Active";
+                statusColor = new Color(0.4f, 0.8f, 0.4f);
+            }
+            else
+            {
+                var status = MicBreathInput.ConnectionStatus;
+                msg = MicBreathInput.StatusMessage;
+                statusColor = status switch
+                {
+                    MicConnectionStatus.Connected => new Color(0.4f, 0.8f, 0.4f),
+                    MicConnectionStatus.Connecting or MicConnectionStatus.PermissionPending => ColLabel,
+                    MicConnectionStatus.Failed or MicConnectionStatus.PermissionDenied => new Color(0.9f, 0.5f, 0.4f),
+                    _ => ColLabel
+                };
+            }
+
+            _micStatusLabel.text = msg;
+            _micStatusLabel.color = statusColor;
         }
 
         // ----- COM Port (Fan Hardware) -----
@@ -363,24 +759,24 @@ namespace Breathe.UI
             var row = PlaceRow(RowH);
             AddLabel(row, "COM Port");
             _comPortLabel = AddCycleBtn(row, GetComPortDisplayText(), CycleComPort);
-            _comPortLabel.fontSize = 11;
+            _comPortLabel.fontSize = 13;
             _comPortLabel.enableAutoSizing = true;
-            _comPortLabel.fontSizeMin = 8;
-            _comPortLabel.fontSizeMax = 11;
+            _comPortLabel.fontSizeMin = 11;
+            _comPortLabel.fontSizeMax = 14;
 
             var statusRow = PlaceRow(RowH);
             var statusLabelTmp = AddTMP(statusRow, "ComStatusLabel", new Vector2(LblL, 0), new Vector2(LblR, 1));
             statusLabelTmp.text = "Status";
-            statusLabelTmp.fontSize = 11;
+            statusLabelTmp.fontSize = 12;
             statusLabelTmp.fontStyle = FontStyles.Italic;
             statusLabelTmp.color = ColLabel;
             statusLabelTmp.alignment = TextAlignmentOptions.MidlineRight;
 
             _comPortStatusLabel = AddTMP(statusRow, "ComStatusValue", new Vector2(CtlL, 0), new Vector2(PctR, 1));
-            _comPortStatusLabel.fontSize = 10;
+            _comPortStatusLabel.fontSize = 11;
             _comPortStatusLabel.enableAutoSizing = true;
-            _comPortStatusLabel.fontSizeMin = 8;
-            _comPortStatusLabel.fontSizeMax = 10;
+            _comPortStatusLabel.fontSizeMin = 10;
+            _comPortStatusLabel.fontSizeMax = 13;
             _comPortStatusLabel.color = ColLabel;
             _comPortStatusLabel.alignment = TextAlignmentOptions.MidlineLeft;
             RefreshComPortStatus();
@@ -542,7 +938,7 @@ namespace Breathe.UI
             AddLabel(row, "Size");
             _resLabel = AddTMP(row, "WebResInfo", new Vector2(CtlL, 0), new Vector2(CtlR, 1));
             _resLabel.text = WebResSummaryText();
-            _resLabel.fontSize = 11;
+            _resLabel.fontSize = 12;
             _resLabel.fontStyle = FontStyles.Italic;
             _resLabel.color = ColLabel;
             _resLabel.alignment = TextAlignmentOptions.Center;
@@ -586,7 +982,7 @@ namespace Breathe.UI
             var tmp = AddTMP(btnGo.GetComponent<RectTransform>(), "Label",
                 Vector2.zero, Vector2.one);
             tmp.text = "HOW  TO  PLAY";
-            tmp.fontSize = 12;
+            tmp.fontSize = 13;
             tmp.color = ColValue;
             tmp.alignment = TextAlignmentOptions.Center;
             DisableTmpKerning(tmp);
@@ -601,7 +997,18 @@ namespace Breathe.UI
             _howToPlayOverlay = new GameObject("HowToPlayPanel",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             _howToPlayOverlay.transform.SetParent(transform, false);
-            Anchor(_howToPlayOverlay, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.98f));
+            var panelRt = transform as RectTransform;
+            Canvas.ForceUpdateCanvases();
+            float parentH = panelRt != null ? panelRt.rect.height : 0f;
+            RectTransform canvasRootRt = panelRt?.root as RectTransform;
+            float canvasH = canvasRootRt != null ? canvasRootRt.rect.height : Screen.height;
+            float canvasW = canvasRootRt != null ? canvasRootRt.rect.width : Screen.width;
+            // Pause settings sit in an inset container (narrower/shorter vs full-screen submenu) → use tighter HTP chrome.
+            bool compactHtP = parentH > 2f &&
+                ((canvasH > 2f && parentH / canvasH < 0.89f) ||
+                 (canvasW > 2f && panelRt.rect.width / canvasW < 0.93f));
+            float edge = compactHtP ? 0.01f : 0.024f;
+            Anchor(_howToPlayOverlay, new Vector2(edge, edge), new Vector2(1f - edge, 1f - edge));
             var outerImg = _howToPlayOverlay.GetComponent<Image>();
             outerImg.color = ColBorder;
             outerImg.raycastTarget = true;
@@ -619,10 +1026,11 @@ namespace Breathe.UI
             innerImg.raycastTarget = false;
             innerGo.transform.SetAsFirstSibling();
 
+            float titleBottom = compactHtP ? 0.84f : 0.865f;
             var titleTmp = AddTMP(innerRT,
-                "HTP_Title", new Vector2(0, 0.86f), new Vector2(1, 0.98f));
+                "HTP_Title", new Vector2(0, titleBottom), new Vector2(1, compactHtP ? 0.955f : 0.982f));
             titleTmp.text = "HOW TO PLAY";
-            titleTmp.fontSize = 32;
+            titleTmp.fontSize = compactHtP ? 22f : 30f;
             titleTmp.fontStyle = FontStyles.Bold;
             titleTmp.color = ColHeader;
             titleTmp.alignment = TextAlignmentOptions.Center;
@@ -630,30 +1038,47 @@ namespace Breathe.UI
             titleTmp.characterSpacing = HtpCharacterSpacing * 0.55f;
             titleTmp.wordSpacing = HtpWordSpacing;
 
-            // Body: centered copy, bottom kept well above Close; RectMask2D clips TMP.
-            var bodyGo = new GameObject("HTP_Body", typeof(RectTransform));
-            bodyGo.transform.SetParent(innerGo.transform, false);
-            var bodyRT = bodyGo.GetComponent<RectTransform>();
-            bodyRT.anchorMin = new Vector2(0, 0.13f);
-            bodyRT.anchorMax = new Vector2(1, 0.88f);
-            bodyRT.offsetMin = new Vector2(32, 0);
-            bodyRT.offsetMax = new Vector2(-32, 0);
-            bodyGo.AddComponent<RectMask2D>();
+            // Scrollable body area
+            int bodyPadPx = compactHtP ? 16 : 32;
+            var scrollGo = new GameObject("HTP_Scroll", typeof(RectTransform), typeof(ScrollRect), typeof(Image));
+            scrollGo.transform.SetParent(innerGo.transform, false);
+            var scrollRT = scrollGo.GetComponent<RectTransform>();
+            scrollRT.anchorMin = new Vector2(0f, compactHtP ? 0.09f : 0.115f);
+            scrollRT.anchorMax = new Vector2(1f, compactHtP ? 0.905f : 0.88f);
+            scrollRT.offsetMin = new Vector2(bodyPadPx, 0);
+            scrollRT.offsetMax = new Vector2(-bodyPadPx, 0);
+            var scrollImg = scrollGo.GetComponent<Image>();
+            scrollImg.color = new Color(0f, 0f, 0f, 0.01f);
+            scrollImg.raycastTarget = true;
 
-            var bodyTextGo = new GameObject("HTP_BodyText", typeof(RectTransform));
-            bodyTextGo.transform.SetParent(bodyGo.transform, false);
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+            viewportGo.transform.SetParent(scrollGo.transform, false);
+            var vpRt = viewportGo.GetComponent<RectTransform>();
+            vpRt.anchorMin = Vector2.zero;
+            vpRt.anchorMax = Vector2.one;
+            vpRt.offsetMin = Vector2.zero;
+            vpRt.offsetMax = new Vector2(-10f, 0f);
+            var vpImg = viewportGo.GetComponent<Image>();
+            vpImg.color = Color.clear;
+            vpImg.raycastTarget = false;
+
+            var bodyTextGo = new GameObject("HTP_BodyText", typeof(RectTransform), typeof(ContentSizeFitter));
+            bodyTextGo.transform.SetParent(viewportGo.transform, false);
             var bodyTextRt = bodyTextGo.GetComponent<RectTransform>();
-            bodyTextRt.anchorMin = Vector2.zero;
-            bodyTextRt.anchorMax = Vector2.one;
-            bodyTextRt.offsetMin = Vector2.zero;
-            bodyTextRt.offsetMax = Vector2.zero;
+            bodyTextRt.anchorMin = new Vector2(0f, 1f);
+            bodyTextRt.anchorMax = new Vector2(1f, 1f);
+            bodyTextRt.pivot = new Vector2(0.5f, 1f);
+            bodyTextRt.sizeDelta = Vector2.zero;
+            var bodyCsf = bodyTextGo.GetComponent<ContentSizeFitter>();
+            bodyCsf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            bodyCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             var bodyTmp = bodyTextGo.AddComponent<TextMeshProUGUI>();
             bodyTmp.text = GameFont.SanitizeForPixelFont(ExpandHowToPlayWordSpacing(HowToPlayTextRaw()));
             bodyTmp.richText = true;
-            bodyTmp.fontSize = 15;
+            bodyTmp.fontSize = compactHtP ? 18f : 22f;
             bodyTmp.color = ColLabel;
-            bodyTmp.alignment = TextAlignmentOptions.Center;
+            bodyTmp.alignment = TextAlignmentOptions.Top;
             bodyTmp.textWrappingMode = TextWrappingModes.Normal;
             bodyTmp.overflowMode = TextOverflowModes.Overflow;
             bodyTmp.raycastTarget = false;
@@ -662,16 +1087,58 @@ namespace Breathe.UI
             bodyTmp.wordSpacing = HtpWordSpacing;
             bodyTmp.lineSpacing = HtpLineSpacing;
 
+            // Scrollbar
+            var scrollbarGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            scrollbarGo.transform.SetParent(scrollGo.transform, false);
+            var sbRt = scrollbarGo.GetComponent<RectTransform>();
+            sbRt.anchorMin = new Vector2(1f, 0f);
+            sbRt.anchorMax = new Vector2(1f, 1f);
+            sbRt.pivot = new Vector2(1f, 0.5f);
+            sbRt.sizeDelta = new Vector2(8f, 0f);
+            sbRt.anchoredPosition = Vector2.zero;
+            var sbImg = scrollbarGo.GetComponent<Image>();
+            sbImg.color = new Color(0.15f, 0.2f, 0.18f, 0.5f);
+
+            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleGo.transform.SetParent(scrollbarGo.transform, false);
+            var handleRt = handleGo.GetComponent<RectTransform>();
+            handleRt.anchorMin = Vector2.zero;
+            handleRt.anchorMax = Vector2.one;
+            handleRt.offsetMin = new Vector2(1f, 1f);
+            handleRt.offsetMax = new Vector2(-1f, -1f);
+            var handleImg = handleGo.GetComponent<Image>();
+            handleImg.color = MenuVisualTheme.SliderFill;
+
+            var scrollbar = scrollbarGo.GetComponent<Scrollbar>();
+            scrollbar.handleRect = handleRt;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scrollbar.targetGraphic = handleImg;
+
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+            scroll.viewport = vpRt;
+            scroll.content = bodyTextRt;
+            scroll.verticalScrollbar = scrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
             var closeGo = new GameObject("BTN_Close",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
             closeGo.transform.SetParent(innerGo.transform, false);
-            Anchor(closeGo, new Vector2(0.32f, 0.03f), new Vector2(0.68f, 0.11f));
+            Anchor(closeGo, compactHtP
+                ? new Vector2(0.14f, 0.026f)
+                : new Vector2(0.32f, 0.03f),
+                compactHtP
+                    ? new Vector2(0.86f, 0.10f)
+                    : new Vector2(0.68f, 0.11f));
             MenuUiChrome.StyleButtonLikeSettings(closeGo);
             closeGo.GetComponent<Button>().onClick.AddListener(HideHTP);
             var closeTmp = AddTMP(closeGo.GetComponent<RectTransform>(), "Label",
                 Vector2.zero, Vector2.one);
             closeTmp.text = "CLOSE";
-            closeTmp.fontSize = 17;
+            closeTmp.fontSize = 15;
             closeTmp.color = ColValue;
             closeTmp.alignment = TextAlignmentOptions.Center;
             DisableTmpKerning(closeTmp);
@@ -681,19 +1148,30 @@ namespace Breathe.UI
             _howToPlayOverlay.SetActive(false);
         }
 
-        /// <summary>Plain + rich tags; <see cref="ExpandHowToPlayWordSpacing"/> doubles gaps between words outside tags.</summary>
-        static string HowToPlayTextRaw() =>
-@"<b>BREATHE</b> is a breath-controlled minigame arcade: easygoing play, not a test.
+        /// <summary>
+        /// Shared How To Play text — same content as MainMenuController.GetHowToPlayText().
+        /// Edit here to update both panels.
+        /// </summary>
+        public static string HowToPlayTextRaw() =>
+@"BREATHE  is  a  collection  of  cozy  minigames  powered  by  your  breath.
 
+<size=140%><b>INPUT  MODES</b></size>
 
-<size=150%><b>INPUT</b></size>
-Fan, microphone, or <b>Space</b> for simulated breath. Choose the mode in Settings.
+•  <b>SIMULATED</b>  —  Hold  SPACEBAR  to  simulate  breathing.  Great  for  testing  and  Browser mode.
 
+•  <b>MICROPHONE</b>  —  Blow  gently  into  your  mic.  The  game  detects  your  breath  intensity. Config in Settings.
 
-<size=150%><b>PLAY</b></size>
-Open  <b>Level Select</b> and pick a game. Steady exhales and short puffs do different things in each one.
+•  <b>FAN  HARDWARE</b>  —  Connect  the  custom  breath  sensing hardware  via  USB-C  for  the  most  accurate  experience.
 
-Mouse in menus. Breath in games. Pause or rest whenever you like.";
+<size=140%><b>TIPS</b></size>
+
+•  BREATHE  SLOWLY  AND  STEADILY  FOR  BEST  RESULTS
+•  START  WITH  GENTLE  BREATHS,  THEN  BUILD  INTENSITY
+•  TAKE BREAKS BETWEEN SESSIONS/MINIGAMES 
+•  ADJUST  INPUT  MODE  IN  SETTINGS  OR  PAUSE  MENU
+
+<size=140%><b>TO  CHANGE  INPUT  MODE</b></size>
+OPEN  SETTINGS  AND  CYCLE  THE  INPUT  MODE  OPTION,  OR  USE  THE  PAUSE  MENU  DURING  GAMEPLAY.";
 
         /// <summary>Doubles single spaces between word characters so TMP reads clearly with this font (tags preserved).</summary>
         static string ExpandHowToPlayWordSpacing(string source)
@@ -745,6 +1223,12 @@ Mouse in menus. Breath in games. Pause or rest whenever you like.";
                 string text = BreathInputManager.InputModeSettingsLabel(m);
                 _inputModeLabel.text = BreathInputManager.InputModeCyclingSupported ? Cyc(text) : text;
             }
+            if (_micDeviceLabel != null)
+            {
+                RefreshAvailableMics();
+                _micDeviceLabel.text = Cyc(GetMicDisplayText());
+                RefreshMicStatus();
+            }
             if (_comPortLabel != null)
             {
                 RefreshAvailableComPorts();
@@ -778,21 +1262,20 @@ Mouse in menus. Breath in games. Pause or rest whenever you like.";
 
         // ================================================================
         //  Row-level widget factories (anchor-based, no HLG)
-        //  Symmetric row layout (8% margin each side) so Settings content looks centered.
-        //  Label:   0.08 – 0.22 (14% width, right-aligned)
-        //  Control: 0.24 – 0.72 (48% width, slider/cycle btn)
-        //  Pct:     0.74 – 0.92 (18% width, left-aligned number by slider end)
+        //  Optical centering: sliders + cycle buttons shifted slightly left (~2%) so body
+        //  lines up with BACK (pct column is airy; overly wide lanes read “right-heavy”).
+        //  Label:   0.06 – 0.20 right-aligned · Control · Pct · ~8% margins each edge
         // ================================================================
 
-        const float LblL = 0.08f, LblR = 0.22f;
-        const float CtlL = 0.24f, CtlR = 0.72f;
-        const float PctL = 0.74f, PctR = 0.92f;
+        const float LblL = 0.04f, LblR = 0.23f;
+        const float CtlL = 0.25f, CtlR = 0.75f;
+        const float PctL = 0.77f, PctR = 0.96f;
 
         static void AddLabel(RectTransform row, string text)
         {
             var tmp = AddTMP(row, "Label", new Vector2(LblL, 0), new Vector2(LblR, 1));
             tmp.text = text;
-            tmp.fontSize = 13;
+            tmp.fontSize = 15;
             tmp.fontStyle = FontStyles.Bold;
             tmp.color = ColValue;
             tmp.alignment = TextAlignmentOptions.MidlineRight;
@@ -812,7 +1295,7 @@ Mouse in menus. Breath in games. Pause or rest whenever you like.";
             var tmp = AddTMP(go.GetComponent<RectTransform>(), "Value",
                 Vector2.zero, Vector2.one);
             tmp.text = Cyc(initial);
-            tmp.fontSize = 13;
+            tmp.fontSize = 14;
             tmp.color = ColValue;
             tmp.alignment = TextAlignmentOptions.Center;
 
@@ -869,7 +1352,7 @@ Mouse in menus. Breath in games. Pause or rest whenever you like.";
 
             var pct = AddTMP(row, "Pct", new Vector2(PctL, 0), new Vector2(PctR, 1));
             pct.text = sliderMax > 1f + 1e-4f ? MasterVolume.FormatPercent(slider.value) : Pct(slider.value);
-            pct.fontSize = 13;
+            pct.fontSize = 14;
             pct.color = ColValue;
             pct.alignment = TextAlignmentOptions.MidlineLeft;
 
@@ -881,9 +1364,9 @@ Mouse in menus. Breath in games. Pause or rest whenever you like.";
         {
             var frameGo = new GameObject("ToggleFrame", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             frameGo.transform.SetParent(row, false);
-            Anchor(frameGo, new Vector2(CtlL, 0.15f), new Vector2(CtlL, 0.85f));
+            Anchor(frameGo, new Vector2(CtlL, 0.12f), new Vector2(CtlL, 0.88f));
             var frameRT = frameGo.GetComponent<RectTransform>();
-            frameRT.sizeDelta = new Vector2(24, 0);
+            frameRT.sizeDelta = new Vector2(28, 0);
             frameGo.GetComponent<Image>().color = ColBorder;
             frameGo.GetComponent<Image>().raycastTarget = false;
 
@@ -901,7 +1384,7 @@ Mouse in menus. Breath in games. Pause or rest whenever you like.";
             var lbl = AddTMP(row, "ToggleLabel",
                 new Vector2(CtlL + 0.04f, 0), new Vector2(CtlR, 1));
             lbl.text = initial ? "On" : "Off";
-            lbl.fontSize = 13;
+            lbl.fontSize = 14;
             lbl.color = ColValue;
             lbl.alignment = TextAlignmentOptions.MidlineLeft;
 

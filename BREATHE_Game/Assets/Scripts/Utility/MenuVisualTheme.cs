@@ -28,8 +28,8 @@ namespace Breathe.Utility
         /// <summary>Level select outer sheet — near-solid teal so bath art doesn’t bleed through.</summary>
         public static readonly Color LevelSelectPanelBackdrop = new(0.086f, 0.148f, 0.136f, 0.982f);
 
-        /// <summary>Credits full-height panel (same tonal family; near-solid readability over menu bath).</summary>
-        public static readonly Color CreditsSubPanelTint = new(0.078f, 0.134f, 0.118f, 0.994f);
+        /// <summary>Credits full-height panel (same tonal family; slightly more opaque vs bath bleed-through).</summary>
+        public static readonly Color CreditsSubPanelTint = new(0.075f, 0.129f, 0.114f, 1f);
 
         // --- Home screen (TMP in scene); nav rows use SETTINGS-style bordered buttons ---
         public static readonly Color HomeTitle = new(1f, 0.94f, 0.84f, 1f);
@@ -37,10 +37,10 @@ namespace Breathe.Utility
         public static readonly Color HomeTitleSubtitle = new(0.92f, 0.88f, 0.80f, 1f);
         /// <remarks>Prefer <see cref="ChromeHeader"/> for nav/button labels matching settings.</remarks>
         public static readonly Color HomeNavLabel = new(0.97f, 0.92f, 0.85f, 1f);
-        /// <summary>Plate behind wordmark — dark sea-green; slight alpha lets bath/video read through edges (near-solid).</summary>
-        public static readonly Color HomeTitleTextBackdrop = new(0.15f, 0.34f, 0.29f, 0.95f);
-        /// <summary>Plate behind the nav column — same family, slightly denser teal for separation from title band.</summary>
-        public static readonly Color HomeNavStackBackdrop = new(0.13f, 0.31f, 0.26f, 0.93f);
+        /// <summary>Plate behind wordmark — rich sea-green, fully opaque for clean readability over video.</summary>
+        public static readonly Color HomeTitleTextBackdrop = new(0.08f, 0.22f, 0.18f, 1f);
+        /// <summary>Plate behind the nav column — deep sea-green, fully opaque for separation from title band.</summary>
+        public static readonly Color HomeNavStackBackdrop = new(0.065f, 0.19f, 0.155f, 1f);
         /// <summary>Home main-menu nav button fill inside cream outline — black vs green plates.</summary>
         public static readonly Color HomeNavButtonIdleFill = new(0.03f, 0.032f, 0.036f, 1f);
 

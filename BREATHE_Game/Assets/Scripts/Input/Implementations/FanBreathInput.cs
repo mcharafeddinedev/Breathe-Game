@@ -139,6 +139,7 @@ namespace Breathe.Input
         #endregion
 
         public float GetBreathIntensity() => _smoothedIntensity;
+        public bool IsActive => _active;
 
         public int GetBreathLevel()
         {

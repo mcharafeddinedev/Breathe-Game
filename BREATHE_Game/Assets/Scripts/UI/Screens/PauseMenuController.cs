@@ -245,21 +245,11 @@ namespace Breathe.UI
             btnRT.anchoredPosition = new Vector2(0f, yPos);
             btnRT.sizeDelta = new Vector2(_buttonWidth, _buttonHeight);
 
-            var btnImg = btnGo.GetComponent<Image>();
-            btnImg.color = MenuVisualTheme.ButtonBase;
-            btnImg.raycastTarget = true;
-
             var btn = btnGo.GetComponent<Button>();
-            btn.transition = Selectable.Transition.ColorTint;
-            btn.targetGraphic = btnImg;
-            var colors = btn.colors;
-            colors.normalColor = MenuVisualTheme.ButtonBase;
-            colors.highlightedColor = MenuVisualTheme.ButtonHighlight;
-            colors.pressedColor = MenuVisualTheme.ButtonHighlight * 0.9f;
-            colors.selectedColor = MenuVisualTheme.ButtonHighlight;
-            colors.fadeDuration = 0.1f;
-            btn.colors = colors;
             btn.onClick.AddListener(() => onClick?.Invoke());
+
+            // Cream rim + dark fill — same bordered face as Main Menu nav (LEVEL SELECT, etc.).
+            MenuUiChrome.StyleButtonLikeSettings(btnGo, MenuVisualTheme.HomeNavButtonIdleFill);
 
             var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
             textGo.transform.SetParent(btnGo.transform, false);
@@ -274,8 +264,8 @@ namespace Breathe.UI
             textTmp.font = Resources.Load<TMP_FontAsset>("ARCADECLASSIC SDF");
             textTmp.fontSize = 22f;
             textTmp.alignment = TextAlignmentOptions.Center;
-            textTmp.color = MenuVisualTheme.HomeTitle;
-            textTmp.raycastTarget = false; // Let clicks pass through to button
+            textTmp.color = MenuVisualTheme.ChromeHeader;
+            textTmp.raycastTarget = false;
 
             MenuUiChrome.AttachStandardButtonHover(btnGo, btn.interactable);
         }
@@ -325,9 +315,9 @@ namespace Breathe.UI
             var containerGo = new GameObject("SettingsContainer", typeof(RectTransform), typeof(Image));
             containerGo.transform.SetParent(_settingsPanel.transform, false);
             var containerRT = containerGo.GetComponent<RectTransform>();
-            // Wider/taller than legacy 70×80% so rows (esp. audio %) aren’t cramped vs main menu.
-            containerRT.anchorMin = new Vector2(0.08f, 0.05f);
-            containerRT.anchorMax = new Vector2(0.92f, 0.95f);
+            // Match main-menu-ish safe framing; wide enough so Settings lanes + How-to-Play read centered vs BACK.
+            containerRT.anchorMin = new Vector2(0.042f, 0.036f);
+            containerRT.anchorMax = new Vector2(0.958f, 0.964f);
             containerRT.offsetMin = Vector2.zero;
             containerRT.offsetMax = Vector2.zero;
 
@@ -377,6 +367,9 @@ namespace Breathe.UI
             Time.timeScale = 1f;
             _isPaused = false;
             _settingsOpen = false;
+
+            // Stop gameplay ambience loop before leaving minigame
+            Breathe.Audio.SfxPlayer.Instance?.StopAmbienceLoop();
 
             // Hide and destroy pause UI before scene load
             HidePausePanel();

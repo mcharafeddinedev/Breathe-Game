@@ -258,7 +258,7 @@ namespace Breathe.Gameplay
         }
 
         const int MaxPrimaryStatsDisplay = 9;
-        const int MaxSecondaryStatsDisplay = 6;
+        const int MaxSecondaryStatsDisplay = 15;
 
         static float ResultUiScale()
         {

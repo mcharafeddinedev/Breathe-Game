@@ -14,7 +14,7 @@ namespace Breathe.Gameplay
         [SerializeField] private int _cloudGroupCount = 12;
 
         private const float BaseCloudMoveSpeed = 1.7f;
-        private const float BaseCloudReturnSpeed = 1.4f;
+        private const float BaseCloudReturnSpeed = 0.8f;
         private const float BaseBreathThreshold = 0.10f;
 
         private float _cloudMoveSpeed;

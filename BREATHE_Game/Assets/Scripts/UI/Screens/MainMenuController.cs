@@ -141,17 +141,20 @@ namespace Breathe.UI
 
         [Header("Navigation Buttons")]
         [SerializeField] private Button _levelSelectButton;
+        [SerializeField] private Button _howToPlayButton;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _creditsButton;
         [SerializeField] private Button _quitButton;
 
         [Header("Panels")]
         [SerializeField] private GameObject _levelSelectPanel;
+        [SerializeField] private GameObject _howToPlayPanel;
         [SerializeField] private GameObject _settingsPanel;
         [SerializeField] private GameObject _creditsPanel;
 
         [Header("Back Buttons (one per panel)")]
         [SerializeField] private Button _levelSelectBackButton;
+        [SerializeField] private Button _howToPlayBackButton;
         [SerializeField] private Button _settingsBackButton;
         [SerializeField] private Button _creditsBackButton;
 
@@ -271,12 +274,17 @@ namespace Breathe.UI
             if (_titleSubtitle != null)
                 MenuTextLegibility.TryApplyOverlayOutlineToTmp(_titleSubtitle, largeTitle: false);
 
+            // Create How To Play button/panel dynamically if not assigned
+            EnsureHowToPlayButtonAndPanel();
+
             _levelSelectButton?.onClick.AddListener(() => ShowPanel(_levelSelectPanel));
+            _howToPlayButton?.onClick.AddListener(() => ShowPanel(_howToPlayPanel));
             _settingsButton?.onClick.AddListener(() => ShowPanel(_settingsPanel));
             _creditsButton?.onClick.AddListener(() => ShowPanel(_creditsPanel));
             _quitButton?.onClick.AddListener(OnQuit);
 
             _levelSelectBackButton?.onClick.AddListener(HideActivePanel);
+            _howToPlayBackButton?.onClick.AddListener(HideActivePanel);
             _settingsBackButton?.onClick.AddListener(HideActivePanel);
             _creditsBackButton?.onClick.AddListener(HideActivePanel);
 
@@ -325,11 +333,13 @@ namespace Breathe.UI
         private void OnDestroy()
         {
             _levelSelectButton?.onClick.RemoveAllListeners();
+            _howToPlayButton?.onClick.RemoveAllListeners();
             _settingsButton?.onClick.RemoveAllListeners();
             _creditsButton?.onClick.RemoveAllListeners();
             _quitButton?.onClick.RemoveAllListeners();
 
             _levelSelectBackButton?.onClick.RemoveAllListeners();
+            _howToPlayBackButton?.onClick.RemoveAllListeners();
             _settingsBackButton?.onClick.RemoveAllListeners();
             _creditsBackButton?.onClick.RemoveAllListeners();
         }
@@ -341,8 +351,8 @@ namespace Breathe.UI
         private void AttachHoverEffects()
         {
             Button[] buttons = {
-                _levelSelectButton, _settingsButton, _creditsButton, _quitButton,
-                _levelSelectBackButton, _settingsBackButton, _creditsBackButton
+                _levelSelectButton, _howToPlayButton, _settingsButton, _creditsButton, _quitButton,
+                _levelSelectBackButton, _howToPlayBackButton, _settingsBackButton, _creditsBackButton
             };
 
             foreach (var btn in buttons)
@@ -386,6 +396,7 @@ namespace Breathe.UI
         {
             ApplyMainMenuCanvasBackdrop();
             TryTintPanelRoot(_levelSelectPanel, MenuVisualTheme.LevelSelectPanelBackdrop);
+            TryTintPanelRoot(_howToPlayPanel, MenuVisualTheme.SubmenuPanelBackdrop);
             TryTintPanelRoot(_settingsPanel, MenuVisualTheme.SubmenuPanelBackdrop);
             TryTintPanelRoot(_creditsPanel, MenuVisualTheme.CreditsSubPanelTint);
             // Keeps runtime-placed Home* backdrop Images aligned with theme (canvas batch/sync can drift to stale/black).
@@ -396,6 +407,7 @@ namespace Breathe.UI
         void ApplySafeAreaMargins()
         {
             ApplySafeMarginToPanel(_levelSelectPanel);
+            ApplySafeMarginToPanel(_howToPlayPanel);
             ApplySafeMarginToPanel(_settingsPanel);
             ApplySafeMarginToPanel(_creditsPanel);
         }
@@ -488,11 +500,13 @@ namespace Breathe.UI
             }
 
             HomeMainNavFace(_levelSelectButton);
+            HomeMainNavFace(_howToPlayButton);
             HomeMainNavFace(_settingsButton);
             HomeMainNavFace(_creditsButton);
             HomeMainNavFace(_quitButton);
 
             NavLabel(_levelSelectButton);
+            NavLabel(_howToPlayButton);
             NavLabel(_settingsButton);
             NavLabel(_creditsButton);
             NavLabel(_quitButton);
@@ -513,9 +527,256 @@ namespace Breathe.UI
             }
 
             Style(_levelSelectBackButton);
+            Style(_howToPlayBackButton);
             Style(_settingsBackButton);
             Style(_creditsBackButton);
         }
+
+        /// <summary>Creates How To Play button and panel dynamically if not assigned in Inspector.</summary>
+        void EnsureHowToPlayButtonAndPanel()
+        {
+            // Find the NavButtons parent
+            RectTransform navStack = FindHomeNavStackRect();
+            if (navStack == null) return;
+
+            // Create button if not assigned
+            if (_howToPlayButton == null && _settingsButton != null)
+            {
+                var btnGo = Instantiate(_settingsButton.gameObject, navStack);
+                btnGo.name = "BTN_HowToPlay";
+
+                // Position after Level Select (index 1, since Level Select is 0)
+                int targetIdx = 1;
+                if (_levelSelectButton != null)
+                    targetIdx = _levelSelectButton.transform.GetSiblingIndex() + 1;
+                btnGo.transform.SetSiblingIndex(targetIdx);
+
+                _howToPlayButton = btnGo.GetComponent<Button>();
+                _howToPlayButton.onClick.RemoveAllListeners();
+
+                var tmp = btnGo.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (tmp != null)
+                    tmp.text = "HOW  TO  PLAY";
+            }
+
+            // Create panel if not assigned
+            if (_howToPlayPanel == null && _settingsPanel != null)
+            {
+                var panelGo = Instantiate(_settingsPanel, _settingsPanel.transform.parent);
+                panelGo.name = "HowToPlayPanel";
+                _howToPlayPanel = panelGo;
+
+                // Remove the SettingsManager component - we'll build custom content
+                var settingsMgr = panelGo.GetComponent<SettingsManager>();
+                if (settingsMgr != null)
+                    Destroy(settingsMgr);
+
+                // Find and repurpose the back button
+                foreach (var btn in panelGo.GetComponentsInChildren<Button>(true))
+                {
+                    var label = btn.GetComponentInChildren<TextMeshProUGUI>(true);
+                    if (label != null && label.text.ToUpperInvariant().Contains("BACK"))
+                    {
+                        _howToPlayBackButton = btn;
+                        _howToPlayBackButton.onClick.RemoveAllListeners();
+                        break;
+                    }
+                }
+
+                // Clear existing content and build How To Play content
+                BuildHowToPlayPanelContent(panelGo);
+            }
+        }
+
+        void BuildHowToPlayPanelContent(GameObject panel)
+        {
+            // Find or create content area
+            var rt = panel.GetComponent<RectTransform>();
+            if (rt == null) return;
+
+            // Destroy all children except back button
+            var toDestroy = new List<GameObject>();
+            foreach (Transform child in panel.transform)
+            {
+                if (_howToPlayBackButton != null && child.gameObject == _howToPlayBackButton.gameObject)
+                    continue;
+                // Keep panel background images
+                if (child.GetComponent<UnityEngine.UI.Image>() != null && child.GetComponent<Button>() == null 
+                    && child.childCount == 0)
+                    continue;
+                toDestroy.Add(child.gameObject);
+            }
+            foreach (var go in toDestroy)
+                Destroy(go);
+
+            // Add border frame + opaque backdrop
+            var borderGo = new GameObject("HTP_Border", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            borderGo.transform.SetParent(panel.transform, false);
+            var borderRt = borderGo.GetComponent<RectTransform>();
+            borderRt.anchorMin = new Vector2(0.02f, 0.02f);
+            borderRt.anchorMax = new Vector2(0.98f, 0.98f);
+            borderRt.offsetMin = Vector2.zero;
+            borderRt.offsetMax = Vector2.zero;
+            var borderImg = borderGo.GetComponent<Image>();
+            borderImg.color = MenuVisualTheme.PanelBorder; // Cream/beige border
+            borderImg.raycastTarget = false;
+
+            var backdropGo = new GameObject("HTP_Backdrop", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            backdropGo.transform.SetParent(borderGo.transform, false);
+            var backdropRt = backdropGo.GetComponent<RectTransform>();
+            backdropRt.anchorMin = Vector2.zero;
+            backdropRt.anchorMax = Vector2.one;
+            const float borderPx = 3f;
+            backdropRt.offsetMin = new Vector2(borderPx, borderPx);
+            backdropRt.offsetMax = new Vector2(-borderPx, -borderPx);
+            var backdropImg = backdropGo.GetComponent<Image>();
+            backdropImg.color = new Color(0.06f, 0.12f, 0.10f, 0.98f); // Dark sea-green, very opaque
+            backdropImg.raycastTarget = false;
+
+            borderGo.transform.SetAsFirstSibling();
+
+            // Create title
+            var titleGo = new GameObject("HTP_Title", typeof(RectTransform));
+            titleGo.transform.SetParent(panel.transform, false);
+            var titleRt = titleGo.GetComponent<RectTransform>();
+            titleRt.anchorMin = new Vector2(0, 1);
+            titleRt.anchorMax = new Vector2(1, 1);
+            titleRt.pivot = new Vector2(0.5f, 1);
+            titleRt.anchoredPosition = new Vector2(0, -14);
+            titleRt.sizeDelta = new Vector2(0, 52);
+
+            var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
+            titleTmp.text = "HOW  TO  PLAY";
+            titleTmp.fontSize = 44;
+            titleTmp.fontStyle = FontStyles.Bold;
+            titleTmp.color = MenuVisualTheme.ChromeHeader;
+            titleTmp.alignment = TextAlignmentOptions.Center;
+            titleTmp.font = Resources.Load<TMP_FontAsset>("ARCADECLASSIC SDF");
+
+            // Create scrollable body content
+            var scrollGo = new GameObject("HTP_Scroll", typeof(RectTransform), typeof(ScrollRect), typeof(Image));
+            scrollGo.transform.SetParent(panel.transform, false);
+            var scrollRt = scrollGo.GetComponent<RectTransform>();
+            scrollRt.anchorMin = new Vector2(0.035f, 0.10f);
+            scrollRt.anchorMax = new Vector2(0.965f, 0.86f);
+            scrollRt.offsetMin = Vector2.zero;
+            scrollRt.offsetMax = Vector2.zero;
+            var scrollImg = scrollGo.GetComponent<Image>();
+            scrollImg.color = new Color(0f, 0f, 0f, 0.01f);
+            scrollImg.raycastTarget = true;
+
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+            viewportGo.transform.SetParent(scrollGo.transform, false);
+            var vpRt = viewportGo.GetComponent<RectTransform>();
+            vpRt.anchorMin = Vector2.zero;
+            vpRt.anchorMax = Vector2.one;
+            vpRt.offsetMin = Vector2.zero;
+            vpRt.offsetMax = new Vector2(-14f, 0f); // Room for scrollbar
+            var vpImg = viewportGo.GetComponent<Image>();
+            vpImg.color = Color.clear;
+            vpImg.raycastTarget = false;
+
+            var bodyGo = new GameObject("HTP_Body", typeof(RectTransform), typeof(ContentSizeFitter));
+            bodyGo.transform.SetParent(viewportGo.transform, false);
+            var bodyRt = bodyGo.GetComponent<RectTransform>();
+            bodyRt.anchorMin = new Vector2(0f, 1f);
+            bodyRt.anchorMax = new Vector2(1f, 1f);
+            bodyRt.pivot = new Vector2(0.5f, 1f);
+            bodyRt.sizeDelta = new Vector2(0f, 0f);
+            var bodyCsf = bodyGo.GetComponent<ContentSizeFitter>();
+            bodyCsf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            bodyCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var bodyTmp = bodyGo.AddComponent<TextMeshProUGUI>();
+            bodyTmp.text = GetHowToPlayText();
+            bodyTmp.fontSize = 26;
+            bodyTmp.lineSpacing = 6f;
+            bodyTmp.color = MenuVisualTheme.ChromeHeader;
+            bodyTmp.alignment = TextAlignmentOptions.Top;
+            bodyTmp.font = Resources.Load<TMP_FontAsset>("ARCADECLASSIC SDF");
+            bodyTmp.textWrappingMode = TextWrappingModes.Normal;
+            bodyTmp.overflowMode = TextOverflowModes.Overflow;
+
+            // Scrollbar
+            var scrollbarGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            scrollbarGo.transform.SetParent(scrollGo.transform, false);
+            var sbRt = scrollbarGo.GetComponent<RectTransform>();
+            sbRt.anchorMin = new Vector2(1f, 0f);
+            sbRt.anchorMax = new Vector2(1f, 1f);
+            sbRt.pivot = new Vector2(1f, 0.5f);
+            sbRt.sizeDelta = new Vector2(10f, 0f);
+            sbRt.anchoredPosition = Vector2.zero;
+            var sbImg = scrollbarGo.GetComponent<Image>();
+            sbImg.color = new Color(0.15f, 0.2f, 0.18f, 0.6f);
+
+            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleGo.transform.SetParent(scrollbarGo.transform, false);
+            var handleRt = handleGo.GetComponent<RectTransform>();
+            handleRt.anchorMin = Vector2.zero;
+            handleRt.anchorMax = Vector2.one;
+            handleRt.offsetMin = new Vector2(2f, 2f);
+            handleRt.offsetMax = new Vector2(-2f, -2f);
+            var handleImg = handleGo.GetComponent<Image>();
+            handleImg.color = MenuVisualTheme.SliderFill;
+
+            var scrollbar = scrollbarGo.GetComponent<Scrollbar>();
+            scrollbar.handleRect = handleRt;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scrollbar.targetGraphic = handleImg;
+
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+            scroll.viewport = vpRt;
+            scroll.content = bodyRt;
+            scroll.verticalScrollbar = scrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
+            // Create back button if missing
+            if (_howToPlayBackButton == null)
+            {
+                var backGo = new GameObject("BTN_HowToPlayBack", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+                backGo.transform.SetParent(panel.transform, false);
+                var backRt = backGo.GetComponent<RectTransform>();
+                backRt.anchorMin = new Vector2(0.5f, 0f);
+                backRt.anchorMax = new Vector2(0.5f, 0f);
+                backRt.pivot = new Vector2(0.5f, 0f);
+                backRt.sizeDelta = new Vector2(248f, 36f);
+                backRt.anchoredPosition = new Vector2(0f, 12f);
+
+                MenuUiChrome.StyleButtonLikeSettings(backGo);
+                _howToPlayBackButton = backGo.GetComponent<Button>();
+                _howToPlayBackButton.onClick.AddListener(HideActivePanel);
+
+                var backTextGo = new GameObject("Text", typeof(RectTransform));
+                backTextGo.transform.SetParent(backGo.transform, false);
+                var backTextRt = backTextGo.GetComponent<RectTransform>();
+                backTextRt.anchorMin = Vector2.zero;
+                backTextRt.anchorMax = Vector2.one;
+                backTextRt.offsetMin = Vector2.zero;
+                backTextRt.offsetMax = Vector2.zero;
+
+                var backTmp = backTextGo.AddComponent<TextMeshProUGUI>();
+                backTmp.text = "BACK";
+                backTmp.font = Resources.Load<TMP_FontAsset>("ARCADECLASSIC SDF");
+                backTmp.fontSize = 20f;
+                backTmp.alignment = TextAlignmentOptions.Center;
+                backTmp.color = MenuVisualTheme.ChromeHeader;
+
+                MenuUiChrome.AttachStandardButtonHover(backGo);
+            }
+
+            // Make sure back button is on top
+            if (_howToPlayBackButton != null)
+                _howToPlayBackButton.transform.SetAsLastSibling();
+        }
+
+        /// <summary>
+        /// Returns How To Play text. Edit the shared source in SettingsManager.HowToPlayTextRaw().
+        /// </summary>
+        static string GetHowToPlayText() => SettingsManager.HowToPlayTextRaw();
 
         void ApplyHomeScreenProminence()
         {
@@ -526,25 +787,25 @@ namespace Breathe.UI
             }
             if (_titleText != null)
             {
-                const float minTitle = 52f;
-                const float maxTitle = 72f;
-                _titleText.fontSize = Mathf.Clamp(_titleText.fontSize * 1.1f, minTitle, maxTitle);
+                const float minTitle = 62f;
+                const float maxTitle = 88f;
+                _titleText.fontSize = Mathf.Clamp(_titleText.fontSize * 1.15f, minTitle, maxTitle);
             }
             RectTransform nav = FindHomeNavStackRect();
             if (nav != null)
             {
                 var vlg = nav.GetComponent<VerticalLayoutGroup>();
                 if (vlg != null)
-                    vlg.spacing = Mathf.Clamp(Mathf.Max(vlg.spacing, 15f) * 1.06f, 15f, 26f);
+                    vlg.spacing = Mathf.Clamp(Mathf.Max(vlg.spacing, 16f) * 1.1f, 16f, 28f);
                 var sd = nav.sizeDelta;
                 nav.sizeDelta = new Vector2(
-                    Mathf.Max(sd.x * 1.06f, 222f),
-                    Mathf.Max(sd.y * 1.1f, 260f));
+                    Mathf.Max(sd.x * 1.12f, 260f),
+                    Mathf.Max(sd.y * 1.15f, 310f));
                 foreach (Transform child in nav)
                 {
                     var label = child.GetComponentInChildren<TextMeshProUGUI>(true);
                     if (label == null) continue;
-                    label.fontSize = Mathf.Clamp(label.fontSize * 1.2f, 21f, 32f);
+                    label.fontSize = Mathf.Clamp(label.fontSize * 1.25f, 24f, 38f);
                 }
             }
         }
@@ -659,7 +920,7 @@ namespace Breathe.UI
 
             RectTransform navStack = FindHomeNavStackRect();
             // Pushes the nav column down from its scene Y so the title card and nav card never read as one merged plate.
-            const float titleNavGroupSeparationPx = 70f;
+            const float titleNavGroupSeparationPx = 55f;
             if (navStack != null)
             {
                 var ap = navStack.anchoredPosition;
@@ -890,6 +1151,7 @@ namespace Breathe.UI
         private void HideAllPanels()
         {
             if (_levelSelectPanel != null) _levelSelectPanel.SetActive(false);
+            if (_howToPlayPanel != null) _howToPlayPanel.SetActive(false);
             if (_settingsPanel != null) _settingsPanel.SetActive(false);
             if (_creditsPanel != null) _creditsPanel.SetActive(false);
             _activePanel = null;
@@ -898,7 +1160,7 @@ namespace Breathe.UI
         private void SetNavButtonsInteractable(bool interactable)
         {
             Button[] nav = {
-                _levelSelectButton, _settingsButton, _creditsButton, _quitButton
+                _levelSelectButton, _howToPlayButton, _settingsButton, _creditsButton, _quitButton
             };
             foreach (var b in nav)
             {
@@ -922,10 +1184,10 @@ namespace Breathe.UI
         const float LevelSelectLayoutTopPadding = 20f;
 
         /// <summary>Sailboat column wider than legacy square (~grid height); reserve so horizontal padding stays honest.</summary>
-        const float LevelSelectFeaturedWidthScale = 1.13f;
+        const float LevelSelectFeaturedWidthScale = 0.95f;
 
         /// <summary>Sailboat taller than grid block ratio (clamped to row height).</summary>
-        const float LevelSelectFeaturedHeightScale = 1.07f;
+        const float LevelSelectFeaturedHeightScale = 0.92f;
 
         private void DisableConflictingLayoutOnGridParent()
         {
@@ -990,9 +1252,9 @@ namespace Breathe.UI
             const float rowTopInset = 8f;
 
             // 2×2: narrower cells, taller cells; compactH may shrink if row doesn’t fit Sailboat/feature height.
-            float compactW = 252f;
-            float compactH = 250f;
-            const float cardGap = 16f;
+            float compactW = 280f;
+            float compactH = 275f;
+            const float cardGap = 14f;
             var gridPadding = new RectOffset(8, 8, 10, 10);
 
             float tentativeBlockH = gridPadding.top + 2f * compactH + cardGap + gridPadding.bottom;
@@ -1000,7 +1262,7 @@ namespace Breathe.UI
             if (availRowH > 2f && tentativeBlockH > availRowH)
             {
                 float scale = Mathf.Max(0.72f, (availRowH - 8f) / tentativeBlockH);
-                compactH = Mathf.Round(Mathf.Clamp(compactH * scale, 128f, 270f));
+                compactH = Mathf.Round(Mathf.Clamp(compactH * scale, 140f, 300f));
             }
 
             float gridBlockWidth = gridPadding.left + 2f * compactW + cardGap + gridPadding.right;
@@ -1117,9 +1379,8 @@ namespace Breathe.UI
         }
 
         const string DefaultCreditsSoloRolesLine =
-            "Creator and solo developer — programming & systems · UX/UI & direction\n"
-            + "Concept through release · production · audio integration\n"
-            + "Third-party content (see TOOLS)";
+            "Programming, design, art direction, audio\n"
+            + "A personal project, built with care";
 
         const string DefaultCreditsBuildBlurb =
             "Developed in Unity 6 (C#)\n"
@@ -1262,21 +1523,21 @@ namespace Breathe.UI
             var titleTmp = headerTr.GetComponent<TextMeshProUGUI>();
             if (titleTmp == null) return;
 
-            const float titleSize = 58f;
-            const float sectionHeaderSize = 23f;
+            const float titleSize = 62f;
+            const float sectionHeaderSize = 32f;
             // Identity line (name / studio) slightly larger than bulleted list body.
-            const float bodySizePrimary = 17f;
-            const float bodySizeList = 14f;
+            const float bodySizePrimary = 26f;
+            const float bodySizeList = 22f;
             const float titleChar = 2f;
             const float headChar = 4f;
             const float headWord = 2f;
-            const float bodyCharPrimary = 7f;
-            const float bodyWordPrimary = 5f;
-            const float bodyLinePrimary = 17f;
-            const float bodyCharList = 6f;
-            const float bodyWordList = 4f;
-            const float bodyLineList = 15f;
-            const float vlgSpacing = 3f;
+            const float bodyCharPrimary = 6f;
+            const float bodyWordPrimary = 4f;
+            const float bodyLinePrimary = 14f;
+            const float bodyCharList = 5f;
+            const float bodyWordList = 3f;
+            const float bodyLineList = 12f;
+            const float vlgSpacing = 6f;
 
             DestroyIfExists(_creditsPanel.transform, "CreditsBody");
             DestroyIfExists(_creditsPanel.transform, "CreditsScroll");
@@ -1537,7 +1798,7 @@ namespace Breathe.UI
             // --- ENGINE — no hyphen bullets here (avoid “-— URP” reading as artifact); spell out Render Pipeline.
             AddSectionHeader("ENGINE");
             AddSpacer(6f);
-            AddBody("Unity 6\nUniversal Render Pipeline\nC#", false);
+            AddBody("Unity 6 WITH C#", false);
 
             headerTr.SetAsFirstSibling();
             scrollRoot.transform.SetAsFirstSibling();
